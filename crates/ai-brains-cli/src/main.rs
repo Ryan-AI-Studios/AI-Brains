@@ -102,6 +102,73 @@ mod tests {
         }
     }
 
+    /// T335 AC5: graph has rebuild/neighbors/hierarchy/session/update; no repair/relink.
+    #[test]
+    #[allow(non_snake_case)]
+    fn graph_cli__repair_relink__unknown_subcommand() {
+        use clap::error::ErrorKind;
+        let repair = match super::Cli::try_parse_from(["ai-brains", "graph", "repair"]) {
+            Ok(_) => panic!("graph repair must not parse"),
+            Err(e) => e,
+        };
+        let repair_msg = repair.to_string();
+        assert!(
+            matches!(
+                repair.kind(),
+                ErrorKind::MissingSubcommand | ErrorKind::InvalidSubcommand
+            ),
+            "graph repair kind {:?}: {repair_msg}",
+            repair.kind()
+        );
+        assert!(
+            repair_msg.contains("unrecognized subcommand")
+                || (repair_msg.contains("rebuild") && repair_msg.contains("neighbors")),
+            "graph repair must be unknown: {repair_msg}"
+        );
+        let relink = match super::Cli::try_parse_from(["ai-brains", "graph", "relink"]) {
+            Ok(_) => panic!("graph relink must not parse"),
+            Err(e) => e,
+        };
+        let relink_msg = relink.to_string();
+        assert!(
+            matches!(
+                relink.kind(),
+                ErrorKind::MissingSubcommand | ErrorKind::InvalidSubcommand
+            ),
+            "graph relink kind {:?}: {relink_msg}",
+            relink.kind()
+        );
+        let rebuild =
+            match super::Cli::try_parse_from(["ai-brains", "graph", "rebuild", "--dry-run"]) {
+                Ok(c) => c,
+                Err(e) => panic!("graph rebuild --dry-run must parse: {e}"),
+            };
+        match *rebuild.command {
+            super::Commands::Graph { command, .. } => match command {
+                super::GraphCommands::Rebuild { dry_run, .. } => assert!(dry_run),
+                _ => panic!("expected GraphCommands::Rebuild"),
+            },
+            _ => panic!("expected Commands::Graph"),
+        }
+        let dummy = "00000000-0000-0000-0000-000000000001";
+        assert!(
+            super::Cli::try_parse_from(["ai-brains", "graph", "neighbors", dummy]).is_ok(),
+            "graph neighbors must parse"
+        );
+        assert!(
+            super::Cli::try_parse_from(["ai-brains", "graph", "hierarchy", dummy]).is_ok(),
+            "graph hierarchy must parse"
+        );
+        assert!(
+            super::Cli::try_parse_from(["ai-brains", "graph", "session", dummy]).is_ok(),
+            "graph session must parse"
+        );
+        assert!(
+            super::Cli::try_parse_from(["ai-brains", "graph", "update"]).is_ok(),
+            "graph update must parse"
+        );
+    }
+
     /// T208 AC7: default filter must pin `ai_brains_graph=warn` (F8).
     #[test]
     #[allow(non_snake_case)]

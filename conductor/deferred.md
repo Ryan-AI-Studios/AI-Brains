@@ -2,6 +2,45 @@
 
 Tracks deferred from T142. Append-only; strike through when promoted to a real track.
 
+### T335 implement residuals (2026-08-31) — PINNED_IN_PROJECT projector
+
+| Item | Disposition |
+|------|-------------|
+| Live `2ba85180-30ea-5ef6-800a-dbbc376392c2` neighbors `[]` until owner `graph rebuild` | **Defer** F5 — mutate is owner-confirm; new ingest gets the edge immediately |
+| `ledgerful verify --scope full` workspace nextest 600s step timeout | **Observed** — equivalent nextest **3801** passed in `dev-check.ps1` (`NEXTEST_TEST_THREADS=2`) |
+| FEATURE TX | `b4fc0d23-8db6-430d-806e-e3142170f75f` |
+
+### T335 fold-in (2026-08-31) — `agy-review.md` + `opencode-review.md`
+
+| Item | Disposition |
+|------|-------------|
+| OpenCode M1 `graph_edge.label` CHECK no `PINNED_IN_PROJECT` | **Folded** F23 / AC13 — migration **0029** (0022 pattern; not 0023 filename) |
+| Agy m1 AC1 outgoing direction | **Folded** AC1 `direction == "outgoing"` |
+| OpenCode m1 §2.3 path slips | **Folded** cli `graph_density.rs` + tests `graph_human_cli.rs` |
+| OpenCode m2 pinned/preflight +1 | **Folded** Phase 0 recapture |
+| OpenCode m3 AC2 both-Some | **Folded** AC2; keep legacy projector test stay-green |
+| OpenCode O1 T317 edge-seeded | **Partial** F2 stands; §5.3 |
+| Agy O1/O2; OpenCode O2 | **Already** F4 / F15 / §2.1 |
+| last-PR `#263` Cursor | **Affirm** T341 — no new leftover |
+| Agy/OpenCode B | None |
+| Agy m / OpenCode M+m | **1 / 1+3** — M1 + minors folded |
+| DOCS TX | `f9e7d850-19f3-457f-8f94-5ba481369f7b` |
+
+### T335 full plan (2026-08-31) — PINNED_IN_PROJECT projector + T341 mint
+
+| Item | Disposition |
+|------|-------------|
+| Placeholder: CLI pin without session → orphans | **Corrected** — `pin.rs` requires SESSION_ID. Hole is T70 `session_id: None` + projector skip of `project_id` |
+| Placeholder F2 compensating `graph repair` | **Decline** — Fowler rebuild; payload already has `project_id`. T300 `graph rebuild` |
+| T70 symbol pins UUID v5 / live `2ba85180` `neighbors=[]` | **Absorb** F1 / AC1 |
+| `d960e4ce` zero-edge | **Stale** — now RECALLS incoming |
+| T308 projector more-edges | **Absorb** F1; floors / Sparse remediator frozen |
+| last-PR `#263` Bugbot Unix Cursor slug | **Mint T341** |
+| T336–T340 | **Not stolen** (T340 problem text corrected) |
+| Dependabot `#250–#256` | **Decline** |
+| Live vault E/N ≥ 0.50 | **Decline** AC11 |
+| DOCS TX | `9f750c28-c9b9-4614-b368-0106dece6f69` |
+
 ### T334 implement residuals (2026-08-31) — Cursor adapter + six-source nightly
 
 | Item | Disposition |

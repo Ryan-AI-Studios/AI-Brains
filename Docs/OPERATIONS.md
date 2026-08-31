@@ -950,6 +950,8 @@ ai-brains graph rebuild
 ai-brains graph rebuild --format json
 ```
 
+**T335 session-less symbol pins:** T70 `ledgerful:symbol` memories are `MemoryPinned` with `session_id` none and `project_id` set. After this track the projector emits `PINNED_IN_PROJECT` (memory → project). **New** ingest gets the edge immediately; **historical** nodes need `graph rebuild` (T300 `--dry-run` first; daemon Stopped to mutate). There is **no** `graph repair` / `memory relink` command. CLI `pin` already requires `AI_BRAINS_SESSION_ID`.
+
 Mutating rebuild fail-closes with exit **1** while the daemon is up (message names `ai-brains daemon stop` / `sc stop AI-Brains-Daemon`). Success prints the density report on stdout (human default) and exits **0** even when still `sparse` — rebuild replays the same projector; typed-lineage floor **0.50** is not retuned. `--dry-run` never calls `GraphRebuilder`; JSON dry-run is the health object only (no `[dry-run]` line).
 
 Do **not** treat non-zero `nodes` alone as healthy — live dogfood historically showed ~1300 nodes / ~95 edges (`E/N ≈ 0.07`) while still reporting `live` before T213.
