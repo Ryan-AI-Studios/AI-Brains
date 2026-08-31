@@ -2,6 +2,53 @@
 
 Tracks deferred from T142. Append-only; strike through when promoted to a real track.
 
+### T332 implement residuals (2026-08-30) — whoami detect_source + slug-miss env-fallback
+
+| Item | Disposition |
+|------|-------------|
+| PATH until owner `cargo install` | **Deferred** F18 — source has T332; PATH still **0.1.3** |
+| Live LexBase / AI-Brains already path-aligned | **Deferred** AC14 honesty; hermetic AC3 is SoT |
+| `10d4bff5` hashed row still listed (count volatile; **18** this pass, plan 17, mint 2) | **Ops-only** F6 |
+| Doctor still ok on path-null env-fallback | **Deferred** F10 |
+| Daily commands silent until whoami / scope JSON | **Deferred** F28 |
+| Leftover `7d97a456` multi-root / crawlx | T259/T276 ops — not this |
+| No `project detect --json` source field | T206 residual |
+| T307 reqwest/tower-http | Still **Blocked** |
+| Codex CX2 P3 bookkeeping (plan AC17 checkbox lag) | **Closed** — post-`--cwd` `dev-check.ps1` nextest **3762** passed |
+| BUGFIX TX | `052628a2-a6a8-4527-b4e1-baa5dcc3a747` |
+
+### T332 fold-in (2026-08-30) — `agy-review.md` + `opencode-review.md`
+
+| Item | Disposition |
+|------|-------------|
+| Agy m1 human `detect_source` column pad | **Folded** F35 / §5.2a / AC4 exact `detect_source:         env` (9 spaces; value col 23) |
+| Agy O1 four-tier token precedence | **Already** F8 / AC8 / AC9 |
+| Agy O2 interpolated `git_toplevel` else cwd | **Already** F3 / AC3 |
+| OpenCode m1 red-commit stay-green names AC6/AC11/AC13 | **Folded** §10 + plan Red split — those are **new** asserts (`WhoamiReport` has no `detect_source` on HEAD) |
+| OpenCode O1 debug-bin size / hotspot / doctor presentation | **Already** Phase 0 snapshot; ranks unchanged |
+| OpenCode O2 `detect()` `:565–660` vs `:661` | **Folded** §2.3 `:565–661` |
+| last-PR `#260` Cursor | **Affirm** N/A empty — no T333 |
+| Agy/OpenCode B / M | None |
+| Agy m / OpenCode m | **1 each** — both folded |
+| DOCS TX | `5fa1e31e-3991-4bf2-913f-e4b398b65560` |
+
+### T332 full plan (2026-08-30) — whoami detect_source + slug-miss env-fallback honesty
+
+| Item | Disposition |
+|------|-------------|
+| T328 §11 env-in-vault detect fallback hides slug miss (`project.rs:338–350`) | **Absorb** F2/F3/F5/F8 / AC3 / AC7 |
+| T328 leftover `10d4bff5` path null | **Ops-only** F6 — decline remediator; Manual records volatile count (**17** this pass, mint 2) |
+| T206 detect env-fallback exit 0 + stderr warn | **Freeze** F1/F9 / AC10 — do not skip step 3 |
+| T328 collision / mismatch | **Freeze** F4 / AC5 |
+| Skip `resolve_detect` step 3 when slug misses | **Decline** F1 — would reopen T206 |
+| Memory-count heuristic / merge hashed row | **Decline** F1 / F6 |
+| last-PR Cursor `#260` | **N/A empty** — no T333 |
+| Open PRs `#250–#256` Dependabot | **Decline** F29 — Phase 0 rescan |
+| T240 F2 / H2 / T307 / clap 5 / PATH install | **Decline** F7 / F11 / F18 / F19 |
+| T331 list mix / T259 `7d97a456` | **Not stolen** F22 / F23 |
+| `ISSUES.md` | **Does not exist** |
+| DOCS TX | `2d3152d0-a062-4bf0-acb5-f13ea1de05c3` |
+
 ### T331 implement residuals (2026-08-30) — memory list GLOB-empty recency + honesty
 
 | Item | Disposition |
@@ -11,7 +58,7 @@ Tracks deferred from T142. Append-only; strike through when promoted to a real t
 | Lowercase pin older than over-fetch window | **Deferred** F8 — `--limit 5` scans 51 newest |
 | Process Other still fills first page | **Deferred** F7 does not grow process-prefix lists |
 | Briefing still 0 samples | T288 LIMIT-32 — not this |
-| T332 detect env-fallback | **Not stolen** F15 |
+| ~~T332 detect env-fallback~~ | **T332 Completed** |
 | F6 later-slot chrome when pass-1 non-empty | **Deferred** T331-F3 — authority still slot 1; prefer-fill freeze |
 | Sparse `--tag` over-fetch empty table while `total>0` | **Out of scope** — T216 F43 / store freeze F5; Codex CX1 |
 | `cross_repo_bridge_smoke` `ledgerful init` hang (120s) | **Unrelated** — pre-existing e2e; T331 does not touch it; GHA likely skips (no ledgerful). Local nextest **3751** passed excluding it |
@@ -44,7 +91,7 @@ Tracks deferred from T142. Append-only; strike through when promoted to a real t
 | T287 store GLOB / pass-1 over-fetch starve | **Freeze** F5 / AC4 — already shipped |
 | T288 briefing LIMIT-32 / empty samples | **Not stolen** F14 |
 | T330 Index chrome skip / F4 / Session 20 | **Not stolen** F15 — analog string copy only |
-| T332 detect env-fallback / `10d4bff5` | **Not stolen** F15 |
+| ~~T332 detect env-fallback / `10d4bff5`~~ | **T332 Completed** — whoami `detect_source`; leftover ops-only F6 |
 | Buried `decision:` / LIKE-GLOB / USER/SYSTEM TAGS | **Decline** F17 / F18 / F27 |
 | last-PR Cursor `#259` | **N/A empty** — no T333 |
 | Open PRs `#250–#256` Dependabot | **Decline** F29 — Phase 0 rescan |
@@ -60,7 +107,7 @@ Tracks deferred from T142. Append-only; strike through when promoted to a real t
 | Live vault still 0 in-context decisions | **Deferred** F3 honesty; hermetic AC1 SoT; Manual AC17 pass-with-observed-data (F4 present; numbered not 15× `## Objective`) |
 | `+K` only among last 20 turns | **Deferred** F8 by design |
 | Process Other still fills Index | **Deferred** F2 does not grow process-prefix lists (T316) |
-| T331 `memory list` GLOB-empty / T332 detect / T288 briefing LIMIT-32 | **Not stolen** F13 |
+| T331 `memory list` GLOB-empty / ~~T332 detect~~ / T288 briefing LIMIT-32 | T331 Completed; **T332 Completed**; T288 not stolen |
 | Pretty formatter still in CLI `preflight.rs` | Hotspot #7 — no pretty growth |
 | T250 pretty AC10 fixture pinned long-seed first | Stay-green after fetch 20 + pretty 6; not a product reopen |
 | FEATURE TX | `c95f2b41-0917-4586-a46e-cd66c6802361` |
@@ -95,7 +142,7 @@ Tracks deferred from T142. Append-only; strike through when promoted to a real t
 | T329 skip does not SQL-backfill a 4th Recent | **Decline** F7 |
 | T329 skip when small fits (AC1) | **Freeze** F11 / AC10 |
 | T327 skip-oversized / slot cap / F4 **string** / Other cap 3 / F56/F57 | **Freeze** F9/F10 |
-| T331 `memory list` GLOB-empty / T332 detect / T288 briefing LIMIT-32 | **Not stolen** F13 |
+| T331 `memory list` GLOB-empty / ~~T332 detect~~ / T288 briefing LIMIT-32 | T331 Completed; **T332 Completed**; T288 not stolen |
 | Buried `decision:` / classifier widen / LIKE-GLOB | **Decline** F12 / F29 |
 | last-PR Cursor `#258` | **N/A empty** — no T333 |
 | Open PRs `#250–#256` Dependabot | **Decline** F28 — Phase 0 rescan |
@@ -110,8 +157,8 @@ Tracks deferred from T142. Append-only; strike through when promoted to a real t
 | ~~T327 live Index F4 + recency chrome (4753 pins, in-context decisions 0)~~ | **T330 Planned** — F1–F5 / AC1 / AC3 |
 | ~~T329 truncate-whale-to-fit / skip no 4th SQL backfill / Session LIMIT 5~~ | **T330 Planned** — fetch 20 + packed-empty truncate; **decline** 4th SQL |
 | ~~T287 R1-1 / T316 F27 `memory list` GLOB+retain empty → recency first page~~ | **T331 Planned** — empty-GLOB row-skip + F4 honesty; JSON recency freeze |
-| T328 env-in-vault detect fallback hides slug miss (`project.rs:338–350`) | **Mint T332** |
-| T328 leftover `10d4bff5` 2-mem path null | **Mint T332** (ops vs remediator on `/plan-track 332`) |
+| ~~T328 env-in-vault detect fallback hides slug miss (`project.rs:338–350`)~~ | **T332 Completed** — F2/F3/F5/F8 / AC3 / AC7 |
+| ~~T328 leftover `10d4bff5` 2-mem path null~~ | **T332 Completed** — ops-only F6 (no remediator) |
 | PATH `cargo install` | **Decline as tracks** — owner ops; every recent residual |
 | Doctor path-null ok / daily silent until whoami | **Decline** — T328 F11/F29 by design |
 | Leftover `7d97a456` | **Not stolen** — T259/T276 ops |
@@ -130,7 +177,7 @@ Tracks deferred from T142. Append-only; strike through when promoted to a real t
 | ~~Whale-only Recent omitted when body > leftover~~ | T329 F6; **T330 Planned** packed-empty truncate (F6/AC11) |
 | Skip does not SQL-backfill a 4th Recent row | **Deferred** F23 — T330 **declines** (F7) |
 | ~~Live Index still F4 + recency fill~~ | **T330 Planned** |
-| T328 leftover `10d4bff5` | T328 residual |
+| ~~T328 leftover `10d4bff5`~~ | **T332 Completed** — ops-only F6 |
 | Pretty formatter still in CLI `preflight.rs` | Hotspot #7 — no pretty growth |
 | `word_count` vs `content_word_count` mix at assembly | Pre-existing; F8 freeze |
 | BUGFIX TX | `b50242d4-ce60-45d5-899e-2f1924c6dc0b` |
@@ -175,11 +222,11 @@ Tracks deferred from T142. Append-only; strike through when promoted to a real t
 |------|-------------|
 | PATH until owner `cargo install` | **Deferred** F19 — source has T328; PATH still **0.1.3** |
 | Live LexBase / AI-Brains already aligned | **Deferred** AC12 honesty; hermetic AC3 is SoT |
-| `10d4bff5` 2-mem hashed row, path null | **Deferred** F6 — do not merge this track |
+| ~~`10d4bff5` 2-mem hashed row, path null~~ | **T332 Completed** — ops-only F6 (still no merge; count volatile **17**) |
 | Doctor still ok on path-null env≠detect | **Deferred** F11 |
 | Daily commands silent until whoami / scope JSON | **Deferred** F29 |
 | Leftover `7d97a456` multi-root | T259/T276 ops — not this |
-| Env-in-vault detect fallback hides a slug miss | **Deferred** §11 / F10 (OpenCode O2) |
+| ~~Env-in-vault detect fallback hides a slug miss~~ | **T332 Completed** — F2/F3/F5/F8 |
 | T329 whale-Recent | **Not stolen** — Pending placeholder |
 | BUGFIX TX | `5f6c5b9c-e1c0-4add-a5c1-eb9534cc12f0` |
 

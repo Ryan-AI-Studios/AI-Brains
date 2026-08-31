@@ -3,8 +3,10 @@
 //! Record at vault-open; flush human SOOT from `handle_cli_result` only when
 //! the command did not emit machine JSON. `print_json_stdout` lives here (F8/F11).
 
+use crate::commands::project::{DetectOutcome, env_fallback_warning, is_ambiguous_detect};
 use crate::context::AppContext;
 use serde::Serialize;
+use std::path::Path;
 use std::sync::OnceLock;
 use std::sync::atomic::{AtomicBool, Ordering};
 
@@ -148,6 +150,149 @@ pub(crate) fn maybe_inject_identity_collision_token(
     inject_identity_collision_token(warnings, e, d);
 }
 
+/// T332 F2 — whoami `detect_source` matches detect-id filter (ambiguous → none).
+pub(crate) fn detect_source_label(outcome: Option<&DetectOutcome>) -> &'static str {
+    match outcome {
+        None => "none",
+        Some(o) if is_ambiguous_detect(o) => "none",
+        Some(o) => o.source.as_str(),
+    }
+}
+
+/// T332 F8 — stable machine token for `scope resolve` JSON `warnings[]`.
+pub(crate) fn detect_env_fallback_json_token(env: &str, slug: &str) -> String {
+    format!("project_detect_env_fallback env={env} slug={slug}")
+}
+
+/// Inject the env-fallback token once. Testable without process state.
+pub(crate) fn inject_detect_env_fallback_token(warnings: &mut Vec<String>, env: &str, slug: &str) {
+    if warnings
+        .iter()
+        .any(|w| w.starts_with("project_detect_env_fallback"))
+    {
+        return;
+    }
+    warnings.push(detect_env_fallback_json_token(env, slug));
+}
+
+/// T332 F3 — slug-miss remediations when detect echoed env. `path_display` is git_toplevel else cwd.
+pub(crate) fn slug_miss_env_fallback_remediations(
+    env_id: &str,
+    git_slug: &str,
+    path_display: &str,
+) -> Vec<String> {
+    vec![
+        format!(
+            "Detect fell back to env because git slug {git_slug} matched no vault row (path-alias also missed)."
+        ),
+        "Daily Scope comes from .env / shell AI_BRAINS_PROJECT_ID (not auto-switched).".to_string(),
+        format!("If this env row is this repo: `ai-brains project set-alias {env_id} {git_slug}`."),
+        format!(
+            "If another vault row is this repo: `ai-brains project register-path <other_id> {path_display}` then `ai-brains project adopt-path` (print-only) or `ai-brains project adopt-path --write-env --yes`."
+        ),
+        "Or set AI_BRAINS_PROJECT_ID=<other_id> in project .env if that row is intended."
+            .to_string(),
+        "set-alias is a label; register-path is the filesystem root.".to_string(),
+    ]
+}
+
+/// Whether F3 slug-miss remediations apply (detect env + daily Scope + T206 warn predicate).
+pub(crate) fn should_emit_slug_miss_env_fallback(
+    detect_source: &str,
+    env_project_id: Option<&str>,
+    git_slug: Option<&str>,
+    env_name: &str,
+    env_alias: &str,
+) -> bool {
+    if detect_source != "env" {
+        return false;
+    }
+    let Some(env_id) = non_empty(env_project_id) else {
+        return false;
+    };
+    let Some(slug) = git_slug.filter(|s| !s.is_empty()) else {
+        return false;
+    };
+    env_fallback_warning(slug, env_id, env_name, env_alias).is_some()
+}
+
+/// Path-null env-fallback token only. Skip when mismatch or collision already applies (F8).
+pub(crate) fn maybe_inject_detect_env_fallback_token(
+    warnings: &mut Vec<String>,
+    env: Option<&str>,
+    path: Option<&str>,
+    git_slug: Option<&str>,
+    detect_source: &str,
+) {
+    if warnings.iter().any(|w| {
+        w.starts_with("project_identity_mismatch") || w.starts_with("project_identity_collision")
+    }) {
+        return;
+    }
+    if non_empty(path).is_some() {
+        return;
+    }
+    let Some(e) = non_empty(env) else {
+        return;
+    };
+    let Some(slug) = git_slug.filter(|s| !s.is_empty()) else {
+        return;
+    };
+    if detect_source != "env" {
+        return;
+    }
+    inject_detect_env_fallback_token(warnings, e, slug);
+}
+
+/// Overlay env-fallback token after T328 collision inject (local + daemon JSON).
+///
+/// `cwd` is the scope-resolve target (explicit `--cwd` else process cwd).
+/// Skips `resolve_detect` when env is absent or a path owner is present (F8 / §5.4).
+pub fn inject_detect_env_fallback_warning(
+    warnings: &mut Vec<String>,
+    ctx: &AppContext,
+    cwd: &Path,
+) {
+    if warnings.iter().any(|w| {
+        w.starts_with("project_identity_mismatch") || w.starts_with("project_identity_collision")
+    }) {
+        return;
+    }
+    let args: Vec<String> = std::env::args().collect();
+    if args
+        .iter()
+        .any(|a| a == "--no-project-context" || a == "--global")
+    {
+        return;
+    }
+    let env_owned = std::env::var("AI_BRAINS_PROJECT_ID").ok();
+    let Some(env) = non_empty(env_owned.as_deref()) else {
+        return;
+    };
+    let git = crate::commands::project::collect_git_identity(cwd).unwrap_or_default();
+    let Some(slug) = git.slug.as_deref().filter(|s| !s.is_empty()) else {
+        return;
+    };
+    let path_id =
+        crate::commands::project::resolve_path_alias_for_location(ctx.conn.as_ref(), cwd, &git)
+            .ok()
+            .flatten();
+    if non_empty(path_id.as_deref()).is_some() {
+        return;
+    }
+    let outcome = crate::commands::project::resolve_detect(ctx.conn.as_ref(), cwd)
+        .ok()
+        .flatten();
+    let detect_source = detect_source_label(outcome.as_ref());
+    maybe_inject_detect_env_fallback_token(
+        warnings,
+        Some(env),
+        path_id.as_deref(),
+        Some(slug),
+        detect_source,
+    );
+}
+
 /// Frozen path-absent remediations (F3). `path_display` is git_toplevel else cwd.
 pub(crate) fn identity_collision_remediations_path_absent(
     detect_id: &str,
@@ -169,8 +314,9 @@ pub(crate) fn identity_collision_remediations_path_absent(
 
 /// Overlay collision token after T257 mismatch inject (local + daemon JSON).
 ///
+/// `cwd` is the scope-resolve target (explicit `--cwd` else process cwd).
 /// Skips `resolve_detect` when env is absent or a path owner is present (F8 / §5.3).
-pub fn inject_identity_collision_warning(warnings: &mut Vec<String>, ctx: &AppContext) {
+pub fn inject_identity_collision_warning(warnings: &mut Vec<String>, ctx: &AppContext, cwd: &Path) {
     if warnings
         .iter()
         .any(|w| w.starts_with("project_identity_mismatch"))
@@ -190,18 +336,15 @@ pub fn inject_identity_collision_warning(warnings: &mut Vec<String>, ctx: &AppCo
     let Some(env) = non_empty(env_owned.as_deref()) else {
         return;
     };
-    let Ok(cwd) = std::env::current_dir() else {
-        return;
-    };
-    let git = crate::commands::project::collect_git_identity(&cwd).unwrap_or_default();
+    let git = crate::commands::project::collect_git_identity(cwd).unwrap_or_default();
     let path_id =
-        crate::commands::project::resolve_path_alias_for_location(ctx.conn.as_ref(), &cwd, &git)
+        crate::commands::project::resolve_path_alias_for_location(ctx.conn.as_ref(), cwd, &git)
             .ok()
             .flatten();
     if non_empty(path_id.as_deref()).is_some() {
         return;
     }
-    let detect_id = crate::commands::project::resolve_detect(ctx.conn.as_ref(), &cwd)
+    let detect_id = crate::commands::project::resolve_detect(ctx.conn.as_ref(), cwd)
         .ok()
         .flatten()
         .filter(|o| !o.project.0.is_empty())
@@ -335,6 +478,53 @@ mod tests {
         assert_eq!(
             warnings,
             vec!["project_identity_collision env=e detect=d".to_string()]
+        );
+    }
+
+    fn detect_outcome(
+        source: crate::commands::project::DetectSource,
+        id: &str,
+    ) -> crate::commands::project::DetectOutcome {
+        crate::commands::project::DetectOutcome {
+            project: (id.to_string(), "n".into(), "a".into(), 0),
+            source,
+            notes: Vec::new(),
+            env_warn: None,
+        }
+    }
+
+    #[test]
+    fn detect_source_label__path_alias_git_slug_env_none() {
+        use crate::commands::project::DetectSource;
+        let path = detect_outcome(DetectSource::PathAlias, "p");
+        let slug = detect_outcome(DetectSource::GitSlug, "g");
+        let env = detect_outcome(DetectSource::Env, "e");
+        assert_eq!(detect_source_label(Some(&path)), "path_alias");
+        assert_eq!(detect_source_label(Some(&slug)), "git_slug");
+        assert_eq!(detect_source_label(Some(&env)), "env");
+        assert_eq!(detect_source_label(None), "none");
+    }
+
+    #[test]
+    fn detect_source_label__ambiguous_git_slug_empty_id__none() {
+        use crate::commands::project::DetectSource;
+        let ambiguous = detect_outcome(DetectSource::GitSlug, "");
+        assert_eq!(detect_source_label(Some(&ambiguous)), "none");
+    }
+
+    #[test]
+    fn detect_env_fallback_json_token__stable_no_warning_prefix() {
+        let token = detect_env_fallback_json_token("e", "AI-Brains");
+        assert_eq!(token, "project_detect_env_fallback env=e slug=AI-Brains");
+        assert!(!token.contains("Warning:"));
+        assert!(!token.contains("project_identity_collision"));
+        assert!(!token.contains("project_identity_mismatch"));
+        let mut warnings = Vec::new();
+        inject_detect_env_fallback_token(&mut warnings, "e", "AI-Brains");
+        inject_detect_env_fallback_token(&mut warnings, "e", "AI-Brains");
+        assert_eq!(
+            warnings,
+            vec!["project_detect_env_fallback env=e slug=AI-Brains".to_string()]
         );
     }
 }

@@ -79,7 +79,7 @@ fn run_resolve_local(
         .as_deref()
         .and_then(|s| UserId::from_str(s).ok());
     let input = ScopeResolveInput {
-        cwd,
+        cwd: cwd.clone(),
         explicit_project_id: options.project_id,
         force_personal: options.force_personal,
         personal_user_id,
@@ -96,6 +96,12 @@ fn run_resolve_local(
             crate::commands::identity_warn::inject_identity_collision_warning(
                 &mut wire.warnings,
                 ctx,
+                &cwd,
+            );
+            crate::commands::identity_warn::inject_detect_env_fallback_warning(
+                &mut wire.warnings,
+                ctx,
+                &cwd,
             );
             emit_json(&wire)
         }
@@ -131,6 +137,11 @@ async fn run_resolve_daemon(
         }
     };
     let resp = expect_daemon_ok(format, resp)?;
+    let overlay_cwd = options
+        .cwd
+        .as_deref()
+        .map(PathBuf::from)
+        .unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")));
     match resp {
         DaemonResponse::ScopeResolved(mut wire) => match format {
             OutputFormat::Json => {
@@ -140,6 +151,12 @@ async fn run_resolve_daemon(
                 crate::commands::identity_warn::inject_identity_collision_warning(
                     &mut wire.warnings,
                     ctx,
+                    &overlay_cwd,
+                );
+                crate::commands::identity_warn::inject_detect_env_fallback_warning(
+                    &mut wire.warnings,
+                    ctx,
+                    &overlay_cwd,
                 );
                 emit_json(&wire)
             }

@@ -364,7 +364,7 @@ fn ambiguous_slug_notes(slug: &str, matched: &[ProjectRow]) -> Vec<String> {
 }
 
 /// True when resolve_detect encoded slug ambiguity (empty project id).
-fn is_ambiguous_detect(outcome: &DetectOutcome) -> bool {
+pub(crate) fn is_ambiguous_detect(outcome: &DetectOutcome) -> bool {
     outcome.source == DetectSource::GitSlug && outcome.project.0.is_empty()
 }
 
@@ -686,6 +686,7 @@ struct WhoamiReport {
     shell_project_id: Option<String>,
     path_alias_project_id: Option<String>,
     detect_project_id: Option<String>,
+    detect_source: String,
     git_slug: Option<String>,
     git_toplevel: Option<String>,
     mismatch: bool,
@@ -727,6 +728,8 @@ fn build_whoami_report(
         .as_ref()
         .filter(|o| !is_ambiguous_detect(o))
         .map(|o| o.project.0.clone());
+    let detect_source =
+        crate::commands::identity_warn::detect_source_label(detect_outcome.as_ref()).to_string();
 
     let mismatch = match (env_project_id.as_deref(), path_alias_project_id.as_deref()) {
         (Some(e), Some(p)) => e != p,
@@ -788,12 +791,46 @@ fn build_whoami_report(
         );
     }
 
+    let env_name = detect_outcome
+        .as_ref()
+        .map(|o| o.project.1.as_str())
+        .unwrap_or("");
+    let env_alias = detect_outcome
+        .as_ref()
+        .map(|o| o.project.2.as_str())
+        .unwrap_or("");
+    if !identity_collision
+        && crate::commands::identity_warn::should_emit_slug_miss_env_fallback(
+            &detect_source,
+            env_project_id.as_deref(),
+            git.slug.as_deref(),
+            env_name,
+            env_alias,
+        )
+        && let Some(ref env_id) = env_project_id
+        && let Some(ref slug) = git.slug
+    {
+        let path_display = git
+            .toplevel
+            .as_ref()
+            .map(|p| p.display().to_string())
+            .unwrap_or_else(|| cwd.display().to_string());
+        remediations.extend(
+            crate::commands::identity_warn::slug_miss_env_fallback_remediations(
+                env_id,
+                slug,
+                &path_display,
+            ),
+        );
+    }
+
     Ok(WhoamiReport {
         effective_project_id,
         env_project_id,
         shell_project_id,
         path_alias_project_id,
         detect_project_id,
+        detect_source,
         git_slug: git.slug,
         git_toplevel: git.toplevel.map(|p| p.display().to_string()),
         mismatch,
@@ -824,6 +861,7 @@ fn emit_whoami_human(report: &WhoamiReport) {
         "detect_project_id:     {}",
         fmt_opt(&report.detect_project_id)
     );
+    println!("detect_source:         {}", report.detect_source);
     println!("git_slug:              {}", fmt_opt(&report.git_slug));
     println!("git_toplevel:          {}", fmt_opt(&report.git_toplevel));
     println!("mismatch:              {}", report.mismatch);
