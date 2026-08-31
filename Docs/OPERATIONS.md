@@ -66,7 +66,7 @@ ai-brains antigravity-import --days 30 --force
 - Binds `conversationId` → workspace via `history.jsonl` (normalized path alias). Missing history → stable `agy-unbound` / `(unbound AGY)` — **not** cwd `.env` project by default.
 - Idempotent: path-keyed `source_meta` + delta turn index; message-only SOOT.
 - Human stats on **stderr** (bound/unbound/quiescent/unchanged counters). Not a JSON status object.
-- **Scheduled SYSTEM nightly** keeps `--skip-import` by default (T239 D12) — it does **not** run AGY/Grok/OpenCode batch import under Session 0. Manual / user-principal `nightly` without that flag runs multi-harness import (agy → grok → opencode).
+- **Scheduled SYSTEM nightly** keeps `--skip-import` by default (T239 D12) — it does **not** run AGY/Grok/OpenCode/Claude/Codex/Cursor batch import under Session 0. Manual / user-principal `nightly` without that flag runs six-source multi-harness import (agy → grok → opencode → claude → codex → cursor).
 
 ### Harness detect + install (T235)
 
@@ -595,7 +595,7 @@ These are **reference / operator templates**, not a product Unix installer and *
 ai-brains --vault-path ./vault.db nightly
 ```
 The nightly job does:
-- **Multi-harness session import (T239):** AGY → Grok → OpenCode (message-only; never opens `opencode.db`). Flags: `--skip-import` (all), `--skip-import-agy`, `--skip-import-grok`, `--skip-import-opencode`. Fail-open per source; `last_multi_import` sync_state + `nightly --status` Multi-import block. Claude/Codex **not** in nightly batch (T253 live + `claude-import` / `codex-import` only). Adapter progress may print non-JSON lines on stderr even when `--log-format json` is set (SYSTEM wrapper).
+- **Multi-harness session import (T239+T334):** AGY → Grok → OpenCode → Claude → Codex → Cursor (message-only; never opens `opencode.db` / Cursor `state.vscdb`). Flags: `--skip-import` (all six), `--skip-import-agy`, `--skip-import-grok`, `--skip-import-opencode`, `--skip-import-claude`, `--skip-import-codex`, `--skip-import-cursor`. Fail-open per source; `last_multi_import` sync_state (`v:1` additive) + `nightly --status` Multi-import block. Adapter progress may print non-JSON lines on stderr even when `--log-format json` is set (SYSTEM wrapper).
 - Soft model-endpoint probe (T229) after multi-import / before summarize — non-fatal `warn` if completion/embedding endpoints are down
 - Summarization of unsummarized sessions (with T34 chunking for sessions over 38,912 tokens)
 - Memory synthesis (RAPTOR-style clustering + CRAG factual verification)

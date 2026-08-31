@@ -136,7 +136,7 @@ pub fn codex_capability() -> AdapterCapability {
         level: CapabilityLevel::Full,
         supports_hooks: true,
         supports_wrapper_mode: true,
-        notes: "Install via `harness install --harness codex`. Live UserPromptSubmit+Stop ingest `prompt` / `last_assistant_message` after T234 filter_turn (message-only). Do not parse transcript_path on the live hook. No SessionStart injection. No nightly multi-import. Codex `/hooks` trust required for live fire (`wiring=ok` is files only). Feature key is `hooks` not `codex_hooks`. Unbound alias codex-unbound. Rollout JSONL batch is fail-open (format not vendor-stable). Full harnesses bind as PrincipalKind::Agent (not Connector) so ProposeConclusion is in-matrix; principal_binding deferred until registry wiring. Connector observe-only remains ReadEvidence.".to_string(),
+        notes: "Install via `harness install --harness codex`. Live UserPromptSubmit+Stop ingest `prompt` / `last_assistant_message` after T234 filter_turn (message-only). Do not parse transcript_path on the live hook. No SessionStart injection. Nightly multi-import includes Codex as the fifth source (after Claude). Codex `/hooks` trust required for live fire (`wiring=ok` is files only). Feature key is `hooks` not `codex_hooks`. Unbound alias codex-unbound. Rollout JSONL batch is fail-open (format not vendor-stable). Full harnesses bind as PrincipalKind::Agent (not Connector) so ProposeConclusion is in-matrix; principal_binding deferred until registry wiring. Connector observe-only remains ReadEvidence.".to_string(),
         governed_reads: full_harness_governed_reads(),
         governed_writes: vec![GrantCapability::ProposeConclusion],
         principal_binding: None,
@@ -952,7 +952,8 @@ mod tests {
         assert!(c.supports_hooks);
         assert!(c.notes.contains("harness install --harness codex"));
         assert!(c.notes.contains("No SessionStart injection"));
-        assert!(c.notes.contains("No nightly"));
+        assert!(c.notes.contains("Nightly multi-import"));
+        assert!(!c.notes.contains("No nightly multi-import"));
         assert!(c.notes.contains("/hooks"));
         assert!(c.notes.contains("message-only"));
         assert!(!c.notes.contains("codex_hooks = true"));

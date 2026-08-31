@@ -80,6 +80,28 @@ mod tests {
         assert_eq!(format, "minimal");
     }
 
+    /// T334 AC5: `cursor-import --dry-run` must parse (not help-only).
+    #[test]
+    #[allow(non_snake_case)]
+    fn cursor_import__clap_dry_run_parses() {
+        let cli = match super::Cli::try_parse_from(["ai-brains", "cursor-import", "--dry-run"]) {
+            Ok(c) => c,
+            Err(e) => panic!("cursor-import --dry-run must parse: {e}"),
+        };
+        match *cli.command {
+            super::Commands::CursorImport {
+                dry_run,
+                days,
+                force,
+            } => {
+                assert!(dry_run);
+                assert_eq!(days, 30);
+                assert!(!force);
+            }
+            _ => panic!("expected Commands::CursorImport"),
+        }
+    }
+
     /// T208 AC7: default filter must pin `ai_brains_graph=warn` (F8).
     #[test]
     #[allow(non_snake_case)]
@@ -2035,7 +2057,7 @@ enum Commands {
             value_parser = ["auto", "pretty", "human", "text", "json", "markdown", "md"]
         )]
         format: String,
-        /// Skip all harness session importers (AGY, Grok, OpenCode). Use on
+        /// Skip all harness session importers (AGY, Grok, OpenCode, Claude, Codex, Cursor). Use on
         /// isolated, CI, SYSTEM-scheduled, or per-project vaults to prevent
         /// cross-vault contamination from real harness history.
         #[arg(long)]
@@ -2049,6 +2071,15 @@ enum Commands {
         /// Skip only OpenCode batch import during nightly
         #[arg(long)]
         skip_import_opencode: bool,
+        /// Skip only Claude Code batch import during nightly
+        #[arg(long)]
+        skip_import_claude: bool,
+        /// Skip only Codex CLI batch import during nightly
+        #[arg(long)]
+        skip_import_codex: bool,
+        /// Skip only Cursor IDE batch import during nightly
+        #[arg(long)]
+        skip_import_cursor: bool,
         /// Schedule the task to run as SYSTEM (no login required). Requires elevation.
         #[arg(long)]
         run_as_system: bool,
@@ -2334,6 +2365,19 @@ enum Commands {
     /// Import Codex rollout JSONL sessions into the vault (fail-open)
     #[command(display_order = 57)]
     CodexImport {
+        /// Only import sessions modified within the last N days
+        #[arg(short, long, default_value_t = 30)]
+        days: usize,
+        /// Skip the 5-minute quiescence window (import even if file was modified recently)
+        #[arg(long, default_value_t = false)]
+        force: bool,
+        /// Discover and report what would be imported without writing to the vault
+        #[arg(long, default_value_t = false)]
+        dry_run: bool,
+    },
+    /// Import Cursor IDE agent-transcripts JSONL sessions into the vault
+    #[command(display_order = 59)]
+    CursorImport {
         /// Only import sessions modified within the last N days
         #[arg(short, long, default_value_t = 30)]
         days: usize,
@@ -5530,6 +5574,9 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
             skip_import_agy,
             skip_import_grok,
             skip_import_opencode,
+            skip_import_claude,
+            skip_import_codex,
+            skip_import_cursor,
             run_as_system,
             dry_run,
         } => {
@@ -5543,6 +5590,9 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                 *skip_import_agy,
                 *skip_import_grok,
                 *skip_import_opencode,
+                *skip_import_claude,
+                *skip_import_codex,
+                *skip_import_cursor,
                 *run_as_system,
                 *dry_run,
                 *quick,
@@ -5832,6 +5882,11 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
             force,
             dry_run,
         } => commands::codex_import::run(&ctx, *days, *force, *dry_run),
+        Commands::CursorImport {
+            days,
+            force,
+            dry_run,
+        } => commands::cursor_import::run(&ctx, *days, *force, *dry_run),
         Commands::ClaudeHook { payload, schema } => {
             if *schema {
                 print_schema(SCHEMA_CLAUDE_HOOK, "AI-Brains claude-hook payload")

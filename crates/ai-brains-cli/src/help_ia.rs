@@ -12,7 +12,7 @@ Command groups (presentation only — names unchanged):
   Operator:  backup, recovery, vault, retention, device, replicate, nightly, safety
   Governed:  scope, briefing, query, evidence, source, review, policy, conclusion, decision
   Dangerous: forget, erasure; also retention apply, vault encrypt|rotate-datakey, migrate governed --confirm, daemon install|uninstall|update
-  Harness:   ingest, harness, antigravity-import, agy-hook, grok-import, grok-hook, opencode-import, opencode-hook, claude-import, claude-hook, codex-import, codex-hook, sync, shadow, evaluate, dogfood, graph, migrate
+  Harness:   ingest, harness, antigravity-import, agy-hook, grok-import, grok-hook, opencode-import, opencode-hook, claude-import, claude-hook, codex-import, codex-hook, cursor-import, sync, shadow, evaluate, dogfood, graph, migrate
 
 Start here:
   ai-brains doctor
@@ -91,8 +91,10 @@ mod tests {
                 && ROOT_AFTER_LONG_HELP.contains("claude-hook")
                 && ROOT_AFTER_LONG_HELP.contains("claude-import")
                 && ROOT_AFTER_LONG_HELP.contains("codex-hook")
-                && ROOT_AFTER_LONG_HELP.contains("codex-import"),
-            "Harness inventory must include harness/grok/opencode/claude/codex commands; got:\n{ROOT_AFTER_LONG_HELP}"
+                && ROOT_AFTER_LONG_HELP.contains("codex-import")
+                && ROOT_AFTER_LONG_HELP.contains("cursor-import")
+                && !ROOT_AFTER_LONG_HELP.contains("cursor-hook"),
+            "Harness inventory must include harness/grok/opencode/claude/codex/cursor-import (not cursor-hook); got:\n{ROOT_AFTER_LONG_HELP}"
         );
     }
 

@@ -5,6 +5,7 @@ mod capability;
 pub mod claude;
 pub mod codex;
 mod config_patch;
+pub mod cursor;
 mod errors;
 mod gemini;
 pub mod grok;
@@ -53,6 +54,15 @@ pub use codex::{
     print_codex_import_stats, resolve_codex_home, resolve_codex_project, session_id_from_codex,
 };
 pub use config_patch::apply_idempotent_patch;
+pub use cursor::{
+    CURSOR_HARNESS_UUID, CURSOR_UNBOUND_ALIAS, CURSOR_UNBOUND_DISPLAY_NAME, CursorBindKind,
+    CursorImportOptions, CursorImportStats, CursorIngestTurn, CursorSessionSource,
+    append_cursor_turns, cursor_capability, cursor_project_slug, cursor_source_meta_key,
+    discover_cursor_sessions, filter_cursor_jsonl_lines, filter_cursor_jsonl_record,
+    generate_cursor_turn_id, import_cursor_sessions, is_cursor_sidechain_path,
+    parse_cursor_jsonl_file, print_cursor_import_stats, resolve_cursor_home,
+    resolve_cursor_project, session_id_from_cursor,
+};
 pub use errors::{AdapterError, Result};
 pub use grok::{
     GROK_HARNESS_UUID, GROK_UNBOUND_ALIAS, GROK_UNBOUND_DISPLAY_NAME, GrokBindKind,
