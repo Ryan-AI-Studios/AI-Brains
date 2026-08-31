@@ -18,6 +18,15 @@ fn init_vault(vault: &std::path::Path) {
         .success();
 }
 
+/// Production coverage consults `CURSOR_HOME` / `GROK_HOME` / … before `HOME`.
+/// GHA (and some developer shells) may set those; strip so USERPROFILE fixtures win.
+fn strip_harness_homes(cmd: &mut assert_cmd::Command) {
+    cmd.env_remove("CURSOR_HOME");
+    cmd.env_remove("GROK_HOME");
+    cmd.env_remove("CLAUDE_HOME");
+    cmd.env_remove("CODEX_HOME");
+}
+
 #[test]
 fn capture_coverage__no_scope__exit_2() {
     let dir = tempdir().expect("tempdir");
@@ -49,7 +58,9 @@ fn capture_coverage__cursor_deficit__exit_0() {
     fs::create_dir_all(jsonl.parent().expect("parent")).expect("mkdir");
     fs::write(&jsonl, "{}\n").expect("write jsonl");
 
-    let output = common::hermetic_vault(&vault)
+    let mut cmd = common::hermetic_vault(&vault);
+    strip_harness_homes(&mut cmd);
+    let output = cmd
         .arg("--no-project-context")
         .arg("capture")
         .arg("coverage")
@@ -73,7 +84,11 @@ fn capture_coverage__cursor_deficit__exit_0() {
         .iter()
         .find(|s| s["source"] == "cursor")
         .expect("cursor row");
-    assert_eq!(cursor["status"], "deficit");
+    assert_eq!(
+        cursor["status"].as_str(),
+        Some("deficit"),
+        "cursor row={cursor}"
+    );
     assert_eq!(cursor["mode"], "import_only");
     let next = cursor["next_step"].as_str().unwrap_or("");
     assert!(next.contains("cursor-import"), "next_step={next}");
@@ -95,7 +110,9 @@ fn capture_coverage__grok_home_env__honored_without_user_home_override() {
     fs::create_dir_all(history.parent().expect("parent")).expect("mkdir");
     fs::write(&history, "{}\n").expect("write grok history");
 
-    let output = common::hermetic_vault(&vault)
+    let mut cmd = common::hermetic_vault(&vault);
+    strip_harness_homes(&mut cmd);
+    let output = cmd
         .arg("--no-project-context")
         .arg("capture")
         .arg("coverage")
