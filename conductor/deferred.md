@@ -2,6 +2,24 @@
 
 Tracks deferred from T142. Append-only; strike through when promoted to a real track.
 
+### T333 full plan (2026-08-30) — detect `--format json` source + workspace 0.1.5
+
+| Item | Disposition |
+|------|-------------|
+| T332 §11 no `project detect --json` source field | **Absorb** F2–F11 / AC3–AC5 / AC8 |
+| Owner “version bump in DoD” | **Absorb** F17–F22 / AC14 / AC17 / AC18 — **0.1.4 → 0.1.5** |
+| T206 human/export/exit | **Freeze** F9 / AC6 / AC7 / AC9 |
+| T332 whoami `detect_source` | **Freeze** F10 / AC12 |
+| Skip `resolve_detect` step 3 | **Decline** F1 |
+| Doctor 16th / daily silent / human `source=` / `--cwd` | **Decline** F33 / F11 / F12 |
+| `10d4bff5` / `7d97a456` | **Ops-only** / not stolen |
+| last-PR Cursor `#261` | **N/A empty** — no T334 |
+| Open PRs `#250–#256` Dependabot | **Decline** F27 — Phase 0 rescan |
+| T240 F2 / H2 / T307 / clap 5 / PATH install / git tag | **Decline** F16 / F22 / F23 / F24 |
+| T331 list mix / T288 briefing | **Not stolen** |
+| `ISSUES.md` | **Does not exist** |
+| DOCS TX | `52a61a02-0502-4ae4-b676-bc244a96b315` |
+
 ### T332 implement residuals (2026-08-30) — whoami detect_source + slug-miss env-fallback
 
 | Item | Disposition |
@@ -12,7 +30,7 @@ Tracks deferred from T142. Append-only; strike through when promoted to a real t
 | Doctor still ok on path-null env-fallback | **Deferred** F10 |
 | Daily commands silent until whoami / scope JSON | **Deferred** F28 |
 | Leftover `7d97a456` multi-root / crawlx | T259/T276 ops — not this |
-| No `project detect --json` source field | T206 residual |
+| ~~No `project detect --json` source field~~ | **T333 Planned** — `--format json` always-present `source`; omitted format stays human |
 | T307 reqwest/tower-http | Still **Blocked** |
 | Codex CX2 P3 bookkeeping (plan AC17 checkbox lag) | **Closed** — post-`--cwd` `dev-check.ps1` nextest **3762** passed |
 | BUGFIX TX | `052628a2-a6a8-4527-b4e1-baa5dcc3a747` |
