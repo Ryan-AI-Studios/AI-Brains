@@ -2,6 +2,22 @@
 
 Tracks deferred from T142. Append-only; strike through when promoted to a real track.
 
+### T335 fold-in (2026-08-31) — `agy-review.md` + `opencode-review.md`
+
+| Item | Disposition |
+|------|-------------|
+| OpenCode M1 `graph_edge.label` CHECK no `PINNED_IN_PROJECT` | **Folded** F23 / AC13 — migration **0029** (0022 pattern; not 0023 filename) |
+| Agy m1 AC1 outgoing direction | **Folded** AC1 `direction == "outgoing"` |
+| OpenCode m1 §2.3 path slips | **Folded** cli `graph_density.rs` + tests `graph_human_cli.rs` |
+| OpenCode m2 pinned/preflight +1 | **Folded** Phase 0 recapture |
+| OpenCode m3 AC2 both-Some | **Folded** AC2; keep legacy projector test stay-green |
+| OpenCode O1 T317 edge-seeded | **Partial** F2 stands; §5.3 |
+| Agy O1/O2; OpenCode O2 | **Already** F4 / F15 / §2.1 |
+| last-PR `#263` Cursor | **Affirm** T341 — no new leftover |
+| Agy/OpenCode B | None |
+| Agy m / OpenCode M+m | **1 / 1+3** — M1 + minors folded |
+| DOCS TX | `f9e7d850-19f3-457f-8f94-5ba481369f7b` |
+
 ### T335 full plan (2026-08-31) — PINNED_IN_PROJECT projector + T341 mint
 
 | Item | Disposition |
