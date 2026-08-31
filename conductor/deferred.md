@@ -2,6 +2,22 @@
 
 Tracks deferred from T142. Append-only; strike through when promoted to a real track.
 
+### T334 fold-in (2026-08-31) — `agy-review.md` + `opencode-review.md`
+
+| Item | Disposition |
+|------|-------------|
+| OpenCode M1 stored alias lower vs Cursor folder case | **Folded** F8 / F28 / AC2 mixed-case. Live `alias=C:\dev\ai-brains` vs `c-dev-AI-Brains` |
+| OpenCode m2 `<timestamp>`-only user rows | **Folded** F7 / AC1 / AC12 `extract_user_text__timestamp_only__empty` |
+| OpenCode m1 `#262` `mergedAt` | **Folded** §14 / plan → **2026-08-31T02:01:56Z** |
+| Agy m1 drive-letter case | **Already** F28 |
+| Agy O1 dual-read / O2 UUID `…0007` | **Already** F16 / F4 |
+| OpenCode O1 disk/codex/pinned drift | **Already** Phase 0 |
+| OpenCode O2 mint unpushed | **Already** Phase 0 — no fold-in push |
+| last-PR `#262` Cursor | **Affirm** N/A empty — no T341 |
+| Agy/OpenCode B | None |
+| Agy m / OpenCode M+m | **1 / 1+2** — M1 + m2 + m1 folded; Agy m already |
+| DOCS TX | `ff726ee8-658c-4b15-9f08-8d390052520d` |
+
 ### T334 full plan (2026-08-30) — Claude/Codex/Cursor six-source nightly
 
 | Item | Disposition |
