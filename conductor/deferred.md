@@ -2,6 +2,17 @@
 
 Tracks deferred from T142. Append-only; strike through when promoted to a real track.
 
+### T337 implement residuals (2026-08-31) — capture coverage CLI
+
+| Item | Disposition |
+|------|-------------|
+| Codex filename walk vs `discover_codex_sessions` | **Defer** T337-R1 — F12 no JSONL peek; filename `rollout-*.jsonl` + mtime |
+| Daily `--help` inventory omits `capture` | **Defer** T337-R2 — T204 frozen `help_ia` string |
+| AGY `discover_sessions_from_home` still uses `is_dir` | **Defer** T337-R8 — reused importer; coverage marks discover `Err` unreadable |
+| FEATURE TX | `33e67f21-0e83-470d-b9ed-12cff1a72202` |
+| `dev-check` nextest | **3836** passed, 1 skipped (`NEXTEST_TEST_THREADS=2`) |
+| `ledgerful verify` nextest 600s | **Observed** (same as T335/T336) — equivalent nextest **3836** passed in `dev-check.ps1` |
+
 ### T337 fold-in (2026-08-31) — `agy-review.md` + `opencode-review.md`
 
 | Item | Disposition |

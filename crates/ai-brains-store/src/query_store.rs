@@ -3,7 +3,7 @@ use crate::errors::{Result, StoreError};
 use crate::{MemoryListFilter, MemoryListRow, MemoryListStatus, QueryStore};
 use ai_brains_core::ids::{MemoryId, ProjectId, SessionId};
 use ai_brains_core::privacy::Privacy;
-use rusqlite::{OptionalExtension, params};
+use rusqlite::{OptionalExtension, params, params_from_iter};
 use std::str::FromStr;
 
 /// High limit for legacy `list_forgotten_memories` thin-wrap (tests / non-CLI callers).
@@ -731,6 +731,43 @@ impl QueryStore for VaultConnection {
                 |row| row.get(0),
             )?,
         };
+        Ok(count as u64)
+    }
+
+    fn count_sessions_started_by_harness(
+        &self,
+        harness_ids: &[&str],
+        project_id: Option<&ProjectId>,
+    ) -> Result<u64> {
+        if harness_ids.is_empty() {
+            return Ok(0);
+        }
+        let conn = self.lock()?;
+        let placeholders = harness_ids
+            .iter()
+            .map(|_| "?")
+            .collect::<Vec<_>>()
+            .join(", ");
+        let mut binds: Vec<String> = harness_ids.iter().map(|id| (*id).to_string()).collect();
+        let sql = match project_id {
+            None => format!(
+                "SELECT COUNT(*) FROM events
+                 WHERE event_type = 'SessionStarted'
+                   AND json_extract(actor_json, '$.type') = 'harness'
+                   AND json_extract(actor_json, '$.id') IN ({placeholders})"
+            ),
+            Some(pid) => {
+                binds.push(pid.to_string());
+                format!(
+                    "SELECT COUNT(*) FROM events
+                     WHERE event_type = 'SessionStarted'
+                       AND json_extract(actor_json, '$.type') = 'harness'
+                       AND json_extract(actor_json, '$.id') IN ({placeholders})
+                       AND json_extract(payload_json, '$.project_id') = ?"
+                )
+            }
+        };
+        let count: i64 = conn.query_row(&sql, params_from_iter(binds.iter()), |row| row.get(0))?;
         Ok(count as u64)
     }
 
