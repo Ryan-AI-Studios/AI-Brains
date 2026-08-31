@@ -2,6 +2,21 @@
 
 Tracks deferred from T142. Append-only; strike through when promoted to a real track.
 
+### T333 fold-in (2026-08-30) — `agy-review.md` + `opencode-review.md`
+
+| Item | Disposition |
+|------|-------------|
+| Agy m1 DetectReport `skip_serializing_if` on miss fields would omit JSON keys | **Folded** F35 / §5.2a / F3 / F4 / AC8 `contains_key` + `is_null`. Analog `WhoamiReport:685` |
+| Agy O1 omitted `--format` stays human on pipes | **Already** F5 |
+| Agy O2 desktop 0.1.2 | **Already** F20 |
+| OpenCode m1 F19 lists root `README.md` (no version) omits `Docs/README.md:3` | **Folded** F19 / AC15 / §12 — **`Docs/README.md`**; root README untouched |
+| OpenCode O1 debug-bin / hotspot / pinned +1 | **Already** Phase 0 snapshot |
+| OpenCode O2 doctor hygiene collapsed / `#261` UTC | **Already** Phase 0 / §13 |
+| last-PR `#261` Cursor | **Affirm** N/A empty — no T334 |
+| Agy/OpenCode B / M | None |
+| Agy m / OpenCode m | **1 each** — both folded |
+| DOCS TX | `14a77f3e-c6bf-4489-84af-75dc29d11f02` |
+
 ### T333 full plan (2026-08-30) — detect `--format json` source + workspace 0.1.5
 
 | Item | Disposition |
