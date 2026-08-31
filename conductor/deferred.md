@@ -2,6 +2,21 @@
 
 Tracks deferred from T142. Append-only; strike through when promoted to a real track.
 
+### T335 full plan (2026-08-31) — PINNED_IN_PROJECT projector + T341 mint
+
+| Item | Disposition |
+|------|-------------|
+| Placeholder: CLI pin without session → orphans | **Corrected** — `pin.rs` requires SESSION_ID. Hole is T70 `session_id: None` + projector skip of `project_id` |
+| Placeholder F2 compensating `graph repair` | **Decline** — Fowler rebuild; payload already has `project_id`. T300 `graph rebuild` |
+| T70 symbol pins UUID v5 / live `2ba85180` `neighbors=[]` | **Absorb** F1 / AC1 |
+| `d960e4ce` zero-edge | **Stale** — now RECALLS incoming |
+| T308 projector more-edges | **Absorb** F1; floors / Sparse remediator frozen |
+| last-PR `#263` Bugbot Unix Cursor slug | **Mint T341** |
+| T336–T340 | **Not stolen** (T340 problem text corrected) |
+| Dependabot `#250–#256` | **Decline** |
+| Live vault E/N ≥ 0.50 | **Decline** AC11 |
+| DOCS TX | `9f750c28-c9b9-4614-b368-0106dece6f69` |
+
 ### T334 implement residuals (2026-08-31) — Cursor adapter + six-source nightly
 
 | Item | Disposition |
