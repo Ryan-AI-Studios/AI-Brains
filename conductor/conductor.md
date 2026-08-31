@@ -299,7 +299,7 @@
 
 
 
-| T334 | Claude/Codex/Cursor six-source nightly | **Pending** | Grok | [T334](tracks/trackT334-codex-claude-nightly-import/spec.md) | **Planned 2026-08-30** (fold-in 2026-08-31): Cursor JSONL adapter + six-source nightly. F28 case-insensitive slug bind; F7 timestamp strip. No live Cursor hooks. Not In Progress. |
+| T334 | Claude/Codex/Cursor six-source nightly | **Completed** | Grok | [T334](tracks/trackT334-codex-claude-nightly-import/spec.md) | **Completed 2026-08-31:** Cursor JSONL adapter + `cursor-import` + six-source nightly. FEATURE TX `0dae05dd-6462-4d8d-9e56-8cd162add401`. |
 | T335 | Orphan pin session-link repair | **Pending** | — | [T335](tracks/trackT335-orphan-pin-session-link/spec.md) | **Placeholder 2026-08-30:** pins w/o session context → zero-edge orphans (verified: 2ba85180, d960e4ce). Compensating-event repair + prevention. Graph density driver. |
 | T336 | Governed provenance bootstrap | **Pending** | — | [T336](tracks/trackT336-governed-provenance-bootstrap/spec.md) | **Placeholder 2026-08-30:** zero governed events ever; evidence/source/review/briefing all empty; 4 edge types dead. Nightly graduation + review-loop UX. |
 | T337 | Session capture coverage audit | **Pending** | — | [T337](tracks/trackT337-session-capture-coverage/spec.md) | **Placeholder 2026-08-30:** 16 terminals/4 projects vs 8 sessions vault. Truth table includes Cursor (import-only). 1184 grok subagent turns skipped; T334 owns importers. |

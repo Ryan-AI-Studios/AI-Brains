@@ -2,6 +2,7 @@ use crate::antigravity::antigravity_capability;
 use crate::capability::AdapterCapability;
 use crate::claude::claude_capability;
 use crate::codex::codex_capability;
+use crate::cursor::cursor_capability;
 use crate::gemini::gemini_capability;
 use crate::opencode::opencode_capability;
 
@@ -12,6 +13,7 @@ pub enum AdapterKind {
     Codex,
     OpenCode,
     Antigravity,
+    Cursor,
 }
 
 pub fn adapter_capability(kind: AdapterKind) -> AdapterCapability {
@@ -21,5 +23,6 @@ pub fn adapter_capability(kind: AdapterKind) -> AdapterCapability {
         AdapterKind::Codex => codex_capability(),
         AdapterKind::OpenCode => opencode_capability(),
         AdapterKind::Antigravity => antigravity_capability(),
+        AdapterKind::Cursor => cursor_capability(),
     }
 }

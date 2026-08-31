@@ -189,14 +189,22 @@ fn test_cross_repo_e2e_integration_with_ledgerful() -> Result<(), Box<dyn std::e
 
     // 1. Initialize Ledgerful in the temp workspace
     let mut lf_init = std::process::Command::new(binary);
+    lf_init.env_remove("CARGO_MANIFEST_DIR");
+    lf_init.env_remove("CARGO_MANIFEST_PATH");
     lf_init.arg("init").current_dir(&ws_path);
     let output = lf_init.output()?;
     assert!(output.status.success(), "{binary} init failed");
 
-    // Create a dummy source file so that scan has something to index
+    // Create a dummy crate so `ledgerful scan --impact` does not inherit the
+    // test binary's CARGO_MANIFEST_DIR and `cargo build --release` the workspace
+    // (120s nextest timeout). Temp dir + own manifest keeps impact hermetic.
     let dummy_rs = ws_path.join("src").join("main.rs");
     std::fs::create_dir_all(ws_path.join("src"))?;
     std::fs::write(&dummy_rs, "fn main() { println!(\"hello\"); }")?;
+    std::fs::write(
+        ws_path.join("Cargo.toml"),
+        "[package]\nname = \"dummy\"\nversion = \"0.0.0\"\nedition = \"2021\"\n",
+    )?;
 
     // Create a git repo and commit the file so ledgerful scan detects it
     let mut git_init = std::process::Command::new("git");
@@ -205,6 +213,7 @@ fn test_cross_repo_e2e_integration_with_ledgerful() -> Result<(), Box<dyn std::e
     git_add
         .arg("add")
         .arg("src/main.rs")
+        .arg("Cargo.toml")
         .current_dir(&ws_path)
         .output()?;
     let mut git_commit = std::process::Command::new("git");
@@ -221,6 +230,8 @@ fn test_cross_repo_e2e_integration_with_ledgerful() -> Result<(), Box<dyn std::e
 
     // Run ledgerful scan with impact analysis
     let mut lf_scan = std::process::Command::new(binary);
+    lf_scan.env_remove("CARGO_MANIFEST_DIR");
+    lf_scan.env_remove("CARGO_MANIFEST_PATH");
     lf_scan.arg("scan").arg("--impact").current_dir(&ws_path);
     let output = lf_scan.output()?;
     assert!(output.status.success(), "{} scan failed", binary);

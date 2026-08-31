@@ -2846,7 +2846,33 @@ fn test_nightly_skip_import_flag_accepted() {
         .stdout(predicate::str::contains("--skip-import"))
         .stdout(predicate::str::contains("--skip-import-agy"))
         .stdout(predicate::str::contains("--skip-import-grok"))
-        .stdout(predicate::str::contains("--skip-import-opencode"));
+        .stdout(predicate::str::contains("--skip-import-opencode"))
+        .stdout(predicate::str::contains("--skip-import-claude"))
+        .stdout(predicate::str::contains("--skip-import-codex"))
+        .stdout(predicate::str::contains("--skip-import-cursor"));
+}
+
+/// T334 AC5: `cursor-import --dry-run` is a real clap command (not cursor-hook).
+#[allow(non_snake_case)]
+#[test]
+fn cursor_import__clap_dry_run_parses() {
+    let dir = tempdir().unwrap();
+    let vault_path = dir.path().join("vault.db");
+
+    common::hermetic_bin()
+        .arg("--vault-path")
+        .arg(&vault_path)
+        .arg("init")
+        .assert()
+        .success();
+
+    common::hermetic_bin()
+        .arg("cursor-import")
+        .arg("--help")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("--dry-run"))
+        .stdout(predicate::str::contains("--force"));
 }
 
 /// T239 F19: `nightly --status` shows Multi-import never when key missing; unreadable when corrupt.

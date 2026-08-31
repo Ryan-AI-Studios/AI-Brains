@@ -645,6 +645,7 @@ fn unix_ms_to_rfc3339(ms: i64) -> Option<String> {
 /// Extract user-visible text from harness chrome.
 ///
 /// - Strips `<ADDITIONAL_METADATA>` / `<USER_SETTINGS_CHANGE>` blocks
+/// - Strips `<manually_attached_skills>` / `<timestamp>` blocks (Cursor JSONL chrome)
 /// - Prefers body inside `<USER_REQUEST>…</USER_REQUEST>`
 /// - Prefers body inside `<user_query>…</user_query>`
 /// - Char-boundary safe (ASCII tag `find` only; never mid-scalar slices)
@@ -652,6 +653,8 @@ pub fn extract_user_text(raw: &str) -> String {
     let mut result = raw.to_string();
     result = strip_xml_block(&result, "ADDITIONAL_METADATA");
     result = strip_xml_block(&result, "USER_SETTINGS_CHANGE");
+    result = strip_xml_block(&result, "manually_attached_skills");
+    result = strip_xml_block(&result, "timestamp");
 
     if let Some(extracted) = extract_xml_content(&result, "USER_REQUEST") {
         result = extracted;
@@ -949,6 +952,20 @@ mod tests {
     fn extract_user_text__user_query_inner() {
         let input = "noise <user_query>\nfix the path\n</user_query> trailer";
         assert_eq!(extract_user_text(input), "fix the path");
+    }
+
+    #[test]
+    fn extract_user_text__manually_attached_skills_stripped_user_query_kept() {
+        let input = "<manually_attached_skills>\nSkill: onboarding\n</manually_attached_skills>\n<timestamp>Monday, Aug 31, 2026, 5:52 AM (UTC-4)</timestamp>\n<user_query>\nhello-cursor\n</user_query>";
+        assert_eq!(extract_user_text(input), "hello-cursor");
+        assert!(!extract_user_text(input).contains("onboarding"));
+        assert!(!extract_user_text(input).contains("timestamp"));
+    }
+
+    #[test]
+    fn extract_user_text__timestamp_only__empty() {
+        let input = "<timestamp>Monday, Aug 31, 2026, 5:52 AM (UTC-4)</timestamp>";
+        assert_eq!(extract_user_text(input), "");
     }
 
     #[test]

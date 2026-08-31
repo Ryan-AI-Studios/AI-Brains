@@ -2,6 +2,19 @@
 
 Tracks deferred from T142. Append-only; strike through when promoted to a real track.
 
+### T334 implement residuals (2026-08-31) — Cursor adapter + six-source nightly
+
+| Item | Disposition |
+|------|-------------|
+| Six-source hermetic multi-import ~105s (threads=2); high local parallelism can 120s-timeout | **Defer** T338 / test hygiene. Not a product cap. |
+| Live first nightly volume (Claude+Codex+Cursor backlog) | **T338** F27 pointer — no hidden cap this track |
+| Live dry-run found=35 (mint 36); skipped_sidechain=32; unbound on empty vault | **Observed** AC17 — days window + no aliases |
+| OpenCode PATH `skipped_missing_binary` | **T339** not stolen |
+| Cursor unbound slugs (`empty-window`, other repos) | **T337** F4 binding audit |
+| PATH `cargo install` | **Not this track** — workspace already 0.1.5; do not install |
+| Local default-thread nextest 120s-timeout | **Fixed** e2e: dummy `Cargo.toml` + strip `CARGO_MANIFEST_DIR`. Local full gate used `NEXTEST_TEST_THREADS=2` |
+| `HarnessId::Cursor` / `cursor-hook` / `state.vscdb` | **Decline** F12 / F20 |
+
 ### T334 fold-in (2026-08-31) — `agy-review.md` + `opencode-review.md`
 
 | Item | Disposition |

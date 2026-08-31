@@ -70,7 +70,7 @@ pub(crate) struct RouterJson {
 }
 
 /// never/unreadable: only `{ "status": "never"|"unreadable" }`.
-/// ok: `{ "status": "ok", "at", "agy", "grok", "opencode" }` using existing [`SourceImportReport`].
+/// ok: `{ "status": "ok", "at", "agy", "grok", "opencode", "claude", "codex", "cursor" }` using existing [`SourceImportReport`].
 #[derive(Debug, Clone, Serialize)]
 pub(crate) struct MultiImportJson {
     pub status: String,
@@ -82,6 +82,12 @@ pub(crate) struct MultiImportJson {
     pub grok: Option<SourceImportReport>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub opencode: Option<SourceImportReport>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub claude: Option<SourceImportReport>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub codex: Option<SourceImportReport>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cursor: Option<SourceImportReport>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -279,6 +285,9 @@ fn multi_import_json(view: MultiImportStatusView) -> MultiImportJson {
             agy: None,
             grok: None,
             opencode: None,
+            claude: None,
+            codex: None,
+            cursor: None,
         },
         MultiImportStatusView::Unreadable => MultiImportJson {
             status: "unreadable".to_string(),
@@ -286,6 +295,9 @@ fn multi_import_json(view: MultiImportStatusView) -> MultiImportJson {
             agy: None,
             grok: None,
             opencode: None,
+            claude: None,
+            codex: None,
+            cursor: None,
         },
         MultiImportStatusView::Report(report) => MultiImportJson {
             status: "ok".to_string(),
@@ -293,6 +305,9 @@ fn multi_import_json(view: MultiImportStatusView) -> MultiImportJson {
             agy: Some(report.agy),
             grok: Some(report.grok),
             opencode: Some(report.opencode),
+            claude: Some(report.claude),
+            codex: Some(report.codex),
+            cursor: Some(report.cursor),
         },
     }
 }
@@ -843,6 +858,21 @@ mod tests {
     }
 
     #[test]
+    fn build_nightly_status_json__multi_import_never__status_only() {
+        let input = fixture_input();
+        let value = to_value(&build_nightly_status_json(input));
+        let Some(mi) = value["multi_import"].as_object() else {
+            panic!("multi_import object");
+        };
+        assert_eq!(mi["status"], "never");
+        assert!(!mi.contains_key("at"));
+        assert!(!mi.contains_key("agy"));
+        assert!(!mi.contains_key("claude"));
+        assert!(!mi.contains_key("codex"));
+        assert!(!mi.contains_key("cursor"));
+    }
+
+    #[test]
     fn build_nightly_status_json__multi_import_unreadable__status_only() {
         let mut input = fixture_input();
         input.multi_import = MultiImportStatusView::Unreadable;
@@ -855,6 +885,9 @@ mod tests {
         assert!(!mi.contains_key("agy"));
         assert!(!mi.contains_key("grok"));
         assert!(!mi.contains_key("opencode"));
+        assert!(!mi.contains_key("claude"));
+        assert!(!mi.contains_key("codex"));
+        assert!(!mi.contains_key("cursor"));
     }
 
     #[test]
@@ -866,6 +899,9 @@ mod tests {
             agy: source_ok(),
             grok: source_ok(),
             opencode: source_ok(),
+            claude: source_ok(),
+            codex: source_ok(),
+            cursor: source_ok(),
         }));
         let value = to_value(&build_nightly_status_json(input));
         let Some(mi) = value["multi_import"].as_object() else {
@@ -876,6 +912,35 @@ mod tests {
         assert!(mi.contains_key("agy"));
         assert!(mi.contains_key("grok"));
         assert!(mi.contains_key("opencode"));
+        assert!(mi.contains_key("claude"));
+        assert!(mi.contains_key("codex"));
+        assert!(mi.contains_key("cursor"));
+    }
+
+    #[test]
+    fn build_nightly_status_json__multi_import_ok__includes_claude_codex_cursor() {
+        let mut input = fixture_input();
+        input.multi_import = MultiImportStatusView::Report(Box::new(MultiImportReport {
+            v: 1,
+            at: "2026-08-31T00:00:00Z".to_string(),
+            agy: source_ok(),
+            grok: source_ok(),
+            opencode: source_ok(),
+            claude: source_ok(),
+            codex: source_ok(),
+            cursor: source_ok(),
+        }));
+        let value = to_value(&build_nightly_status_json(input));
+        let Some(mi) = value["multi_import"].as_object() else {
+            panic!("multi_import object");
+        };
+        assert_eq!(mi["status"], "ok");
+        assert!(mi.contains_key("claude"));
+        assert!(mi.contains_key("codex"));
+        assert!(mi.contains_key("cursor"));
+        assert_eq!(mi["claude"]["status"], "ok");
+        assert_eq!(mi["codex"]["status"], "ok");
+        assert_eq!(mi["cursor"]["status"], "ok");
     }
 
     #[test]

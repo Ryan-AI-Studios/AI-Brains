@@ -15,6 +15,10 @@ Version banners in documentation are maintained manually from the workspace `Car
 
 ## [Unreleased]
 
+### Added
+
+- **T334 Cursor JSONL adapter + six-source nightly:** `ai-brains cursor-import` (`--days` / `--force` / `--dry-run`) walks `~/.cursor/projects/<slug>/agent-transcripts` (message-only; skip `subagents/`; no Composer `state.vscdb`; no `cursor-hook`). Nightly import order is **agy → grok → opencode → claude → codex → cursor**. `--skip-import` skips all six; per-source `--skip-import-claude` / `--skip-import-codex` / `--skip-import-cursor`. `last_multi_import` stays `v:1` with additive keys; pre-T334 blobs dual-read as skipped `absent_pre_t334`. `nightly --status --format json` ok reports always include `claude` / `codex` / `cursor`.
+
 ## [0.1.5] — 2026-08-30
 
 Workspace version bump after T327–T332 CLI dogfood plus T333 detect JSON `source`. PATH `ai-brains --version` reports this after `cargo install --path crates/ai-brains-cli --locked --features graph` (or `scripts/build.ps1`).

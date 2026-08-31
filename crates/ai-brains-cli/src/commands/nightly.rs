@@ -30,6 +30,9 @@ pub async fn run(
     skip_import_agy: bool,
     skip_import_grok: bool,
     skip_import_opencode: bool,
+    skip_import_claude: bool,
+    skip_import_codex: bool,
+    skip_import_cursor: bool,
     run_as_system: bool,
     dry_run: bool,
     quick: bool,
@@ -441,7 +444,8 @@ pub async fn run(
         embedding_model.clone(),
     ));
 
-    // T239: multi-harness import (agy → grok → opencode) before summarization.
+    // T239/T334: multi-harness import (agy → grok → opencode → claude → codex → cursor)
+    // before summarization.
     // Fail-open per source; SYSTEM scheduled nightly keeps --skip-import (D12).
     {
         use crate::commands::multi_import::{
@@ -450,15 +454,24 @@ pub async fn run(
         if skip_import {
             tracing::info!(
                 "Skipping multi-harness session import (--skip-import). \
-                 Skips AGY, Grok, and OpenCode batch importers. \
+                 Skips AGY, Grok, OpenCode, Claude, Codex, and Cursor batch importers. \
                  Use this on isolated, CI, SYSTEM-scheduled, or per-project vaults \
                  to prevent cross-vault contamination from real harness history."
             );
-        } else if skip_import_agy || skip_import_grok || skip_import_opencode {
+        } else if skip_import_agy
+            || skip_import_grok
+            || skip_import_opencode
+            || skip_import_claude
+            || skip_import_codex
+            || skip_import_cursor
+        {
             tracing::info!(
                 skip_agy = skip_import_agy,
                 skip_grok = skip_import_grok,
                 skip_opencode = skip_import_opencode,
+                skip_claude = skip_import_claude,
+                skip_codex = skip_import_codex,
+                skip_cursor = skip_import_cursor,
                 "Multi-harness import with per-source skip flags"
             );
         }
@@ -467,6 +480,9 @@ pub async fn run(
             skip_import_agy,
             skip_import_grok,
             skip_import_opencode,
+            skip_import_claude,
+            skip_import_codex,
+            skip_import_cursor,
         );
         let report = run_multi_harness_import(ctx, opts);
         let store = ai_brains_store::SqliteEventStore::new((*ctx.conn).clone());
@@ -475,6 +491,9 @@ pub async fn run(
             agy = %report.agy.status,
             grok = %report.grok.status,
             opencode = %report.opencode.status,
+            claude = %report.claude.status,
+            codex = %report.codex.status,
+            cursor = %report.cursor.status,
             "Multi-harness import phase complete"
         );
     }

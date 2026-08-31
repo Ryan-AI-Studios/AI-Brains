@@ -1,4 +1,5 @@
-//! T239 — multi-harness nightly import orchestration (agy → grok → opencode).
+//! T239/T334 — multi-harness nightly import orchestration
+//! (agy → grok → opencode → claude → codex → cursor).
 //!
 //! Calls adapter `import_*_sessions` directly with **per-source** `StoreSink`s
 //! (D5/D21). Fail-open per source. Hermetic overrides live on
@@ -6,8 +7,9 @@
 
 use crate::context::{AppContext, StoreSink};
 use ai_brains_adapters::{
-    AntigravityImportOptions, GrokImportOptions, OpenCodeImportOptions,
-    import_antigravity_sessions, import_grok_sessions, import_opencode_sessions,
+    AntigravityImportOptions, ClaudeImportOptions, CodexImportOptions, CursorImportOptions,
+    GrokImportOptions, OpenCodeImportOptions, import_antigravity_sessions, import_claude_sessions,
+    import_codex_sessions, import_cursor_sessions, import_grok_sessions, import_opencode_sessions,
 };
 use ai_brains_capture::CaptureService;
 use ai_brains_core::ids::ProjectId;
@@ -28,6 +30,9 @@ pub struct MultiImportOptions {
     pub skip_agy: bool,
     pub skip_grok: bool,
     pub skip_opencode: bool,
+    pub skip_claude: bool,
+    pub skip_codex: bool,
+    pub skip_cursor: bool,
     /// Lookback days (default 30 — D10).
     pub days: usize,
     pub force: bool,
@@ -45,6 +50,12 @@ pub struct MultiImportOptions {
     pub opencode_cursor_path_override: Option<PathBuf>,
     /// Hermetic / relocated: OpenCode config dir (D20).
     pub opencode_config_dir_override: Option<PathBuf>,
+    /// Hermetic: Claude user-home override (T334).
+    pub claude_home_override: Option<PathBuf>,
+    /// Hermetic: Codex user-home override (T334).
+    pub codex_home_override: Option<PathBuf>,
+    /// Hermetic: Cursor user-home override (T334).
+    pub cursor_home_override: Option<PathBuf>,
 }
 
 impl MultiImportOptions {
@@ -53,6 +64,9 @@ impl MultiImportOptions {
         skip_agy: bool,
         skip_grok: bool,
         skip_opencode: bool,
+        skip_claude: bool,
+        skip_codex: bool,
+        skip_cursor: bool,
     ) -> Self {
         let max_sessions = std::env::var("AI_BRAINS_NIGHTLY_OPENCODE_MAX")
             .ok()
@@ -64,6 +78,9 @@ impl MultiImportOptions {
             skip_agy,
             skip_grok,
             skip_opencode,
+            skip_claude,
+            skip_codex,
+            skip_cursor,
             days: 30,
             force: false,
             max_sessions,
@@ -73,6 +90,9 @@ impl MultiImportOptions {
             opencode_export_dir_override: None,
             opencode_cursor_path_override: None,
             opencode_config_dir_override: None,
+            claude_home_override: None,
+            codex_home_override: None,
+            cursor_home_override: None,
         }
     }
 }
@@ -159,6 +179,17 @@ pub struct MultiImportReport {
     pub agy: SourceImportReport,
     pub grok: SourceImportReport,
     pub opencode: SourceImportReport,
+    /// Missing on pre-T334 blobs → [`absent_pre_t334_report`].
+    #[serde(default = "absent_pre_t334_report")]
+    pub claude: SourceImportReport,
+    #[serde(default = "absent_pre_t334_report")]
+    pub codex: SourceImportReport,
+    #[serde(default = "absent_pre_t334_report")]
+    pub cursor: SourceImportReport,
+}
+
+fn absent_pre_t334_report() -> SourceImportReport {
+    SourceImportReport::skipped("absent_pre_t334")
 }
 
 impl MultiImportReport {
@@ -166,6 +197,9 @@ impl MultiImportReport {
         agy: SourceImportReport,
         grok: SourceImportReport,
         opencode: SourceImportReport,
+        claude: SourceImportReport,
+        codex: SourceImportReport,
+        cursor: SourceImportReport,
     ) -> Self {
         Self {
             v: 1,
@@ -173,6 +207,9 @@ impl MultiImportReport {
             agy,
             grok,
             opencode,
+            claude,
+            codex,
+            cursor,
         }
     }
 }
@@ -200,7 +237,7 @@ fn format_source_error(source: &str, err: &dyn std::fmt::Display) -> String {
     format!("{source}: {err}")
 }
 
-/// Run AGY → Grok → OpenCode import (or skip) and return a typed report.
+/// Run AGY → Grok → OpenCode → Claude → Codex → Cursor import (or skip) and return a typed report.
 ///
 /// Never aborts nightly for a single-source failure (D7). Caller persists the
 /// report via [`persist_multi_import_report`].
@@ -226,8 +263,11 @@ pub fn run_multi_harness_import(ctx: &AppContext, opts: MultiImportOptions) -> M
         max_sessions,
         project_id,
     );
+    let claude = run_claude_source(ctx, &query_store, &service, &opts, days, project_id);
+    let codex = run_codex_source(ctx, &query_store, &service, &opts, days, project_id);
+    let cursor = run_cursor_source(ctx, &query_store, &service, &opts, days, project_id);
 
-    MultiImportReport::new(agy, grok, opencode)
+    MultiImportReport::new(agy, grok, opencode, claude, codex, cursor)
 }
 
 fn source_skipped(
@@ -417,6 +457,165 @@ fn run_opencode_source(
     }
 }
 
+fn run_claude_source(
+    ctx: &AppContext,
+    query_store: &Arc<dyn QueryStore>,
+    service: &CaptureService,
+    opts: &MultiImportOptions,
+    days: usize,
+    project_id: ProjectId,
+) -> SourceImportReport {
+    if let Some(r) = source_skipped(opts, opts.skip_claude, "skip_import_claude") {
+        return r;
+    }
+
+    let mut sink = make_sink(ctx);
+    let options = ClaudeImportOptions {
+        days,
+        default_project_id: project_id,
+        allow_default_project: false,
+        force: opts.force,
+        home_override: opts.claude_home_override.clone(),
+        dry_run: false,
+    };
+
+    match import_claude_sessions(query_store.as_ref(), service, &mut sink, options) {
+        Ok(stats) => {
+            if let Some(err) = sink.last_error {
+                tracing::error!(
+                    sessions = stats.sessions,
+                    imported_turns = stats.imported_turns,
+                    error = %err,
+                    "Claude multi-import sink error (fail-open)"
+                );
+                SourceImportReport::error(
+                    stats.sessions,
+                    stats.imported_turns,
+                    stats.unbound_project,
+                    format_source_error("claude", &err),
+                )
+            } else {
+                tracing::info!(
+                    sessions = stats.sessions,
+                    imported_turns = stats.imported_turns,
+                    "Claude multi-import ok"
+                );
+                SourceImportReport::ok(stats.sessions, stats.imported_turns, stats.unbound_project)
+            }
+        }
+        Err(e) => {
+            tracing::error!(error = %e, "Claude multi-import failed (fail-open)");
+            SourceImportReport::error(0, 0, 0, format_source_error("claude", &e))
+        }
+    }
+}
+
+fn run_codex_source(
+    ctx: &AppContext,
+    query_store: &Arc<dyn QueryStore>,
+    service: &CaptureService,
+    opts: &MultiImportOptions,
+    days: usize,
+    project_id: ProjectId,
+) -> SourceImportReport {
+    if let Some(r) = source_skipped(opts, opts.skip_codex, "skip_import_codex") {
+        return r;
+    }
+
+    let mut sink = make_sink(ctx);
+    let options = CodexImportOptions {
+        days,
+        default_project_id: project_id,
+        allow_default_project: false,
+        force: opts.force,
+        home_override: opts.codex_home_override.clone(),
+        dry_run: false,
+    };
+
+    match import_codex_sessions(query_store.as_ref(), service, &mut sink, options) {
+        Ok(stats) => {
+            if let Some(err) = sink.last_error {
+                tracing::error!(
+                    sessions = stats.sessions,
+                    imported_turns = stats.imported_turns,
+                    error = %err,
+                    "Codex multi-import sink error (fail-open)"
+                );
+                SourceImportReport::error(
+                    stats.sessions,
+                    stats.imported_turns,
+                    stats.unbound_project,
+                    format_source_error("codex", &err),
+                )
+            } else {
+                tracing::info!(
+                    sessions = stats.sessions,
+                    imported_turns = stats.imported_turns,
+                    "Codex multi-import ok"
+                );
+                SourceImportReport::ok(stats.sessions, stats.imported_turns, stats.unbound_project)
+            }
+        }
+        Err(e) => {
+            tracing::error!(error = %e, "Codex multi-import failed (fail-open)");
+            SourceImportReport::error(0, 0, 0, format_source_error("codex", &e))
+        }
+    }
+}
+
+fn run_cursor_source(
+    ctx: &AppContext,
+    query_store: &Arc<dyn QueryStore>,
+    service: &CaptureService,
+    opts: &MultiImportOptions,
+    days: usize,
+    project_id: ProjectId,
+) -> SourceImportReport {
+    if let Some(r) = source_skipped(opts, opts.skip_cursor, "skip_import_cursor") {
+        return r;
+    }
+
+    let mut sink = make_sink(ctx);
+    let options = CursorImportOptions {
+        days,
+        default_project_id: project_id,
+        allow_default_project: false,
+        force: opts.force,
+        home_override: opts.cursor_home_override.clone(),
+        dry_run: false,
+    };
+
+    match import_cursor_sessions(query_store.as_ref(), service, &mut sink, options) {
+        Ok(stats) => {
+            if let Some(err) = sink.last_error {
+                tracing::error!(
+                    sessions = stats.sessions,
+                    imported_turns = stats.imported_turns,
+                    error = %err,
+                    "Cursor multi-import sink error (fail-open)"
+                );
+                SourceImportReport::error(
+                    stats.sessions,
+                    stats.imported_turns,
+                    stats.unbound_project,
+                    format_source_error("cursor", &err),
+                )
+            } else {
+                tracing::info!(
+                    sessions = stats.sessions,
+                    imported_turns = stats.imported_turns,
+                    "Cursor multi-import ok"
+                );
+                SourceImportReport::ok(stats.sessions, stats.imported_turns, stats.unbound_project)
+            }
+        }
+        Err(e) => {
+            tracing::error!(error = %e, "Cursor multi-import failed (fail-open)");
+            SourceImportReport::error(0, 0, 0, format_source_error("cursor", &e))
+        }
+    }
+}
+
 /// Persist report JSON under `last_multi_import` (D8). Non-fatal on write failure.
 pub fn persist_multi_import_report(event_store: &dyn EventStore, report: &MultiImportReport) {
     match serde_json::to_string(report) {
@@ -476,6 +675,9 @@ pub fn print_multi_import_status(view: &MultiImportStatusView) {
             print_source_line("agy", &report.agy);
             print_source_line("grok", &report.grok);
             print_source_line("opencode", &report.opencode);
+            print_source_line("claude", &report.claude);
+            print_source_line("codex", &report.codex);
+            print_source_line("cursor", &report.cursor);
             if let Some(line) = opencode_cap_warning_line(&report.opencode) {
                 println!("{line}");
             }
@@ -642,10 +844,16 @@ mod tests {
         let export_dir = root.join("oc-exports");
         let cursor = root.join("oc-cursor.json");
         let workspace = root.join("ws-shared");
+        let claude_home = root.join("claude-home");
+        let codex_home = root.join("codex-home");
+        let cursor_home = root.join("cursor-home");
         fs::create_dir_all(&agy_home).unwrap();
         fs::create_dir_all(&grok_home).unwrap();
         fs::create_dir_all(&export_dir).unwrap();
         fs::create_dir_all(&workspace).unwrap();
+        fs::create_dir_all(&claude_home).unwrap();
+        fs::create_dir_all(&codex_home).unwrap();
+        fs::create_dir_all(&cursor_home).unwrap();
         let ws = workspace.to_string_lossy().to_string();
 
         // AGY
@@ -700,6 +908,9 @@ mod tests {
             skip_agy: false,
             skip_grok: false,
             skip_opencode: false,
+            skip_claude: false,
+            skip_codex: false,
+            skip_cursor: false,
             days: 30,
             force: true,
             max_sessions: 100,
@@ -709,7 +920,81 @@ mod tests {
             opencode_export_dir_override: Some(export_dir),
             opencode_cursor_path_override: Some(cursor),
             opencode_config_dir_override: None,
+            claude_home_override: Some(claude_home),
+            codex_home_override: Some(codex_home),
+            cursor_home_override: Some(cursor_home),
         }
+    }
+
+    fn hermetic_six_fixtures(root: &Path) -> MultiImportOptions {
+        let mut opts = hermetic_fixtures(root);
+        let claude_home = root.join("claude-home");
+        let codex_home = root.join("codex-home");
+        let cursor_home = root.join("cursor-home");
+        fs::create_dir_all(&claude_home).unwrap();
+        fs::create_dir_all(&codex_home).unwrap();
+        fs::create_dir_all(&cursor_home).unwrap();
+        let ws = root.join("ws-shared").to_string_lossy().to_string();
+
+        let claude_sid = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb";
+        let enc = ai_brains_adapters::percent_encode_path_component(&ws);
+        let claude_dir = claude_home.join(".claude").join("projects").join(&enc);
+        fs::create_dir_all(&claude_dir).unwrap();
+        let claude_path = claude_dir.join(format!("{claude_sid}.jsonl"));
+        fs::write(
+            &claude_path,
+            r#"{"type":"user","uuid":"u1","message":{"role":"user","content":"hello-claude-multi"}}
+{"type":"assistant","uuid":"a1","message":{"role":"assistant","content":[{"type":"text","text":"ok-claude-multi"}]}}
+"#,
+        )
+        .unwrap();
+        let past = SystemTime::now() - Duration::from_secs(600);
+        let _ = filetime_set_mtime(&claude_path, past);
+
+        let codex_sid = "cccccccc-cccc-cccc-cccc-cccccccccccc";
+        let codex_dir = codex_home
+            .join(".codex")
+            .join("sessions")
+            .join("2026")
+            .join("08")
+            .join("15");
+        fs::create_dir_all(&codex_dir).unwrap();
+        let codex_path = codex_dir.join(format!("rollout-2026-08-15T12-00-00-{codex_sid}.jsonl"));
+        fs::write(
+            &codex_path,
+            format!(
+                r#"{{"timestamp":"2026-08-15T00:00:00Z","type":"session_meta","payload":{{"id":"{codex_sid}","cwd":{cwd}}}}}
+{{"timestamp":"2026-08-15T00:00:02Z","type":"response_item","payload":{{"type":"message","role":"user","content":[{{"type":"input_text","text":"hello-codex-multi"}}]}}}}
+{{"timestamp":"2026-08-15T00:00:03Z","type":"response_item","payload":{{"type":"message","role":"assistant","content":[{{"type":"output_text","text":"ok-codex-multi"}}]}}}}
+"#,
+                cwd = serde_json::to_string(&ws).unwrap(),
+            ),
+        )
+        .unwrap();
+        let _ = filetime_set_mtime(&codex_path, past);
+
+        let cursor_sid = "dddddddd-dddd-dddd-dddd-dddddddddddd";
+        let cursor_dir = cursor_home
+            .join(".cursor")
+            .join("projects")
+            .join("c-dev-AI-Brains")
+            .join("agent-transcripts")
+            .join(cursor_sid);
+        fs::create_dir_all(&cursor_dir).unwrap();
+        let cursor_path = cursor_dir.join(format!("{cursor_sid}.jsonl"));
+        fs::write(
+            &cursor_path,
+            r#"{"role":"user","message":{"content":[{"type":"text","text":"<user_query>\nhello-cursor-multi\n</user_query>"}]}}
+{"role":"assistant","message":{"content":[{"type":"text","text":"ok-cursor-multi"}]}}
+"#,
+        )
+        .unwrap();
+        let _ = filetime_set_mtime(&cursor_path, past);
+
+        opts.claude_home_override = Some(claude_home);
+        opts.codex_home_override = Some(codex_home);
+        opts.cursor_home_override = Some(cursor_home);
+        opts
     }
 
     #[test]
@@ -741,6 +1026,52 @@ mod tests {
         assert_eq!(report.opencode.export_errors, Some(0));
         assert_eq!(report.opencode.timed_out, Some(0));
         assert_eq!(report.opencode.skipped_missing_binary, Some(0));
+        assert_eq!(report.claude.status, "ok");
+        assert_eq!(report.codex.status, "ok");
+        assert_eq!(report.cursor.status, "ok");
+        assert_eq!(report.claude.sessions, 0);
+        assert_eq!(report.codex.sessions, 0);
+        assert_eq!(report.cursor.sessions, 0);
+    }
+
+    #[test]
+    fn multi_import__hermetic_six_sources__all_ok_with_turns() {
+        let root = tempdir().unwrap();
+        let vault_dir = root.path().join("vault");
+        fs::create_dir_all(&vault_dir).unwrap();
+        let ctx = open_ctx(&vault_dir);
+        let opts = hermetic_six_fixtures(root.path());
+
+        let report = run_multi_harness_import(&ctx, opts);
+        assert_eq!(report.v, 1);
+        assert_eq!(report.agy.status, "ok");
+        assert_eq!(report.grok.status, "ok");
+        assert_eq!(report.opencode.status, "ok");
+        assert_eq!(report.claude.status, "ok");
+        assert_eq!(report.codex.status, "ok");
+        assert_eq!(report.cursor.status, "ok");
+        assert!(report.agy.imported_turns >= 2, "agy: {:?}", report.agy);
+        assert!(report.grok.imported_turns >= 2, "grok: {:?}", report.grok);
+        assert!(
+            report.opencode.imported_turns >= 2,
+            "oc: {:?}",
+            report.opencode
+        );
+        assert!(
+            report.claude.imported_turns >= 2,
+            "claude: {:?}",
+            report.claude
+        );
+        assert!(
+            report.codex.imported_turns >= 2,
+            "codex: {:?}",
+            report.codex
+        );
+        assert!(
+            report.cursor.imported_turns >= 2,
+            "cursor: {:?}",
+            report.cursor
+        );
     }
 
     #[test]
@@ -791,6 +1122,12 @@ mod tests {
         assert_eq!(report.agy.skip_reason.as_deref(), Some("skip_import"));
         assert_eq!(report.grok.status, "skipped");
         assert_eq!(report.opencode.status, "skipped");
+        assert_eq!(report.claude.status, "skipped");
+        assert_eq!(report.codex.status, "skipped");
+        assert_eq!(report.cursor.status, "skipped");
+        assert_eq!(report.claude.skip_reason.as_deref(), Some("skip_import"));
+        assert_eq!(report.codex.skip_reason.as_deref(), Some("skip_import"));
+        assert_eq!(report.cursor.skip_reason.as_deref(), Some("skip_import"));
         assert_eq!(report.agy.sessions, 0);
         assert_eq!(report.agy.imported_turns, 0);
 
@@ -837,6 +1174,53 @@ mod tests {
         assert_eq!(report.agy.skip_reason.as_deref(), Some("skip_import_agy"));
         assert_eq!(report.grok.status, "ok");
         assert_eq!(report.opencode.status, "ok");
+    }
+
+    #[test]
+    fn multi_import__skip_import_cursor_only__others_run() {
+        let root = tempdir().unwrap();
+        let vault_dir = root.path().join("vault");
+        fs::create_dir_all(&vault_dir).unwrap();
+        let ctx = open_ctx(&vault_dir);
+        let mut opts = hermetic_six_fixtures(root.path());
+        opts.skip_cursor = true;
+
+        let report = run_multi_harness_import(&ctx, opts);
+        assert_eq!(report.cursor.status, "skipped");
+        assert_eq!(
+            report.cursor.skip_reason.as_deref(),
+            Some("skip_import_cursor")
+        );
+        assert_eq!(report.agy.status, "ok");
+        assert_eq!(report.grok.status, "ok");
+        assert_eq!(report.opencode.status, "ok");
+        assert_eq!(report.claude.status, "ok");
+        assert_eq!(report.codex.status, "ok");
+        assert!(report.agy.imported_turns >= 2);
+        assert!(report.claude.imported_turns >= 2);
+        assert_eq!(report.cursor.sessions, 0);
+    }
+
+    #[test]
+    fn multi_import__skip_import_claude_only__others_run() {
+        let root = tempdir().unwrap();
+        let vault_dir = root.path().join("vault");
+        fs::create_dir_all(&vault_dir).unwrap();
+        let ctx = open_ctx(&vault_dir);
+        let mut opts = hermetic_six_fixtures(root.path());
+        opts.skip_claude = true;
+
+        let report = run_multi_harness_import(&ctx, opts);
+        assert_eq!(report.claude.status, "skipped");
+        assert_eq!(
+            report.claude.skip_reason.as_deref(),
+            Some("skip_import_claude")
+        );
+        assert_eq!(report.agy.status, "ok");
+        assert_eq!(report.cursor.status, "ok");
+        assert_eq!(report.codex.status, "ok");
+        assert!(report.cursor.imported_turns >= 2);
+        assert_eq!(report.claude.sessions, 0);
     }
 
     #[test]
@@ -934,6 +1318,9 @@ mod tests {
                 s.skipped_missing_binary = Some(0);
                 s
             },
+            claude: SourceImportReport::skipped("skip_import"),
+            codex: SourceImportReport::skipped("skip_import"),
+            cursor: SourceImportReport::skipped("skip_import"),
         };
         let line = opencode_cap_warning_line(&report.opencode)
             .expect("list_capped>0 must produce warning");
@@ -958,6 +1345,9 @@ mod tests {
                 s.list_capped = Some(1);
                 s
             },
+            SourceImportReport::ok(3, 4, 0),
+            SourceImportReport::ok(5, 6, 0),
+            SourceImportReport::ok(7, 8, 0),
         );
         let json = serde_json::to_string(&report).expect("ser");
         let back: MultiImportReport = serde_json::from_str(&json).expect("de");
@@ -965,5 +1355,23 @@ mod tests {
         assert_eq!(back.agy.sessions, 1);
         assert_eq!(back.grok.skip_reason.as_deref(), Some("skip_import_grok"));
         assert_eq!(back.opencode.list_capped, Some(1));
+        assert_eq!(back.claude.sessions, 3);
+        assert_eq!(back.codex.sessions, 5);
+        assert_eq!(back.cursor.sessions, 7);
+        assert!(json.contains("\"claude\""));
+        assert!(json.contains("\"codex\""));
+        assert!(json.contains("\"cursor\""));
+    }
+
+    #[test]
+    fn multi_import__serde_v1_missing_new_keys__absent_pre_t334() {
+        let old = r#"{"v":1,"at":"2026-08-16T00:00:00Z","agy":{"status":"ok","sessions":1,"imported_turns":2,"unbound":0},"grok":{"status":"ok","sessions":0,"imported_turns":0,"unbound":0},"opencode":{"status":"skipped","skip_reason":"skip_import_opencode","sessions":0,"imported_turns":0,"unbound":0}}"#;
+        let back: MultiImportReport = serde_json::from_str(old).expect("de");
+        assert_eq!(back.v, 1);
+        assert_eq!(back.agy.sessions, 1);
+        assert_eq!(back.claude.status, "skipped");
+        assert_eq!(back.claude.skip_reason.as_deref(), Some("absent_pre_t334"));
+        assert_eq!(back.codex.skip_reason.as_deref(), Some("absent_pre_t334"));
+        assert_eq!(back.cursor.skip_reason.as_deref(), Some("absent_pre_t334"));
     }
 }

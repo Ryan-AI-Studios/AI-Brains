@@ -136,7 +136,7 @@ pub fn claude_capability() -> AdapterCapability {
         level: CapabilityLevel::Full,
         supports_hooks: true,
         supports_wrapper_mode: true,
-        notes: "Install via `harness install --harness claude`. Live UserPromptSubmit+Stop+SessionEnd ingest `prompt` / `last_assistant_message` after T234 filter_turn (message-only). Do not parse transcript_path on the live hook. No SessionStart injection. No nightly multi-import. Unbound alias claude-unbound. Grok-shaped stdin fail-open skip. Full harnesses bind as PrincipalKind::Agent (not Connector) so ProposeConclusion is in-matrix; principal_binding deferred until registry wiring. Connector observe-only remains ReadEvidence.".to_string(),
+        notes: "Install via `harness install --harness claude`. Live UserPromptSubmit+Stop+SessionEnd ingest `prompt` / `last_assistant_message` after T234 filter_turn (message-only). Do not parse transcript_path on the live hook. No SessionStart injection. Nightly multi-import includes Claude as the fourth source (after agy → grok → opencode). Unbound alias claude-unbound. Grok-shaped stdin fail-open skip. Full harnesses bind as PrincipalKind::Agent (not Connector) so ProposeConclusion is in-matrix; principal_binding deferred until registry wiring. Connector observe-only remains ReadEvidence.".to_string(),
         governed_reads: full_harness_governed_reads(),
         governed_writes: vec![GrantCapability::ProposeConclusion],
         principal_binding: None,
@@ -1116,7 +1116,8 @@ mod tests {
         assert!(c.supports_hooks);
         assert!(c.notes.contains("harness install --harness claude"));
         assert!(c.notes.contains("No SessionStart injection"));
-        assert!(c.notes.contains("No nightly"));
+        assert!(c.notes.contains("Nightly multi-import"));
+        assert!(!c.notes.contains("No nightly multi-import"));
         assert!(c.notes.contains("message-only"));
     }
 
