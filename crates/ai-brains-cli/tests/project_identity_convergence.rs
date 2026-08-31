@@ -219,6 +219,62 @@ fn project_detect__export_path_alias__source_comment() {
     );
 }
 
+/// T333 AC3: `--format json` on path-alias fixture names `source=path_alias`.
+#[test]
+fn project_detect__format_json__path_alias_source() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+
+    let proj = dir.path().join("proj-json-path");
+    let id = register_project(&vault, &proj);
+    set_alias(&vault, &id, "json-path-alias");
+
+    let repo = dir.path().join("json-path-repo");
+    git_init_with_origin(&repo, "https://github.com/user/UnrelatedJsonSlug.git");
+    register_path(&vault, &id, repo.to_str().expect("utf8"));
+
+    let out = hermetic()
+        .arg("--no-project-context")
+        .arg("--vault-path")
+        .arg(&vault)
+        .current_dir(&repo)
+        .env("GIT_TERMINAL_PROMPT", "0")
+        .arg("project")
+        .arg("detect")
+        .arg("--format")
+        .arg("json")
+        .output()
+        .expect("detect --format json path");
+
+    assert_eq!(
+        out.status.code(),
+        Some(0),
+        "stderr={}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    let v: serde_json::Value = serde_json::from_str(stdout.trim()).unwrap_or_else(|e| {
+        panic!("AC3 stdout must be JSON; {e}; stdout={stdout}");
+    });
+    assert!(v.is_object(), "AC3 stdout object; got: {stdout}");
+    assert_eq!(v["source"], "path_alias", "AC3 source; got: {stdout}");
+    assert_eq!(v["project_id"], id, "AC3 project_id; got: {stdout}");
+    assert!(
+        v["memories"].is_number(),
+        "AC3 memories is a number not null; got: {stdout}"
+    );
+    assert_eq!(
+        v["notes"],
+        serde_json::json!([]),
+        "AC3 notes E1 []; got: {stdout}"
+    );
+    assert!(
+        v.get("warning").is_none(),
+        "AC3 omits warning when none; got: {stdout}"
+    );
+}
+
 // ---------------------------------------------------------------------------
 // whoami JSON fields
 // ---------------------------------------------------------------------------

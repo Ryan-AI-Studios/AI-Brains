@@ -2,6 +2,21 @@
 
 Tracks deferred from T142. Append-only; strike through when promoted to a real track.
 
+### T333 implement residuals (2026-08-30) — detect JSON `source` + workspace 0.1.5
+
+| Item | Disposition |
+|------|-------------|
+| PATH until owner `cargo install` | **Deferred** F23 — source **0.1.5**; PATH still **0.1.3**; PATH `--format` unknown until install |
+| Human detect still has no `source=` token | **Deferred** F11 declined |
+| Live LexBase / AI-Brains already path-aligned | **Deferred** AC14 honesty; hermetic AC3 is SoT |
+| `10d4bff5` hashed row still listed | **Ops-only** (T332 F6) |
+| Doctor still ok on path-null env-fallback | T332 F10 |
+| Daily commands silent until whoami / scope JSON | T332 F28 |
+| T307 reqwest/tower-http | Still **Blocked** |
+| Desktop 0.1.2 | **Freeze** F20 |
+| No git tag `v0.1.5` | **Freeze** F22 |
+| FEATURE TX | `60eba317-a2d3-4a60-bacf-f52c1ba71112` |
+
 ### T333 fold-in (2026-08-30) — `agy-review.md` + `opencode-review.md`
 
 | Item | Disposition |
@@ -45,7 +60,7 @@ Tracks deferred from T142. Append-only; strike through when promoted to a real t
 | Doctor still ok on path-null env-fallback | **Deferred** F10 |
 | Daily commands silent until whoami / scope JSON | **Deferred** F28 |
 | Leftover `7d97a456` multi-root / crawlx | T259/T276 ops — not this |
-| ~~No `project detect --json` source field~~ | **T333 Planned** — `--format json` always-present `source`; omitted format stays human |
+| ~~No `project detect --json` source field~~ | **T333 Completed** — `--format json` always-present `source`; omitted format stays human |
 | T307 reqwest/tower-http | Still **Blocked** |
 | Codex CX2 P3 bookkeeping (plan AC17 checkbox lag) | **Closed** — post-`--cwd` `dev-check.ps1` nextest **3762** passed |
 | BUGFIX TX | `052628a2-a6a8-4527-b4e1-baa5dcc3a747` |

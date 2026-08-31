@@ -639,8 +639,8 @@ mod tests {
     }
 
     #[test]
-    fn cargo_pkg_version__workspace__is_0_1_4() {
-        assert_eq!(env!("CARGO_PKG_VERSION"), "0.1.4");
+    fn cargo_pkg_version__workspace__is_0_1_5() {
+        assert_eq!(env!("CARGO_PKG_VERSION"), "0.1.5");
     }
 
     #[test]
