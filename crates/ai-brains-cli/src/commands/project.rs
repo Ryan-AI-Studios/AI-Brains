@@ -562,9 +562,85 @@ pub fn resolve(
     }
 }
 
-pub fn detect(ctx: &AppContext, export_shell: bool) -> Result<(), Box<dyn std::error::Error>> {
+#[derive(Debug, Serialize)]
+struct DetectReport {
+    project_id: Option<String>,
+    name: Option<String>,
+    alias: Option<String>,
+    memories: Option<i64>,
+    source: String,
+    notes: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    warning: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    message: Option<String>,
+}
+
+fn emit_detect_json(outcome: Option<&DetectOutcome>) -> Result<(), Box<dyn std::error::Error>> {
+    let report = match outcome {
+        None => DetectReport {
+            project_id: None,
+            name: None,
+            alias: None,
+            memories: None,
+            source: crate::commands::identity_warn::detect_source_label(None).to_string(),
+            notes: Vec::new(),
+            warning: None,
+            message: Some(
+                "No project detected. Set an alias with 'project set-alias', initialize a project with 'init', or run 'ai-brains context'."
+                    .to_string(),
+            ),
+        },
+        Some(o) if is_ambiguous_detect(o) => DetectReport {
+            project_id: None,
+            name: None,
+            alias: None,
+            memories: None,
+            source: crate::commands::identity_warn::detect_source_label(Some(o)).to_string(),
+            notes: o.notes.clone(),
+            warning: None,
+            message: None,
+        },
+        Some(o) => {
+            let (pid, name, alias, count) = &o.project;
+            DetectReport {
+                project_id: Some(pid.clone()),
+                name: Some(name.clone()),
+                alias: Some(alias.clone()),
+                memories: Some(i64::try_from(*count).unwrap_or(i64::MAX)),
+                source: crate::commands::identity_warn::detect_source_label(Some(o)).to_string(),
+                notes: o.notes.clone(),
+                warning: o.env_warn.clone(),
+                message: None,
+            }
+        }
+    };
+    print_json_stdout(&report)
+}
+
+pub fn detect(
+    ctx: &AppContext,
+    export_shell: bool,
+    format: &str,
+) -> Result<(), Box<dyn std::error::Error>> {
+    use std::io::IsTerminal;
+
     let current_dir = std::env::current_dir()?;
     let outcome = resolve_detect(ctx.conn.as_ref(), &current_dir)?;
+
+    if !export_shell
+        && crate::commands::format_resolve::is_json_output(format, std::io::stdout().is_terminal())
+    {
+        emit_detect_json(outcome.as_ref())?;
+        let fail = match outcome.as_ref() {
+            None => true,
+            Some(o) => is_ambiguous_detect(o),
+        };
+        if fail {
+            std::process::exit(1);
+        }
+        return Ok(());
+    }
 
     let Some(outcome) = outcome else {
         // F5 (4): Miss exit 1.

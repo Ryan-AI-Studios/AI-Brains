@@ -74,6 +74,19 @@ fn set_alias(vault: &Path, project_id: &str, alias: &str) {
         .success();
 }
 
+fn register_path(vault: &Path, project_ref: &str, path: &str) {
+    hermetic_detect()
+        .arg("--no-project-context")
+        .arg("--vault-path")
+        .arg(vault)
+        .arg("project")
+        .arg("register-path")
+        .arg(project_ref)
+        .arg(path)
+        .assert()
+        .success();
+}
+
 fn git_init_with_origin(repo: &Path, origin_url: &str) {
     fs::create_dir_all(repo).expect("repo dir");
     let status = Command::new("git")
@@ -505,5 +518,279 @@ fn project_detect__remote_first_slug__dir_name_ignored() {
     assert!(
         stdout.contains("from git") && stdout.contains(&project_id),
         "remote slug must match alias; got: {stdout}"
+    );
+}
+
+/// T333 AC4: JSON env-fallback puts mismatch in `warning`, not stderr.
+#[test]
+fn project_detect__format_json__env_fallback_source_env_json_silent_stderr() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+
+    let proj_dir = dir.path().join("json-mismatch-proj");
+    let project_id = register_project(&vault, &proj_dir);
+    set_alias(&vault, &project_id, "json-test-alias");
+
+    let repo = dir.path().join("json-checkout-folder");
+    git_init_with_origin(&repo, "https://github.com/user/AI-Brains.git");
+
+    let out = hermetic_detect()
+        .arg("--no-project-context")
+        .arg("--vault-path")
+        .arg(&vault)
+        .current_dir(&repo)
+        .env("AI_BRAINS_PROJECT_ID", &project_id)
+        .env("GIT_TERMINAL_PROMPT", "0")
+        .arg("project")
+        .arg("detect")
+        .arg("--format")
+        .arg("json")
+        .output()
+        .expect("detect --format json mismatch");
+
+    assert_eq!(
+        out.status.code(),
+        Some(0),
+        "stderr={}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    let v: serde_json::Value = serde_json::from_str(stdout.trim()).unwrap_or_else(|e| {
+        panic!("AC4 stdout must be JSON; {e}; stdout={stdout}");
+    });
+    assert_eq!(v["source"], "env", "AC4 source; got: {stdout}");
+    let warning = v["warning"].as_str().unwrap_or("");
+    assert!(
+        warning.contains("git/env project mismatch") || warning.contains("set-alias"),
+        "AC4 warning names mismatch or set-alias; got: {stdout}"
+    );
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        !stderr.contains("git/env project mismatch"),
+        "AC4 JSON-effective silent; stderr={stderr}"
+    );
+}
+
+/// T333 AC5: unique git slug JSON `source=git_slug`.
+#[test]
+fn project_detect__format_json__unique_git_source_git_slug() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+
+    let proj_a = dir.path().join("json-proj-a");
+    let id_a = register_project(&vault, &proj_a);
+    set_alias(&vault, &id_a, "json-wrong-env");
+
+    let proj_b = dir.path().join("json-proj-b");
+    let id_b = register_project(&vault, &proj_b);
+    set_alias(&vault, &id_b, "HonestJsonSlug");
+
+    let repo = dir.path().join("json-fork-checkout");
+    git_init_with_origin(&repo, "https://github.com/user/HonestJsonSlug.git");
+
+    let out = hermetic_detect()
+        .arg("--no-project-context")
+        .arg("--vault-path")
+        .arg(&vault)
+        .current_dir(&repo)
+        .env("AI_BRAINS_PROJECT_ID", &id_a)
+        .env("GIT_TERMINAL_PROMPT", "0")
+        .arg("project")
+        .arg("detect")
+        .arg("--format")
+        .arg("json")
+        .output()
+        .expect("detect --format json git");
+
+    assert_eq!(
+        out.status.code(),
+        Some(0),
+        "stderr={}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    let v: serde_json::Value = serde_json::from_str(stdout.trim()).unwrap_or_else(|e| {
+        panic!("AC5 stdout must be JSON; {e}; stdout={stdout}");
+    });
+    assert_eq!(v["source"], "git_slug", "AC5 source; got: {stdout}");
+    assert_eq!(v["project_id"], id_b, "AC5 git-matched B; got: {stdout}");
+}
+
+/// T333 AC8: JSON miss `source=none` with null identity keys present (not omitted, not 0).
+#[test]
+fn project_detect__format_json__miss__source_none_null_memories() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+
+    let out = hermetic_detect()
+        .arg("--no-project-context")
+        .arg("--vault-path")
+        .arg(&vault)
+        .current_dir(dir.path())
+        .arg("project")
+        .arg("detect")
+        .arg("--format")
+        .arg("json")
+        .output()
+        .expect("detect --format json miss");
+
+    assert_eq!(
+        out.status.code(),
+        Some(1),
+        "stdout={}",
+        String::from_utf8_lossy(&out.stdout)
+    );
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    let v: serde_json::Value = serde_json::from_str(stdout.trim()).unwrap_or_else(|e| {
+        panic!("AC8 stdout must be JSON; {e}; stdout={stdout}");
+    });
+    assert_eq!(v["source"], "none", "AC8 source; got: {stdout}");
+    for key in ["project_id", "name", "alias", "memories"] {
+        assert!(
+            v.as_object().is_some_and(|o| o.contains_key(key)),
+            "AC8 contains_key {key}; got: {stdout}"
+        );
+        assert!(
+            v[key].is_null(),
+            "AC8 {key} JSON null (not 0, not omitted); got: {stdout}"
+        );
+    }
+    assert_ne!(
+        v["memories"], 0,
+        "AC8 memories must not be 0; got: {stdout}"
+    );
+    let message = v["message"].as_str().unwrap_or("");
+    assert!(!message.is_empty(), "AC8 message nonempty; got: {stdout}");
+}
+
+/// T333 AC10: JSON ambiguous slug `source=none` with nonempty notes.
+#[test]
+fn project_detect__format_json__ambiguous__source_none_notes() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+
+    let p1 = dir.path().join("json-ambig-one");
+    let id1 = register_project(&vault, &p1);
+    set_alias(&vault, &id1, "json-proj-alpha-slug");
+
+    let p2 = dir.path().join("json-ambig-two");
+    let id2 = register_project(&vault, &p2);
+    set_alias(&vault, &id2, "json-proj-beta-slug");
+
+    let repo = dir.path().join("json-ambig-repo");
+    git_init_with_origin(&repo, "https://github.com/user/slug.git");
+
+    let out = hermetic_detect()
+        .arg("--no-project-context")
+        .arg("--vault-path")
+        .arg(&vault)
+        .current_dir(&repo)
+        .env("GIT_TERMINAL_PROMPT", "0")
+        .arg("project")
+        .arg("detect")
+        .arg("--format")
+        .arg("json")
+        .output()
+        .expect("detect --format json ambiguous");
+
+    assert_eq!(
+        out.status.code(),
+        Some(1),
+        "stdout={}\nstderr={}",
+        String::from_utf8_lossy(&out.stdout),
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    let v: serde_json::Value = serde_json::from_str(stdout.trim()).unwrap_or_else(|e| {
+        panic!("AC10 stdout must be JSON; {e}; stdout={stdout}");
+    });
+    assert_eq!(v["source"], "none", "AC10 source; got: {stdout}");
+    let notes = v["notes"].as_array().cloned().unwrap_or_default();
+    assert!(!notes.is_empty(), "AC10 notes nonempty; got: {stdout}");
+    let joined = notes
+        .iter()
+        .filter_map(|n| n.as_str())
+        .collect::<Vec<_>>()
+        .join("\n");
+    assert!(
+        joined.contains(&id1)
+            || joined.contains(&id2)
+            || joined.to_lowercase().contains("ambiguous"),
+        "AC10 notes name candidates; got: {stdout}"
+    );
+}
+
+/// T333 AC11: explicit `--format auto` on a pipe is JSON `path_alias`; omitted stays human.
+#[test]
+fn project_detect__format_auto_pipe__json_vs_omitted_human() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+
+    let proj = dir.path().join("auto-path-proj");
+    let id = register_project(&vault, &proj);
+    set_alias(&vault, &id, "auto-path-alias");
+
+    let repo = dir.path().join("auto-path-repo");
+    git_init_with_origin(&repo, "https://github.com/user/UnrelatedAutoSlug.git");
+    register_path(&vault, &id, repo.to_str().expect("utf8"));
+
+    let auto_out = hermetic_detect()
+        .arg("--no-project-context")
+        .arg("--vault-path")
+        .arg(&vault)
+        .current_dir(&repo)
+        .env("GIT_TERMINAL_PROMPT", "0")
+        .arg("project")
+        .arg("detect")
+        .arg("--format")
+        .arg("auto")
+        .output()
+        .expect("detect --format auto");
+
+    assert_eq!(
+        auto_out.status.code(),
+        Some(0),
+        "stderr={}",
+        String::from_utf8_lossy(&auto_out.stderr)
+    );
+    let auto_stdout = String::from_utf8_lossy(&auto_out.stdout);
+    let v: serde_json::Value = serde_json::from_str(auto_stdout.trim()).unwrap_or_else(|e| {
+        panic!("AC11 explicit auto on pipe is JSON; {e}; stdout={auto_stdout}");
+    });
+    assert_eq!(
+        v["source"], "path_alias",
+        "AC11 auto pipe source; got: {auto_stdout}"
+    );
+
+    let omitted = hermetic_detect()
+        .arg("--no-project-context")
+        .arg("--vault-path")
+        .arg(&vault)
+        .current_dir(&repo)
+        .env("GIT_TERMINAL_PROMPT", "0")
+        .arg("project")
+        .arg("detect")
+        .output()
+        .expect("detect omitted format");
+
+    assert_eq!(
+        omitted.status.code(),
+        Some(0),
+        "stderr={}",
+        String::from_utf8_lossy(&omitted.stderr)
+    );
+    let omitted_stdout = String::from_utf8_lossy(&omitted.stdout);
+    assert!(
+        omitted_stdout.contains("from path alias"),
+        "AC11 omitted format stays human; got: {omitted_stdout}"
+    );
+    assert!(
+        !omitted_stdout.trim_start().starts_with('{'),
+        "AC11 omitted stdout is not JSON; got: {omitted_stdout}"
     );
 }

@@ -9,7 +9,7 @@
 #
 # Usage:
 #   ./scripts/generate-sbom.sh
-#   TARGET=x86_64-unknown-linux-gnu VERSION=0.1.4 ./scripts/generate-sbom.sh
+#   TARGET=x86_64-unknown-linux-gnu VERSION=0.1.5 ./scripts/generate-sbom.sh
 #   INCLUDE_DESKTOP=1 ./scripts/generate-sbom.sh
 #
 # Requires: cargo-cyclonedx 0.5.9+ (Apache-2.0). See Docs/ci-tooling.md.

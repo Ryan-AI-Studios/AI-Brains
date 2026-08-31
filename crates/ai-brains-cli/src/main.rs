@@ -1493,6 +1493,136 @@ mod tests {
         assert_eq!(err.kind(), ErrorKind::InvalidValue);
     }
 
+    /// T333 AC1: `project detect --format json` parses.
+    #[test]
+    #[allow(non_snake_case)]
+    fn detect__format_json__parses() {
+        let cli = match super::Cli::try_parse_from([
+            "ai-brains",
+            "project",
+            "detect",
+            "--format",
+            "json",
+        ]) {
+            Ok(c) => c,
+            Err(e) => panic!("expected detect --format json to parse: {e}"),
+        };
+        match *cli.command {
+            super::Commands::Project {
+                command: super::ProjectCommands::Detect { export, .. },
+            } => {
+                assert!(!export);
+            }
+            _ => panic!("expected ProjectCommands::Detect"),
+        }
+    }
+
+    /// T333 AC1: `project detect --format pretty` parses.
+    #[test]
+    #[allow(non_snake_case)]
+    fn detect__format_pretty__parses() {
+        let cli = match super::Cli::try_parse_from([
+            "ai-brains",
+            "project",
+            "detect",
+            "--format",
+            "pretty",
+        ]) {
+            Ok(c) => c,
+            Err(e) => panic!("expected detect --format pretty to parse: {e}"),
+        };
+        match *cli.command {
+            super::Commands::Project {
+                command: super::ProjectCommands::Detect { .. },
+            } => {}
+            _ => panic!("expected ProjectCommands::Detect"),
+        }
+    }
+
+    /// T333 AC1: omitted `--format` still parses (human even when piped).
+    #[test]
+    #[allow(non_snake_case)]
+    fn detect__format_omitted__parses() {
+        let cli = match super::Cli::try_parse_from(["ai-brains", "project", "detect"]) {
+            Ok(c) => c,
+            Err(e) => panic!("expected detect without --format to parse: {e}"),
+        };
+        match *cli.command {
+            super::Commands::Project {
+                command: super::ProjectCommands::Detect { export, .. },
+            } => {
+                assert!(!export);
+            }
+            _ => panic!("expected ProjectCommands::Detect"),
+        }
+    }
+
+    /// T333 AC1: `--format JSON` is clap InvalidValue on detect.
+    #[test]
+    #[allow(non_snake_case)]
+    fn detect__format_JSON__clap_invalid_value() {
+        use clap::error::ErrorKind;
+        let err = match super::Cli::try_parse_from([
+            "ai-brains",
+            "project",
+            "detect",
+            "--format",
+            "JSON",
+        ]) {
+            Ok(_) => panic!("expected clap to reject detect --format JSON"),
+            Err(e) => e,
+        };
+        assert_eq!(err.kind(), ErrorKind::InvalidValue);
+    }
+
+    /// T333 AC1: `--format xml` is clap InvalidValue on detect.
+    #[test]
+    #[allow(non_snake_case)]
+    fn detect__format_xml__clap_invalid_value() {
+        use clap::error::ErrorKind;
+        let err =
+            match super::Cli::try_parse_from(["ai-brains", "project", "detect", "--format", "xml"])
+            {
+                Ok(_) => panic!("expected clap to reject detect --format xml"),
+                Err(e) => e,
+            };
+        assert_eq!(err.kind(), ErrorKind::InvalidValue);
+    }
+
+    /// T333 AC2: `--export --format json` is clap ArgumentConflict.
+    #[test]
+    #[allow(non_snake_case)]
+    fn detect__export_and_format_json__clap_conflict() {
+        use clap::error::ErrorKind;
+        let err = match super::Cli::try_parse_from([
+            "ai-brains",
+            "project",
+            "detect",
+            "--export",
+            "--format",
+            "json",
+        ]) {
+            Ok(_) => panic!("expected clap to reject --export with --format json"),
+            Err(e) => e,
+        };
+        assert_eq!(err.kind(), ErrorKind::ArgumentConflict);
+    }
+
+    /// T333 AC15: detect after_help names `--format json`.
+    #[test]
+    #[allow(non_snake_case)]
+    fn detect_help__after_help__names_format_json() {
+        let err = match super::Cli::try_parse_from(["ai-brains", "project", "detect", "--help"]) {
+            Ok(_) => panic!("expected clap help"),
+            Err(e) => e,
+        };
+        let help = err.to_string();
+        assert!(
+            help.contains("--format json"),
+            "AC15: after_help names --format json; got: {help}"
+        );
+    }
+
     /// T332 AC15: whoami after_help names detect_source=env after slug miss.
     #[test]
     #[allow(non_snake_case)]
@@ -3531,12 +3661,19 @@ pub enum ProjectCommands {
     },
     /// Auto-detect project: path alias (toplevel/cwd) → git slug → .env PROJECT_ID
     #[command(
-        after_help = "Precedence (F5):\n  1. Path alias of git toplevel (else cwd)\n  2. Git slug exact-first vault match\n  3. AI_BRAINS_PROJECT_ID if present in vault\n  4. Miss exit 1\nPath always wins over a unique git slug hit (stderr notes the slug project).\n--export includes source=path_alias|git_slug|env. set-alias is a label; register-path is the disk root."
+        after_help = "Precedence (F5):\n  1. Path alias of git toplevel (else cwd)\n  2. Git slug exact-first vault match\n  3. AI_BRAINS_PROJECT_ID if present in vault\n  4. Miss exit 1\nPath always wins over a unique git slug hit (stderr notes the slug project).\n--export includes source=path_alias|git_slug|env. set-alias is a label; register-path is the disk root.\n`--format json` emits source=path_alias|git_slug|env|none (always present). Omitted --format stays human even when piped. --export conflicts with --format."
     )]
     Detect {
         /// Output as shell export statement
-        #[arg(long)]
+        #[arg(long, conflicts_with = "format")]
         export: bool,
+        /// Output format: auto (TTY=human / pipe=JSON), pretty|human|text|markdown|md (human), or json. Omitted = human even when piped.
+        #[arg(
+            long,
+            value_parser = ["auto", "pretty", "human", "text", "json", "markdown", "md"],
+            conflicts_with = "export"
+        )]
+        format: Option<String>,
     },
     /// Set a human-readable alias for a project
     #[command(
@@ -5744,7 +5881,9 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                 alias_positional,
                 alias,
             } => commands::project::resolve(&ctx, alias_positional.clone(), alias.clone()),
-            ProjectCommands::Detect { export } => commands::project::detect(&ctx, *export),
+            ProjectCommands::Detect { export, format } => {
+                commands::project::detect(&ctx, *export, format.as_deref().unwrap_or("human"))
+            }
             ProjectCommands::SetAlias { project_id, alias } => {
                 commands::project::set_alias(&ctx, project_id, alias)
             }

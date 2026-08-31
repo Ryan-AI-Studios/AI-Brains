@@ -15,6 +15,14 @@ Version banners in documentation are maintained manually from the workspace `Car
 
 ## [Unreleased]
 
+## [0.1.5] — 2026-08-30
+
+Workspace version bump after T327–T332 CLI dogfood plus T333 detect JSON `source`. PATH `ai-brains --version` reports this after `cargo install --path crates/ai-brains-cli --locked --features graph` (or `scripts/build.ps1`).
+
+### Added
+
+- **T333 Detect JSON `source`:** `project detect --format json` (T266 tokens; omitted `--format` stays **human even when piped**) emits always-present `source` (`path_alias` \| `git_slug` \| `env` \| `none`). Success required keys: `project_id`, `name`, `alias`, `memories`, `source`, `notes` (E1 `[]`). Miss/ambiguous: `source: "none"`, identity fields JSON **null** (keys present, memories not `0`), exit **1**, JSON on stdout. `--export` XOR `--format`. T206 human/export/exit unchanged. Workspace **0.1.4 → 0.1.5**.
+
 ### Fixed
 
 - **T332 Whoami detect-source honesty:** `project whoami` always emits `detect_source` (`path_alias` \| `git_slug` \| `env` \| `none`). When detect falls back to env after a git-slug miss, remediations name `set-alias` / `register-path` even though `identity_collision` stays false. `scope resolve` JSON `warnings[]` may include additive `project_detect_env_fallback env=<uuid> slug=<slug>` (not when mismatch or collision already applies). T206 `project detect` env-fallback exit **0** unchanged. Exit **0**.
