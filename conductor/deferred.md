@@ -2,6 +2,24 @@
 
 Tracks deferred from T142. Append-only; strike through when promoted to a real track.
 
+### T339 full plan (2026-09-01) — OpenCode Windows shim resolve
+
+| Item | Disposition |
+|------|-------------|
+| Placeholder F1 scheduled vs interactive PATH | **Partial** — Interactive only task; **interactive import also** `skipped_missing_binary=1` |
+| Root cause | **Absorb** F1/F2 — Rust `Command` requires `.exe` unless extension given; npm ships `.cmd` + POSIX shim |
+| Well-known + `AI_BRAINS_OPENCODE_BIN` | **Absorb** F2; prefer nested `opencode-windows-x64` (#28920) |
+| Status reason + doctor coverage | **Partial** F3/F5 additive JSON; **decline** doctor 16th |
+| T337 next_step `T339: put opencode on PATH` | **Absorb** F5 → `AI_BRAINS_OPENCODE_BIN` |
+| T337-R1/R2/R8 | **Decline** — not this importer |
+| T338-R1/R2 / T338 F13 bake | **Not stolen** — SYSTEM `--skip-import` |
+| T340 / T341 | **Not stolen** |
+| `#267` Cursor usage-limit | **No leftover** — no T342 |
+| Dependabot `#250–#256` | **Decline** |
+| last-PR Cursor `#267` | **N/A empty** (notice only) |
+| clap `--bin` / `which` crate / clap 5 / 0.1.6 | **Decline** |
+| DOCS TX | `f1934e3b-cc89-45ef-b0b6-1108aeff12d8` |
+
 ### T338 fold-in (2026-08-31) — `agy-review.md` + `opencode-review.md`
 
 | Item | Disposition |
