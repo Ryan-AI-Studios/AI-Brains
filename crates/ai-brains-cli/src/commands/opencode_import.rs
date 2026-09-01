@@ -51,6 +51,7 @@ pub fn run(
         cursor_path_override: None,
         config_dir_override: None,
         force_missing_binary: false,
+        bin_override: None,
         list_cap: max_sessions,
     };
 

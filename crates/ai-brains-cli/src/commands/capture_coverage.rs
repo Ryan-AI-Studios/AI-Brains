@@ -341,7 +341,7 @@ fn classify_source(
 
     if opencode_missing {
         status = "expected_skip".to_string();
-        next_step = "T339: put opencode on PATH".to_string();
+        next_step = "set AI_BRAINS_OPENCODE_BIN".to_string();
     } else if disk_eligible.is_some() && eligible == 0 && sidechain > 0 {
         status = "expected_skip".to_string();
     } else if disk_eligible.is_some() && eligible > 0 && vault_sessions == 0 {
@@ -1080,6 +1080,43 @@ mod tests {
             report2.warnings.iter().any(|w| w == "stale_multi_import"),
             "explicit skip_reason must warn"
         );
+    }
+
+    #[test]
+    fn capture_coverage__opencode_missing_binary__next_step_env() {
+        let home = tempfile::tempdir().expect("home");
+        let (_vdir, store) = open_store();
+        let project_id = ProjectId::new();
+        register_project(&store, project_id);
+        store
+            .set_sync_state(
+                LAST_MULTI_IMPORT_KEY,
+                r#"{
+                    "v": 1,
+                    "at": "2026-09-01T07:00:22Z",
+                    "agy": {"status": "ok", "sessions": 0, "imported_turns": 0, "unbound": 0},
+                    "grok": {"status": "ok", "sessions": 0, "imported_turns": 0, "unbound": 0},
+                    "opencode": {"status": "ok", "sessions": 0, "imported_turns": 0, "unbound": 0, "skipped_missing_binary": 1},
+                    "claude": {"status": "skipped", "skip_reason": "absent_pre_t334"},
+                    "codex": {"status": "skipped", "skip_reason": "absent_pre_t334"},
+                    "cursor": {"status": "skipped", "skip_reason": "absent_pre_t334"}
+                }"#,
+            )
+            .expect("sync");
+        let report = build_report(
+            store.connection(),
+            &coverage_opts(home.path(), project_id, 30),
+        )
+        .expect("report");
+        let oc = source(&report, "opencode");
+        assert_eq!(oc.status, "expected_skip");
+        assert!(
+            oc.next_step.contains("AI_BRAINS_OPENCODE_BIN"),
+            "next_step={}",
+            oc.next_step
+        );
+        assert_eq!(oc.disk_eligible, None);
+        assert!(oc.next_step.chars().count() <= 140);
     }
 
     #[test]

@@ -964,6 +964,8 @@ mod tests {
             export_errors: None,
             timed_out: None,
             skipped_missing_binary: None,
+            resolved_bin: None,
+            binary_attempts: None,
         }
     }
 

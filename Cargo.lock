@@ -65,6 +65,7 @@ dependencies = [
  "ai-brains-store",
  "dirs",
  "hex",
+ "rstest",
  "rusqlite",
  "serde",
  "serde_json",

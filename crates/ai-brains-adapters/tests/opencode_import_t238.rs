@@ -147,6 +147,7 @@ fn base_opts(
         cursor_path_override: Some(cursor),
         config_dir_override: None,
         force_missing_binary: false,
+        bin_override: None,
         list_cap: 100,
     }
 }
@@ -437,6 +438,7 @@ fn import_opencode__missing_binary__soft_skip() {
         cursor_path_override: Some(root.path().join("cursor.json")),
         config_dir_override: None,
         force_missing_binary: true,
+        bin_override: None,
         list_cap: 100,
     };
     let stats = import_opencode_sessions(&conn, &service, &mut sink, options).expect("import");
