@@ -2,6 +2,23 @@
 
 Tracks deferred from T142. Append-only; strike through when promoted to a real track.
 
+### T340 fold-in (2026-09-01) — `agy-review.md` + `opencode-review.md`
+
+| Item | Disposition |
+|------|-------------|
+| Agy m1 `--tx-id` optional | **Folded** F1.7 / §6 (env only, not ledger scrape) |
+| OpenCode m1 `--tag` defeats prefix | **Declined** — T285 skips `TAGS:`; honesty F1.8 / AC10 |
+| OpenCode m2 ISSUES.md 7+6 | **Folded** F2 file-level + AC4/AC7 |
+| OpenCode m3 AC4 not red | **Folded** AC4 rewrite |
+| OpenCode O2 `HOTSPOT:` | **Partial** F1 mention; not graduation copy-paste |
+| OpenCode O3 cites | **Folded** §2.3 `:2418–2440` / `:85–100` |
+| Agy O1/O2 | **Already** F2/F5 |
+| OpenCode O1/O4 | **Already** volatile doctor/preflight |
+| `#268` Cursor usage-limit | **Affirm** no leftover — no T342 |
+| Agy B / M | **0 / 0** |
+| OpenCode B / M / m | **0 / 0 / 3** — m1 declined; m2/m3 folded |
+| DOCS TX | `e1ef63ec-3dc1-47f1-b466-5bb7acccea60` |
+
 ### T340 full plan (2026-09-01) — agent capture guidance (skills)
 
 | Item | Disposition |
@@ -20,7 +37,7 @@ Tracks deferred from T142. Append-only; strike through when promoted to a real t
 | `#268` Cursor usage-limit ×2 | **No leftover** — no T342 |
 | Dependabot `#250–#256` | **Decline** |
 | clap 5 / 0.1.6 / crate tests | **Decline** |
-| Soft | T340-R1 onboarding twin full-sync; T340-R2 v2.2.0 ops essay; T340-R3 PATH install; T340-R4 approve still human |
+| Soft | T340-R1 remaining onboarding twin drift (Publish/T61–T71; ISSUES.md now DoD); T340-R2 v2.2.0 ops essay; T340-R3 PATH install; T340-R4 approve still human |
 | DOCS TX | `f5e55fce-4e9b-4844-b67a-71259435d231` |
 
 ### T339 fold-in (2026-09-01) — `agy-review.md` + `opencode-review.md`
