@@ -2,6 +2,29 @@
 
 Tracks deferred from T142. Append-only; strike through when promoted to a real track.
 
+### T338 full plan (2026-08-31) — nightly throughput window
+
+| Item | Disposition |
+|------|-------------|
+| Summarize “unlimited vs 8 sessions” | **Honesty** — already unlimited (`lib.rs:113`); last run **5** / unsummarized **0** |
+| Embedding 50/run | **Absorb** F2 — chunk until deadline, floor 50 |
+| 7-day `updated_at` window | **Absorb** F2 / AC2 — nightly uses `since_days=None` |
+| Placeholder 52,891 | **Honesty** — 2026-08-30 snapshot; F5 COUNT recapture at execute |
+| T334 F27 first-run volume / no hidden cap | **Absorb** F4 / F6 — remaining COUNT; no new summarize cap |
+| T334 hermetic 105s / 120s timeout | **Decline** as product cap — test hygiene |
+| Probe-down still tries 3 sessions | **Absorb** F3 — skip summarize; stay-green consecutive-3 when probe Ok |
+| T229 F14 / T255 50ms yield | **Decline reopen** — keep F2 |
+| T255 doctor 16th / persist-probe / `.cmd` | **Decline** F9 |
+| T61 synthesis 50 | **Affirm** F7 |
+| T336 graduation | **Not stolen** |
+| T337 / T339 / T340 / T341 | **Not stolen** |
+| `#266` Cursor usage-limit | **No leftover** — no T342 |
+| Dependabot `#250–#256` | **Decline** |
+| last-PR Cursor `#266` | **N/A empty** (notice only) |
+| clap 5 / 0.1.6 / T240 F2 / T307 | **Decline** |
+| clap `--deadline-minutes` | **Decline** — env only F1 |
+| DOCS TX | `33619a3b-6333-4778-8e4b-edbeff6f6810` |
+
 ### T337 implement residuals (2026-08-31) — capture coverage CLI
 
 | Item | Disposition |
