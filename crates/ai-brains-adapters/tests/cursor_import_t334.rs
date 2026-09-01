@@ -76,6 +76,38 @@ fn write_cursor_session(user_home: &Path, folder: &str, session_id: &str, body: 
     path
 }
 
+/// Insert a Unix alias as stored (`canonical.rs` keeps `/…` as-is). Do **not**
+/// call `normalize_project_path` — on Windows that cwd-joins `/Users/…`.
+fn register_unix_path_alias(store: &SqliteEventStore, project_id: ProjectId, unix_path: &str) {
+    let reg = EventBuilder::new(
+        AggregateType::Project,
+        project_id.as_uuid(),
+        Actor::System,
+        Privacy::LocalOnly,
+    )
+    .build(Payload::ProjectRegistered(ProjectRegisteredPayload {
+        project_id,
+        name: "AI-Brains".to_string(),
+        tx_id: None,
+    }))
+    .expect("register");
+    store.append_event(&reg).expect("append register");
+    let alias = EventBuilder::new(
+        AggregateType::Project,
+        project_id.as_uuid(),
+        Actor::System,
+        Privacy::LocalOnly,
+    )
+    .build(Payload::RepositoryPathAliasAdded(
+        RepositoryPathAliasAddedPayload {
+            project_id,
+            normalized_path: unix_path.to_string(),
+        },
+    ))
+    .expect("alias");
+    store.append_event(&alias).expect("append alias");
+}
+
 fn register_path_alias(store: &SqliteEventStore, project_id: ProjectId, mixed_path: &str) {
     let normalized = normalize_project_path(mixed_path)
         .expect("normalize")
@@ -228,6 +260,71 @@ fn import_cursor__hermetic_path_alias_slug__bound_turns() {
     assert!(stats.sessions >= 1, "sessions: {stats:?}");
     assert!(stats.imported_turns >= 2, "turns: {stats:?}");
     assert!(stats.bound_via_path >= 1, "bound: {stats:?}");
+
+    let turns = conn.get_session_turns(sid).expect("turns");
+    assert!(
+        turns.iter().any(|(_, c)| c.contains("hello-cursor")),
+        "user text kept: {turns:?}"
+    );
+    assert!(
+        turns.iter().any(|(_, c)| c.contains("ok-cursor")),
+        "assistant text kept: {turns:?}"
+    );
+    assert!(
+        turns.iter().all(|(_, c)| {
+            !c.contains("skills dump")
+                && !c.contains("manually_attached_skills")
+                && !c.contains("Shell")
+                && !c.contains("tool_use")
+        }),
+        "skill/tool dropped: {turns:?}"
+    );
+}
+
+#[test]
+fn import_cursor__hermetic_unix_path_alias_slug__bound_turns() {
+    let root = tempdir().unwrap();
+    let home = root.path().join("home");
+    let vault_dir = root.path().join("vault");
+    fs::create_dir_all(&home).unwrap();
+    fs::create_dir_all(&vault_dir).unwrap();
+
+    let sid = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb";
+    write_cursor_session(&home, "Users-foo-dev-AI-Brains", sid, CURSOR_JSONL);
+
+    let (conn, store) = open_vault(&vault_dir);
+    let project_id = ProjectId::new();
+    register_unix_path_alias(&store, project_id, "/Users/foo/dev/AI-Brains");
+    let aliases = conn.list_path_aliases().expect("aliases");
+    assert!(
+        aliases.iter().any(|(_, p)| p == "/Users/foo/dev/AI-Brains"),
+        "stored alias must stay Unix (no Windows cwd-join): {aliases:?}"
+    );
+
+    let mut sink = TestSink {
+        store,
+        last_error: None,
+    };
+    let service = CaptureService::new();
+    let stats = import_cursor_sessions(
+        &conn,
+        &service,
+        &mut sink,
+        CursorImportOptions {
+            days: 30,
+            default_project_id: ProjectId::new(),
+            allow_default_project: false,
+            force: true,
+            home_override: Some(home),
+            dry_run: false,
+        },
+    )
+    .expect("import");
+    assert!(sink.last_error.is_none(), "{:?}", sink.last_error);
+    assert!(stats.sessions >= 1, "sessions: {stats:?}");
+    assert!(stats.imported_turns >= 2, "turns: {stats:?}");
+    assert!(stats.bound_via_path >= 1, "bound: {stats:?}");
+    assert_eq!(stats.unbound_project, 0, "unbound: {stats:?}");
 
     let turns = conn.get_session_turns(sid).expect("turns");
     assert!(

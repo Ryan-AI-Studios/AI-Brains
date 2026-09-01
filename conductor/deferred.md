@@ -2,6 +2,48 @@
 
 Tracks deferred from T142. Append-only; strike through when promoted to a real track.
 
+### T341 implement (2026-09-01) — residuals remain
+
+| Item | Disposition |
+|------|-------------|
+| T341-R1 WSL `/mnt/c/dev/…` vs Windows `c-dev-…` folder identity | **Residual** — path-crate / `location.rs`; not slug DoD |
+| T341-R2 Interior `//` or `.` vs cursor-helper collapse | **Residual** — F6; re-open with a live Unix folder dump |
+| T341-R3 Numeric `projects/<epoch>` dirs | **Residual** — not path slugs; coverage lists unbound |
+| BUGFIX TX | `1abea1ce-a478-4abd-bdc2-ddb1a90a09df` |
+
+### T341 fold-in (2026-09-01) — `agy-review.md` + `opencode-review.md`
+
+| Item | Disposition |
+|------|-------------|
+| Agy m1 trailing Unix `/` | **Folded** F1 `trim_end_matches('/')` (input-side) + AC9 |
+| OpenCode m1 optional trailing trim / drive-root | **Folded** drop optional; **forbid** post-map `-` trim; AC10 `C:\` → `c-`, UNC `--server-share` |
+| Agy O1/O2 | **Already** F1 / F2 |
+| OpenCode O1 snapshot drift | **Already** Phase 0 recapture; embed+completion volatile |
+| OpenCode O2 cites | **Folded** bind `:385–412`; `windows.rs:20–46`; coverage `:583–629` |
+| OpenCode O3 `#263` second location | **Already** bind compare `:399` |
+| `#269` Cursor usage-limit | **Affirm** no leftover — no T342 |
+| Agy B / M | **0 / 0** |
+| OpenCode B / M / m | **0 / 0 / 1** — m1 folded |
+| Soft | T341-R1–R3 unchanged |
+| DOCS TX | `7fa74ea0-508a-4a55-856b-3436ed5d3df1` |
+
+### T341 full plan (2026-09-01) — Unix Cursor slug bind
+
+| Item | Disposition |
+|------|-------------|
+| `#263` Bugbot leading `/` → `-` | **Absorb** F1 / AC1 / AC5 |
+| T337 Unix slug pointer | **Absorb** slug only — not coverage CLI (F3) |
+| T334 F8/F28 mixed-case | **Stay-green** AC2 / AC6 |
+| cursor-helper `.` replace | **Decline** F6 — live Windows folders keep dots |
+| WSL `/mnt/c` ↔ `C:\` slug | **Soft** T341-R1 |
+| T337-R1/R2/R8 / T338 / T339 / T340 | **Not stolen** |
+| T255 doctor 16th / T240 F2 | **Decline** |
+| `#269` Cursor usage-limit | **No leftover** — no T342 |
+| Dependabot `#250–#256` | **Decline** |
+| clap 5 / 0.1.6 | **Decline** |
+| Soft | T341-R1 WSL identity; T341-R2 interior `//` / `.`; T341-R3 numeric project dirs |
+| DOCS TX | `48091dac-56b8-49a9-90dd-6baaeb03f2db` |
+
 ### T340 fold-in (2026-09-01) — `agy-review.md` + `opencode-review.md`
 
 | Item | Disposition |
