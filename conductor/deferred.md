@@ -2,6 +2,23 @@
 
 Tracks deferred from T142. Append-only; strike through when promoted to a real track.
 
+### T338 fold-in (2026-08-31) — `agy-review.md` + `opencode-review.md`
+
+| Item | Disposition |
+|------|-------------|
+| OpenCode B1 poisoned-head re-query stall | **Folded** F2 keyset + AC11 + `last_embedding_backfill_failed` |
+| Agy m1 `DEADLINE_MINUTES=0` | **Folded** F1 / AC13 |
+| OpenCode m1 ETA `max(...,1)` vs null | **Folded** F4 / AC6 / §10 |
+| OpenCode m2 SYSTEM wrapper 5-key bake | **Folded** F13 / AC12 (+ `AI_BRAINS_NIGHTLY_BATCH`); cite OPERATIONS SYSTEM schedule, not `:101` |
+| OpenCode O1 Instant vs AC3 | **Folded** F8 `NightlyDeadline` |
+| OpenCode O2 `pin_graduation.rs` ×3 | **Folded** §6 / plan checklist |
+| Agy O1/O2 | **Already** F2 `since_days=None` / 50ms yield (O1 partial: policy-denied stay in COUNT) |
+| F3 CLI `ProbeStatus` | **Already** — `probe_health` not on `ModelProvider` |
+| `#266` Cursor usage-limit | **Affirm** no leftover — no T342 |
+| Agy B / M | **0 / 0** |
+| OpenCode B / M / m | **1 / 0 / 2** — all folded |
+| DOCS TX | `609852cc-4547-48a5-b911-ad138cd0ce81` |
+
 ### T338 full plan (2026-08-31) — nightly throughput window
 
 | Item | Disposition |
