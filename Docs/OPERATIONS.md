@@ -690,7 +690,7 @@ Overnight brain is designed to talk to a **local** llama.cpp-style router rather
 | Path | Who | Multi-import | Env / project context |
 |------|-----|--------------|------------------------|
 | **User-principal** (`nightly --schedule`, no `--run-as-system`) | Logged-in user | **ON** by default (AGY → Grok → OpenCode) | Inherits user env + global dotenv; harness homes readable |
-| **SYSTEM** (`nightly --schedule --run-as-system`) | Session 0 | **`--skip-import --skip-graduation` baked into wrapper** (T239 D12 / T336) | Wrapper bakes vault + model env; no user-profile harness homes |
+| **SYSTEM** (`nightly --schedule --run-as-system`) | Session 0 | **`--skip-import --skip-graduation` baked into wrapper** (T239 D12 / T336) | Wrapper bakes vault + model env plus **optional** `AI_BRAINS_NIGHTLY_DEADLINE_MINUTES` / `AI_BRAINS_EMBED_CHUNK` / `AI_BRAINS_NIGHTLY_BATCH` when set (T338; omit-if-empty). No user-profile harness homes |
 
 **Completeness path:** run interactive `ai-brains nightly` or a **user-principal** scheduled task when you need multi-harness import. SYSTEM is for headless summarize/embed when nobody is logged in.
 
@@ -714,6 +714,7 @@ ai-brains nightly --graduation-dry-run # scan pins; print counts; no append
 - **Last task result** — from that LIST /V parse. PowerShell `Get-ScheduledTaskInfo` is Last Result fallback **only when LIST /V succeeded but last_result parse missed (locale)**.
 - **Last scheduled run** (Task Scheduler Last Run Time) is printed separately from vault **Last nightly run**. They can disagree (e.g. the task fired but the action target was missing, so the vault never advanced).
 - Last nightly run / unsummarized counts / last-run errors
+- **Embedding backlog** (T338) — `embedding backlog=N (~M nights at last_backfill/run); failed last=K`. ETA is `0` when backlog is 0; `unknown` when last successful backfill was 0 and backlog remains. JSON adds `deadline_minutes`, `aborted_early`, `abort_reason`, `embedding_backlog`, `embedding_backfill_last`, `embedding_backfill_failed_last`, `embedding_eta_nights` (`schema_version` still 1). Catch-up is deadline-bound keyset pages after pin graduation and **before** hierarchical synthesis (default `AI_BRAINS_NIGHTLY_DEADLINE_MINUTES=150`; `0` skips summarize+embed immediately).
 - **Completion** / **Embedding** host:port + model + soft probe (`ok` / `down` / `timeout` / `error` on default `--status`; **`--quick` prints `probe=skipped`** — no HTTP). Human `probe=timeout` is labeled `timeout (750ms)` (HTTP `/health` budget). On Completion human timeout, the next line is `HTTP /health 750ms ≠ daemon TCP`. `daemon status` Open is TCP connect, not `/health`. Credentials in URLs are redacted; vault keys never printed
 - **Router** (T255 / T296, read-only) — Status for `AI-Brains-Router`. Human omits scheduler-success decimals (`267014` → `last run: terminated`; `267009` → Status-only). JSON still has raw `last_result` + `SCHED_S_*` hints. Does **not** register, start, or repair that task
 - **Multi-import** block (T239)
@@ -744,7 +745,7 @@ When status prints `Action target missing: <path>` + `next: ai-brains nightly --
 #### Running the nightly as SYSTEM (`--run-as-system`)
 By default `--schedule` registers a task under the current user, which inherits that user's environment variables. The optional `--run-as-system` flag registers the task with `/RU SYSTEM` so it runs without anyone logged in (T132). Because the `SYSTEM` account does **not** inherit User-level environment variables, the CLI handles this specially (T143 + T145):
 
-- It generates a **wrapper `.bat` script** that bakes in the current values of `AI_BRAINS_VAULT_PATH`, `AI_BRAINS_MODEL_URL`, `AI_BRAINS_COMPLETION_MODEL`, `AI_BRAINS_EMBEDDING_URL`, and `AI_BRAINS_EMBEDDING_MODEL` from your environment (or global `%USERPROFILE%\.ai-brains\.env` via T205). The scheduled task runs that wrapper instead of the bare executable, so SYSTEM gets the same config you have.
+- It generates a **wrapper `.bat` script** that bakes in the current values of `AI_BRAINS_VAULT_PATH`, `AI_BRAINS_MODEL_URL`, `AI_BRAINS_COMPLETION_MODEL`, `AI_BRAINS_EMBEDDING_URL`, and `AI_BRAINS_EMBEDDING_MODEL` from your environment (or global `%USERPROFILE%\.ai-brains\.env` via T205). Optional T338 knobs (`AI_BRAINS_NIGHTLY_DEADLINE_MINUTES`, `AI_BRAINS_EMBED_CHUNK`, `AI_BRAINS_NIGHTLY_BATCH`) are baked only when set and non-empty. The scheduled task runs that wrapper instead of the bare executable, so SYSTEM gets the same config you have. Re-run `--schedule --run-as-system` after changing those optional env vars.
 - **Wrapper location (T145):** `%ProgramData%\AI-Brains\nightly-task.bat` — not the vault parent or `%TEMP%`. Creation refuses symlink/reparse/junction targets at the file path, refuses hardlinks (`nlink > 1`), **and** refuses if the parent directory (e.g. `%ProgramData%\AI-Brains`) exists as a junction/reparse point. Regular single-link existing files may be replaced on re-schedule.
 - **ACL (T145):** after write, the CLI applies an **absolute** DACL via Win32 SDDL/`SetNamedSecurityInfo` (`D:P(A;;FA;;;SY)(A;;FA;;;BA)` — protected, SYSTEM + Administrators full only). This replaces the entire DACL so session leftovers (e.g. `LogonSessionId`) cannot remain. The CLI then verifies with `icacls` query (fail closed). Check with:
   ```powershell
@@ -764,6 +765,8 @@ ai-brains nightly --schedule --run-as-system --start-time "03:00" --dry-run
 `--dry-run` prints the `schtasks` command and the generated wrapper script to stdout without registering the task, so you can verify the baked-in env vars and flags before committing.
 
 > **Migration (T143 + T145):** Existing `AI-Brains-Nightly` SYSTEM tasks may still point at a vault-parent or `%TEMP%` wrapper without restrictive ACL. Re-schedule after T145 to pick up `%ProgramData%\AI-Brains\nightly-task.bat`: `ai-brains nightly --unschedule` then `ai-brains nightly --schedule --run-as-system` from an elevated shell. The same treatment applies to deprecated `daemon schedule --run-as-system` and to re-running `daemon install` for `daemon.env` ACL hardening.
+>
+> **T338 SYSTEM env snapshot:** Optional nightly knobs (`AI_BRAINS_NIGHTLY_DEADLINE_MINUTES`, `AI_BRAINS_EMBED_CHUNK`, `AI_BRAINS_NIGHTLY_BATCH`) are baked into the SYSTEM wrapper **at schedule time**. Changing them in `.env` or the user environment does **not** affect an existing SYSTEM task until you re-run `ai-brains nightly --schedule --run-as-system`. User-principal schedules inherit live process env (no bake). Never baked: `AI_BRAINS_KEY`. Default deadline is **150** minutes (`0` skips summarize+embed loops immediately).
 
 ## 6. Memory Hygiene
 

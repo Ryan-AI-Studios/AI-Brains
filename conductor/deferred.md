@@ -42,6 +42,16 @@ Tracks deferred from T142. Append-only; strike through when promoted to a real t
 | clap `--deadline-minutes` | **Decline** — env only F1 |
 | DOCS TX | `33619a3b-6333-4778-8e4b-edbeff6f6810` |
 
+### T338 implement residuals (2026-08-31) — nightly throughput window
+
+| Item | Disposition |
+|------|-------------|
+| Consecutive-3 persist reason `consecutive_errors` | **Defer** T338-R1 low — extra vs F3 named tokens; consumers treat unknown as abort |
+| `ExpireAfter` `remaining_secs` always 3600 | **Defer** T338-R2 low — F8 test clock; production uses Instant |
+| FEATURE TX | `f59a1193-3406-4454-ae97-0f96af020c5b` |
+| `dev-check` nextest | **3864** passed, 1 skipped (`NEXTEST_TEST_THREADS=2`) |
+| `ledgerful verify` nextest 600s | **Observed** (same as T335–T337) — equivalent nextest **3864** passed in `dev-check.ps1` |
+
 ### T337 implement residuals (2026-08-31) — capture coverage CLI
 
 | Item | Disposition |

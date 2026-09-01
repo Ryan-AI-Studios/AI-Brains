@@ -1,5 +1,6 @@
 use ai_brains_core::ids::{MemoryId, ProjectId, SessionId};
 use ai_brains_events::{MemorySynthesizedPayload, Payload, SessionSummaryCreatedPayload};
+use ai_brains_models::llama_cpp::ProbeStatus;
 use ai_brains_models::{CompletionRequest, ModelProvider, TokenizeRequest};
 use ai_brains_store::{EventStore, QueryStore};
 use std::str::FromStr;
@@ -7,6 +8,7 @@ use std::sync::Arc;
 
 mod backup;
 mod conflict_detection;
+mod deadline;
 mod embeddings;
 mod feedback_loop;
 pub mod intervention;
@@ -20,6 +22,11 @@ pub use backup::{
     parse_duration, residual_for_summary,
 };
 use conflict_detection::ConflictDetectionService;
+pub use deadline::{
+    DEADLINE_ENV, DEFAULT_DEADLINE_MINUTES, DEFAULT_EMBED_CHUNK, EMBED_CHUNK_ENV, NightlyDeadline,
+    parse_deadline_minutes, parse_deadline_minutes_from_env, parse_embed_chunk,
+    parse_embed_chunk_from_env,
+};
 pub use embeddings::EmbeddingService;
 pub use feedback_loop::FeedbackLoopService;
 pub use intervention::{InterventionWarning, RiskAlert, RiskReviewAgent};
@@ -30,6 +37,27 @@ pub use pin_graduation::{
 };
 use recipe_promotion::RecipePromotionService;
 pub use retention::RetentionService;
+
+/// Options for [`NightlyService::run_nightly_with`] (T338).
+pub struct NightlyRunOpts {
+    pub batch_size: Option<usize>,
+    pub graduation: GraduationMode,
+    pub deadline: NightlyDeadline,
+    pub completion_probe: ProbeStatus,
+    pub embedding_probe: ProbeStatus,
+}
+
+impl Default for NightlyRunOpts {
+    fn default() -> Self {
+        Self {
+            batch_size: None,
+            graduation: GraduationMode::Run,
+            deadline: NightlyDeadline::from_minutes(DEFAULT_DEADLINE_MINUTES),
+            completion_probe: ProbeStatus::Ok,
+            embedding_probe: ProbeStatus::Ok,
+        }
+    }
+}
 
 pub struct AggregatedLearningsService {
     query_store: Arc<dyn QueryStore>,
@@ -74,6 +102,17 @@ pub struct NightlyService {
     _embedding_provider: Arc<dyn ModelProvider>,
 }
 
+fn persist_abort_reason(
+    aborted_early: &mut bool,
+    abort_reason: &mut Option<&'static str>,
+    reason: &'static str,
+) {
+    *aborted_early = true;
+    if abort_reason.is_none() {
+        *abort_reason = Some(reason);
+    }
+}
+
 impl NightlyService {
     pub fn new(
         query_store: Arc<dyn QueryStore>,
@@ -94,21 +133,38 @@ impl NightlyService {
         project_id: ProjectId,
         batch_size: Option<usize>,
     ) -> Result<usize, Box<dyn std::error::Error>> {
-        self.run_nightly_with(project_id, batch_size, GraduationMode::Run)
-            .await
+        self.run_nightly_with(
+            project_id,
+            NightlyRunOpts {
+                batch_size,
+                ..NightlyRunOpts::default()
+            },
+        )
+        .await
     }
 
-    /// Nightly sweep with an explicit pin-graduation mode (T336).
+    /// Nightly sweep with explicit opts (T336 graduation + T338 deadline/probes).
     pub async fn run_nightly_with(
         &self,
         project_id: ProjectId,
-        batch_size: Option<usize>,
-        graduation: GraduationMode,
+        opts: NightlyRunOpts,
     ) -> Result<usize, Box<dyn std::error::Error>> {
+        let NightlyRunOpts {
+            batch_size,
+            graduation,
+            deadline,
+            completion_probe,
+            embedding_probe,
+        } = opts;
+
+        let mut aborted_early = false;
+        let mut abort_reason: Option<&'static str> = None;
+
         let unsummarized = self.query_store.get_unsummarized_sessions()?;
         let mut count = 0;
         let mut errors = Vec::new();
         let mut consecutive_errors = 0;
+        let mut total_errors = 0usize;
         let total = unsummarized.len();
         let limit = batch_size.unwrap_or(total);
         eprintln!(
@@ -116,52 +172,91 @@ impl NightlyService {
             total, limit
         );
 
-        for (idx, session_id) in unsummarized.into_iter().take(limit).enumerate() {
-            if consecutive_errors >= 3 {
-                tracing::warn!(
-                    "Aborting session summarization due to multiple consecutive errors (likely LLM backend down)."
-                );
-                eprintln!("[Nightly] Aborting summarization early after 3 consecutive failures.");
-                break;
-            }
-            eprintln!(
-                "[Nightly] [{}/{}] Summarizing session {}...",
-                idx + 1,
-                total,
-                session_id
+        if completion_probe != ProbeStatus::Ok {
+            tracing::warn!(
+                probe = completion_probe.as_label(),
+                "skipping session summarization: completion probe not ok"
             );
-            let service = self.clone();
-            let session_clone = session_id.clone();
-            let join_res = tokio::task::spawn(async move {
-                service
-                    .summarize_session(&session_clone, Some(project_id))
-                    .await
-                    .map_err(|e| e.to_string())
-            })
-            .await;
-
-            match join_res {
-                Ok(Ok(())) => {
-                    count += 1;
-                    consecutive_errors = 0;
+            eprintln!(
+                "[Nightly] Skipping summarization (completion probe={}).",
+                completion_probe.as_label()
+            );
+            persist_abort_reason(&mut aborted_early, &mut abort_reason, "completion_probe");
+        } else {
+            for (idx, session_id) in unsummarized.into_iter().take(limit).enumerate() {
+                if deadline.expired() {
+                    tracing::warn!("Aborting session summarization: nightly deadline reached.");
+                    eprintln!("[Nightly] Aborting summarization early (deadline).");
+                    persist_abort_reason(&mut aborted_early, &mut abort_reason, "deadline");
+                    break;
                 }
-                Ok(Err(e)) => {
-                    tracing::error!("Failed to summarize session {}: {}", session_id, e);
-                    eprintln!("[Nightly] Error summarizing session {}: {}", session_id, e);
-                    errors.push(format!("summarize_session {}: {}", session_id, e));
-                    consecutive_errors += 1;
-                }
-                Err(e) => {
-                    tracing::error!("Panic/Join error summarizing session {}: {}", session_id, e);
-                    eprintln!(
-                        "[Nightly] Panic/abort occurred summarizing session {}!",
-                        session_id
+                if consecutive_errors >= 3 {
+                    tracing::warn!(
+                        "Aborting session summarization due to multiple consecutive errors (likely LLM backend down)."
                     );
-                    errors.push(format!(
-                        "summarize_session {} join error: {}",
-                        session_id, e
-                    ));
-                    consecutive_errors += 1;
+                    eprintln!(
+                        "[Nightly] Aborting summarization early after 3 consecutive failures."
+                    );
+                    persist_abort_reason(
+                        &mut aborted_early,
+                        &mut abort_reason,
+                        "consecutive_errors",
+                    );
+                    break;
+                }
+                if total_errors >= 20 {
+                    tracing::warn!(
+                        "Aborting session summarization: total error budget (20) exhausted."
+                    );
+                    eprintln!("[Nightly] Aborting summarization early (error budget 20).");
+                    persist_abort_reason(&mut aborted_early, &mut abort_reason, "error_budget");
+                    break;
+                }
+                eprintln!(
+                    "[Nightly] [{}/{}] Summarizing session {}...",
+                    idx + 1,
+                    total,
+                    session_id
+                );
+                let service = self.clone();
+                let session_clone = session_id.clone();
+                let join_res = tokio::task::spawn(async move {
+                    service
+                        .summarize_session(&session_clone, Some(project_id))
+                        .await
+                        .map_err(|e| e.to_string())
+                })
+                .await;
+
+                match join_res {
+                    Ok(Ok(())) => {
+                        count += 1;
+                        consecutive_errors = 0;
+                    }
+                    Ok(Err(e)) => {
+                        tracing::error!("Failed to summarize session {}: {}", session_id, e);
+                        eprintln!("[Nightly] Error summarizing session {}: {}", session_id, e);
+                        errors.push(format!("summarize_session {}: {}", session_id, e));
+                        consecutive_errors += 1;
+                        total_errors += 1;
+                    }
+                    Err(e) => {
+                        tracing::error!(
+                            "Panic/Join error summarizing session {}: {}",
+                            session_id,
+                            e
+                        );
+                        eprintln!(
+                            "[Nightly] Panic/abort occurred summarizing session {}!",
+                            session_id
+                        );
+                        errors.push(format!(
+                            "summarize_session {} join error: {}",
+                            session_id, e
+                        ));
+                        consecutive_errors += 1;
+                        total_errors += 1;
+                    }
                 }
             }
         }
@@ -208,6 +303,92 @@ impl NightlyService {
                     }
                 }
             }
+        }
+
+        // EMBED: catch-up immediately after summarize + graduation (T338 / CX3).
+        // Spec loop is summarize then embed chunks until deadline; synthesis must
+        // not consume the wall-clock budget before the first backfill chunk.
+        // AC9: graduation still ran above (fail-open after summarize skip/abort).
+        eprintln!("[Nightly] Running embedding backfill...");
+        let embed_service =
+            EmbeddingService::new(self.query_store.clone(), self._embedding_provider.clone());
+        let mut backfill_success = 0;
+        let mut backfill_failed = 0;
+        let mut stale_success = 0;
+
+        if embedding_probe != ProbeStatus::Ok {
+            tracing::warn!(
+                probe = embedding_probe.as_label(),
+                "skipping embedding catch-up: embedding probe not ok"
+            );
+            eprintln!(
+                "[Nightly] Skipping embedding catch-up (embedding probe={}).",
+                embedding_probe.as_label()
+            );
+            persist_abort_reason(&mut aborted_early, &mut abort_reason, "embedding_probe");
+        } else {
+            let chunk_env = parse_embed_chunk_from_env();
+            match embed_service.backfill_catchup(&deadline, chunk_env).await {
+                Ok((success, failed)) => {
+                    backfill_success = success;
+                    backfill_failed = failed;
+                    eprintln!(
+                        "[Nightly] Embedding backfill: {} succeeded, {} failed.",
+                        success, failed
+                    );
+                    if deadline.expired() && (success > 0 || failed > 0 || abort_reason.is_none()) {
+                        persist_abort_reason(&mut aborted_early, &mut abort_reason, "deadline");
+                    }
+                }
+                Err(e) => {
+                    tracing::error!("Embedding backfill failed: {}", e);
+                    eprintln!("[Nightly] Embedding backfill failed: {}", e);
+                    errors.push(format!("embedding_backfill: {}", e));
+                }
+            }
+
+            if deadline.expired() {
+                eprintln!("[Nightly] Skipping stale refresh (deadline).");
+            } else {
+                let stale_limit = if deadline.remaining_secs() >= 60 {
+                    50
+                } else {
+                    10
+                };
+                match embed_service.refresh_stale(30, stale_limit).await {
+                    Ok((success, failed)) => {
+                        stale_success = success;
+                        eprintln!(
+                            "[Nightly] Stale refresh: {} succeeded, {} failed.",
+                            success, failed
+                        );
+                    }
+                    Err(e) => {
+                        tracing::error!("Stale refresh failed: {}", e);
+                        eprintln!("[Nightly] Stale refresh failed: {}", e);
+                        errors.push(format!("stale_refresh: {}", e));
+                    }
+                }
+            }
+        }
+
+        if let Err(e) = self.event_store.set_sync_state(
+            "last_embedding_backfill_count",
+            &backfill_success.to_string(),
+        ) {
+            tracing::warn!("Failed to persist embedding backfill count: {}", e);
+        }
+        if let Err(e) = self.event_store.set_sync_state(
+            "last_embedding_backfill_failed",
+            &backfill_failed.to_string(),
+        ) {
+            tracing::warn!("Failed to persist embedding backfill failed count: {}", e);
+        }
+        if let Err(e) = self
+            .event_store
+            .set_sync_state("last_stale_refresh_count", &stale_success.to_string())
+        {
+            tracing::warn!("Failed to persist stale refresh count: {}", e);
         }
 
         // Run hierarchical synthesis
@@ -285,57 +466,6 @@ impl NightlyService {
             tracing::warn!("Failed to persist last_nightly_count: {}", e);
         }
 
-        // EMBED: Backfill embeddings for recent memories without embeddings
-        eprintln!("[Nightly] Running embedding backfill...");
-        let embed_service =
-            EmbeddingService::new(self.query_store.clone(), self._embedding_provider.clone());
-        let mut backfill_success = 0;
-        let mut stale_success = 0;
-
-        match embed_service.backfill_recent(50, Some(7)).await {
-            Ok((success, failed)) => {
-                backfill_success = success;
-                eprintln!(
-                    "[Nightly] Embedding backfill: {} succeeded, {} failed.",
-                    success, failed
-                );
-            }
-            Err(e) => {
-                tracing::error!("Embedding backfill failed: {}", e);
-                eprintln!("[Nightly] Embedding backfill failed: {}", e);
-                errors.push(format!("embedding_backfill: {}", e));
-            }
-        }
-
-        // REFRESH: Re-embed stale embeddings (>30 days old)
-        match embed_service.refresh_stale(30, 10).await {
-            Ok((success, failed)) => {
-                stale_success = success;
-                eprintln!(
-                    "[Nightly] Stale refresh: {} succeeded, {} failed.",
-                    success, failed
-                );
-            }
-            Err(e) => {
-                tracing::error!("Stale refresh failed: {}", e);
-                eprintln!("[Nightly] Stale refresh failed: {}", e);
-                errors.push(format!("stale_refresh: {}", e));
-            }
-        }
-
-        // Persist embedding stats
-        if let Err(e) = self.event_store.set_sync_state(
-            "last_embedding_backfill_count",
-            &backfill_success.to_string(),
-        ) {
-            tracing::warn!("Failed to persist embedding backfill count: {}", e);
-        }
-        if let Err(e) = self
-            .event_store
-            .set_sync_state("last_stale_refresh_count", &stale_success.to_string())
-        {
-            tracing::warn!("Failed to persist stale refresh count: {}", e);
-        }
         match serde_json::to_string(&errors) {
             Ok(serialized) => {
                 if let Err(e) = self
@@ -346,6 +476,27 @@ impl NightlyService {
                 }
             }
             Err(e) => tracing::warn!("Failed to serialize nightly errors: {}", e),
+        }
+
+        let abort_reason = if aborted_early { abort_reason } else { None };
+        #[derive(serde::Serialize)]
+        struct NightlyAbortedPersist<'a> {
+            early: bool,
+            reason: Option<&'a str>,
+        }
+        match serde_json::to_string(&NightlyAbortedPersist {
+            early: aborted_early,
+            reason: abort_reason,
+        }) {
+            Ok(serialized) => {
+                if let Err(e) = self
+                    .event_store
+                    .set_sync_state("last_nightly_aborted", &serialized)
+                {
+                    tracing::warn!("Failed to persist last_nightly_aborted: {}", e);
+                }
+            }
+            Err(e) => tracing::warn!("Failed to serialize last_nightly_aborted: {}", e),
         }
 
         Ok(count)

@@ -48,6 +48,20 @@ pub async fn run(
         let last_run = query_store.get_last_nightly_run()?;
         let last_count_raw = query_store.get_sync_state("last_nightly_count")?;
         let last_errors_raw = query_store.get_sync_state("last_nightly_errors")?;
+        let last_aborted_raw = query_store.get_sync_state("last_nightly_aborted")?;
+        let last_backfill_raw = query_store.get_sync_state("last_embedding_backfill_count")?;
+        let last_failed_raw = query_store.get_sync_state("last_embedding_backfill_failed")?;
+        let embedding_backlog = match query_store.count_pinned_without_embeddings() {
+            Ok(n) => n,
+            Err(e) => {
+                tracing::warn!(
+                    error = %e,
+                    "count_pinned_without_embeddings failed (fail-open 0)"
+                );
+                0
+            }
+        };
+        let deadline_minutes = ai_brains_brain::parse_deadline_minutes_from_env();
 
         let (model_url, completion_model, embedding_url, embedding_model) =
             resolve_nightly_model_endpoints();
@@ -152,6 +166,11 @@ pub async fn run(
                 embedding_probe: embedding_label.to_string(),
                 multi_import,
                 router,
+                deadline_minutes,
+                aborted_raw: last_aborted_raw.clone(),
+                embedding_backlog,
+                last_backfill_raw: last_backfill_raw.clone(),
+                last_failed_raw: last_failed_raw.clone(),
             };
             let status_json = crate::commands::nightly_status::build_nightly_status_json(input);
             crate::commands::identity_warn::print_json_stdout(&status_json)?;
@@ -188,6 +207,20 @@ pub async fn run(
         println!(
             "Errors in last run: {}",
             last_errors_raw.as_deref().unwrap_or("[]")
+        );
+        let last_backfill = last_backfill_raw
+            .as_deref()
+            .and_then(|s| s.trim().parse().ok());
+        let last_failed = last_failed_raw
+            .as_deref()
+            .and_then(|s| s.trim().parse().ok());
+        println!(
+            "{}",
+            crate::commands::nightly_status::format_embedding_throughput_line(
+                embedding_backlog,
+                last_backfill,
+                last_failed,
+            )
         );
         let embedding_human = crate::commands::nightly_status::format_probe_label_human(
             embedding_label,
@@ -500,8 +533,9 @@ pub async fn run(
         );
     }
 
-    // T229 F2: soft probe after multi-import, before summarize — non-fatal warn if down.
-    {
+    // T229 F2 / T338 F3: soft probe after multi-import, before summarize.
+    // CLI passes ProbeStatus into NightlyRunOpts (probe_health is inherent on LlamaCppProvider).
+    let (completion_probe, embedding_probe) = {
         let c = completion_provider
             .probe_health(NIGHTLY_PROBE_TIMEOUT)
             .await;
@@ -520,7 +554,8 @@ pub async fn run(
                 "embedding endpoint soft probe failed before summarize (non-fatal)"
             );
         }
-    }
+        (c, e)
+    };
 
     // F-004: class-matrix dry-run log (plan only; never apply CE on nightly).
     {
@@ -574,7 +609,16 @@ pub async fn run(
         ai_brains_brain::GraduationMode::Run
     };
     let count = service
-        .run_nightly_with(project_id, batch_size, graduation)
+        .run_nightly_with(
+            project_id,
+            ai_brains_brain::NightlyRunOpts {
+                batch_size,
+                graduation,
+                deadline: ai_brains_brain::NightlyDeadline::from_env(),
+                completion_probe,
+                embedding_probe,
+            },
+        )
         .await?;
     tracing::info!("Running memory synthesis...");
 
@@ -1175,16 +1219,31 @@ const REQUIRED_ENV_VARS: [&str; 5] = [
     "AI_BRAINS_EMBEDDING_MODEL",
 ];
 
+/// Optional nightly knobs baked into SYSTEM wrappers when set (T338 F13).
+/// Omit `set "K=V"` when empty/unset. Never fail schedule on these. Never bake `AI_BRAINS_KEY`.
+const OPTIONAL_NIGHTLY_ENV_VARS: [&str; 3] = [
+    "AI_BRAINS_NIGHTLY_DEADLINE_MINUTES",
+    "AI_BRAINS_EMBED_CHUNK",
+    "AI_BRAINS_NIGHTLY_BATCH",
+];
+
 /// Build SYSTEM wrapper content from **current process env**.
 ///
 /// T229 F4 (verify-only): main merges global dotenv (`%USERPROFILE%\.ai-brains\.env`, T205)
 /// before subcommands, so MODEL/EMBED keys present only in the global file are already in
 /// `std::env` here and get baked into the wrapper. No extra gap-fill in this function.
 fn generate_nightly_wrapper_script(exe_str: &str) -> Result<String, Box<dyn std::error::Error>> {
-    let env_values: Vec<(&str, String)> = REQUIRED_ENV_VARS
+    let mut env_values: Vec<(&str, String)> = REQUIRED_ENV_VARS
         .iter()
         .map(|key| (*key, std::env::var(key).unwrap_or_default()))
         .collect();
+    for key in OPTIONAL_NIGHTLY_ENV_VARS {
+        if let Ok(value) = std::env::var(key)
+            && !value.is_empty()
+        {
+            env_values.push((key, value));
+        }
+    }
     generate_nightly_wrapper_script_from_env(exe_str, &env_values)
 }
 
@@ -1214,6 +1273,16 @@ fn generate_nightly_wrapper_script_from_env(
             missing.join(", ")
         )
         .into());
+    }
+    for key in OPTIONAL_NIGHTLY_ENV_VARS {
+        let value = env_values
+            .iter()
+            .find(|(k, _)| *k == key)
+            .map(|(_, v)| v.as_str())
+            .unwrap_or("");
+        if !value.is_empty() {
+            lines.push(format!("set \"{}={}\"", key, value));
+        }
     }
     let vault_path = env_values
         .iter()
@@ -2181,5 +2250,52 @@ Author: N/A\n";
         assert!(result.is_err());
         let err = result.unwrap_err().to_string();
         assert!(err.contains("AI_BRAINS_MODEL_URL"));
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn generate_nightly_wrapper_script__optional_deadline_set__baked()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let env_values: Vec<(&str, String)> = vec![
+            ("AI_BRAINS_VAULT_PATH", "C:\\vault.db".to_string()),
+            ("AI_BRAINS_MODEL_URL", "http://127.0.0.1:8081".to_string()),
+            ("AI_BRAINS_COMPLETION_MODEL", "model.gguf".to_string()),
+            (
+                "AI_BRAINS_EMBEDDING_URL",
+                "http://127.0.0.1:8083".to_string(),
+            ),
+            ("AI_BRAINS_EMBEDDING_MODEL", "embed-model".to_string()),
+            ("AI_BRAINS_NIGHTLY_DEADLINE_MINUTES", "90".to_string()),
+        ];
+        let content =
+            generate_nightly_wrapper_script_from_env(r"C:\fake\ai-brains.exe", &env_values)?;
+        assert!(content.contains("set \"AI_BRAINS_NIGHTLY_DEADLINE_MINUTES=90\""));
+        assert!(content.contains("set \"AI_BRAINS_VAULT_PATH=C:\\vault.db\""));
+        Ok(())
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn generate_nightly_wrapper_script__optional_keys_empty__omitted()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let env_values: Vec<(&str, String)> = vec![
+            ("AI_BRAINS_VAULT_PATH", "C:\\vault.db".to_string()),
+            ("AI_BRAINS_MODEL_URL", "http://127.0.0.1:8081".to_string()),
+            ("AI_BRAINS_COMPLETION_MODEL", "model.gguf".to_string()),
+            (
+                "AI_BRAINS_EMBEDDING_URL",
+                "http://127.0.0.1:8083".to_string(),
+            ),
+            ("AI_BRAINS_EMBEDDING_MODEL", "embed-model".to_string()),
+            ("AI_BRAINS_NIGHTLY_DEADLINE_MINUTES", String::new()),
+            ("AI_BRAINS_EMBED_CHUNK", String::new()),
+            ("AI_BRAINS_NIGHTLY_BATCH", String::new()),
+        ];
+        let content =
+            generate_nightly_wrapper_script_from_env(r"C:\fake\ai-brains.exe", &env_values)?;
+        assert!(!content.contains("AI_BRAINS_NIGHTLY_DEADLINE_MINUTES"));
+        assert!(!content.contains("AI_BRAINS_EMBED_CHUNK"));
+        assert!(!content.contains("AI_BRAINS_NIGHTLY_BATCH"));
+        Ok(())
     }
 }

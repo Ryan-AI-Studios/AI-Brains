@@ -4,8 +4,8 @@
 
 use ai_brains_brain::memory_synthesis::system_synthesis_principal;
 use ai_brains_brain::{
-    GRADUATION_CAP_ENV, GraduationMode, NightlyService, PIN_GRADUATION_NAMESPACE, graduate_pins,
-    graduation_cap_from_env,
+    GRADUATION_CAP_ENV, GraduationMode, NightlyRunOpts, NightlyService, PIN_GRADUATION_NAMESPACE,
+    graduate_pins, graduation_cap_from_env,
 };
 use ai_brains_core::ids::{MemoryId, ProjectId};
 use ai_brains_core::privacy::Privacy;
@@ -506,7 +506,13 @@ async fn nightly_graduation__skip_flag__no_events() -> Result<(), Box<dyn std::e
     }]));
     let nightly = NightlyService::new(query_store, event_store.clone(), mock.clone(), mock);
     let count = nightly
-        .run_nightly_with(project_id, None, GraduationMode::Skip)
+        .run_nightly_with(
+            project_id,
+            NightlyRunOpts {
+                graduation: GraduationMode::Skip,
+                ..NightlyRunOpts::default()
+            },
+        )
         .await?;
     assert_eq!(count, 0);
 
@@ -541,7 +547,13 @@ async fn nightly_graduation__dry_run__prints_count_no_append()
     }]));
     let nightly = NightlyService::new(query_store, event_store.clone(), mock.clone(), mock);
     nightly
-        .run_nightly_with(project_id, None, GraduationMode::DryRun)
+        .run_nightly_with(
+            project_id,
+            NightlyRunOpts {
+                graduation: GraduationMode::DryRun,
+                ..NightlyRunOpts::default()
+            },
+        )
         .await?;
 
     let events = event_store.read_all_events()?;
@@ -573,7 +585,13 @@ async fn pin_graduation__failure__nightly_still_ok() -> Result<(), Box<dyn std::
     }]));
     let nightly = NightlyService::new(query_store, failing, mock.clone(), mock);
     let result = nightly
-        .run_nightly_with(project_id, None, GraduationMode::Run)
+        .run_nightly_with(
+            project_id,
+            NightlyRunOpts {
+                graduation: GraduationMode::Run,
+                ..NightlyRunOpts::default()
+            },
+        )
         .await;
     assert!(result.is_ok(), "nightly must fail-open, got {result:?}");
     Ok(())
