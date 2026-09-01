@@ -2,6 +2,15 @@
 
 Tracks deferred from T142. Append-only; strike through when promoted to a real track.
 
+### T342 implement (2026-09-01) — residuals remain
+
+| Item | Disposition |
+|------|-------------|
+| T342-R1 `\\wsl$\Distro\…` / `\\wsl.localhost\…` folder identity | **Residual** — different UNC encoder; no live folders |
+| T342-R2 `/mnt/wsl` / `/mnt/wslg` mounts | **Residual** — `wsl_to_windows` rejects non-single-letter |
+| T342-R3 Two stored aliases (Windows + `/mnt/c`) for the same repo | **Residual** — F9 first-wins |
+| BUGFIX TX | `6d6c7b95-f197-4cb1-9c85-5c8804af10b3` |
+
 ### T342 full plan (2026-09-01) — WSL/Windows Cursor slug twins
 
 | Item | Disposition |

@@ -1,4 +1,5 @@
 use crate::errors::{PathError, Result};
+use crate::windows::has_drive_prefix;
 
 pub fn is_wsl_mount_path(input: &str) -> bool {
     input.to_lowercase().starts_with("/mnt/")
@@ -38,4 +39,33 @@ pub fn wsl_to_windows(input: &str) -> Result<String> {
     }
 
     Ok(windows)
+}
+
+/// Inverse of [`wsl_to_windows`] for single-letter Windows drive paths.
+///
+/// `C:\dev\ai-brains` → `/mnt/c/dev/ai-brains`. `C:\` → `/mnt/c`.
+/// Accepts `\` or `/` after the drive. UNC / relative / non-drive → error.
+pub fn windows_drive_to_wsl_mount(input: &str) -> Result<String> {
+    let trimmed = input.trim();
+    if trimmed.is_empty() {
+        return Err(PathError::EmptyInput);
+    }
+    let replaced = trimmed.replace('\\', "/");
+    if !has_drive_prefix(&replaced) {
+        return Err(PathError::RelativePath(trimmed.to_string()));
+    }
+    let drive_char = replaced
+        .chars()
+        .next()
+        .ok_or_else(|| PathError::RelativePath(trimmed.to_string()))?
+        .to_ascii_lowercase();
+    if !drive_char.is_ascii_alphabetic() {
+        return Err(PathError::RelativePath(trimmed.to_string()));
+    }
+    let rest = replaced[2..].trim_matches('/');
+    if rest.is_empty() {
+        Ok(format!("/mnt/{drive_char}"))
+    } else {
+        Ok(format!("/mnt/{drive_char}/{rest}"))
+    }
 }

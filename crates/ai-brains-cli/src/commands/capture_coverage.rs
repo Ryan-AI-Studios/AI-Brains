@@ -10,7 +10,7 @@ use crate::commands::multi_import::{
 use crate::context::AppContext;
 use ai_brains_adapters::{
     CLAUDE_HARNESS_UUID, CODEX_HARNESS_UUID, CURSOR_HARNESS_UUID, GROK_HARNESS_UUID,
-    OPENCODE_HARNESS_UUID, cursor_project_slug, discover_cursor_sessions,
+    OPENCODE_HARNESS_UUID, cursor_project_slug_candidates, discover_cursor_sessions,
     discover_sessions_from_home, is_claude_sidechain_path, is_cursor_sidechain_path,
     is_subagent_session, resolve_claude_home, resolve_codex_home, resolve_cursor_home,
     resolve_grok_home,
@@ -586,7 +586,7 @@ fn cursor_unbound_folders(
 ) -> (Vec<String>, bool) {
     let slugs: Vec<String> = aliases
         .iter()
-        .map(|(_, path)| cursor_project_slug(path))
+        .flat_map(|(_, path)| cursor_project_slug_candidates(path))
         .collect();
     let projects = cursor_home.join("projects");
     let rd = match std::fs::read_dir(&projects) {
@@ -984,6 +984,36 @@ mod tests {
                 .unbound_folders
                 .iter()
                 .any(|f| f.eq_ignore_ascii_case("c-dev-AI-Brains")),
+            "unbound={:?}",
+            report.unbound_folders
+        );
+    }
+
+    #[test]
+    fn capture_coverage__wsl_folder_windows_alias__not_unbound() {
+        let home = tempfile::tempdir().expect("home");
+        let (_vdir, store) = open_store();
+        let project_id = ProjectId::new();
+        register_project(&store, project_id);
+        add_path_alias(&store, project_id, PROJECT_PATH);
+        fs::create_dir_all(
+            home.path()
+                .join(".cursor")
+                .join("projects")
+                .join("mnt-c-dev-AI-Brains"),
+        )
+        .expect("mkdir");
+
+        let report = build_report(
+            store.connection(),
+            &coverage_opts(home.path(), project_id, 30),
+        )
+        .expect("report");
+        assert!(
+            !report
+                .unbound_folders
+                .iter()
+                .any(|f| f.eq_ignore_ascii_case("mnt-c-dev-AI-Brains")),
             "unbound={:?}",
             report.unbound_folders
         );

@@ -19,6 +19,7 @@ use ai_brains_events::{
     Actor, AggregateType, Payload, ProjectAliasAddedPayload, ProjectRegisteredPayload,
 };
 use serde_json::Value;
+use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use std::time::{Duration, SystemTime};
@@ -132,6 +133,23 @@ pub fn cursor_project_slug(normalized_path: &str) -> String {
         }
     }
     out
+}
+
+/// Cursor folder-name candidates for one stored alias: T341 primary slug plus
+/// at most one WSL ↔ Windows drive twin (`/mnt/<letter>/…` ↔ `X:\…`).
+///
+/// Bind and coverage match if **any** candidate equals the folder
+/// (`eq_ignore_ascii_case`). Does **not** change [`cursor_project_slug`].
+pub fn cursor_project_slug_candidates(normalized_path: &str) -> Vec<String> {
+    let mut set = BTreeSet::new();
+    set.insert(cursor_project_slug(normalized_path));
+    if let Ok(win) = ai_brains_path::wsl_to_windows(normalized_path) {
+        set.insert(cursor_project_slug(&win));
+    }
+    if let Ok(mnt) = ai_brains_path::windows_drive_to_wsl_mount(normalized_path) {
+        set.insert(cursor_project_slug(&mnt));
+    }
+    set.into_iter().collect()
 }
 
 /// Filter one Cursor JSONL record (`role` + `message.content[]`; drop `turn_ended`).
@@ -406,7 +424,10 @@ pub fn resolve_cursor_project(
     match query_store.list_path_aliases() {
         Ok(aliases) => {
             for (pid, path) in aliases {
-                if cursor_project_slug(&path).eq_ignore_ascii_case(folder) {
+                if cursor_project_slug_candidates(&path)
+                    .iter()
+                    .any(|s| s.eq_ignore_ascii_case(folder))
+                {
                     return Ok((pid, path, CursorBindKind::Path, false));
                 }
             }
@@ -787,6 +808,42 @@ mod tests {
     fn cursor_project_slug__drive_root_and_unc__no_hyphen_strip() {
         assert_eq!(cursor_project_slug(r"C:\"), "c-");
         assert_eq!(cursor_project_slug(r"\\server\share"), "--server-share");
+    }
+
+    #[test]
+    fn cursor_project_slug_candidates__drive_path__includes_mnt_twin() {
+        assert_eq!(
+            cursor_project_slug_candidates(r"C:\dev\ai-brains"),
+            vec![
+                "c-dev-ai-brains".to_string(),
+                "mnt-c-dev-ai-brains".to_string()
+            ]
+        );
+    }
+
+    #[test]
+    fn cursor_project_slug_candidates__wsl_mnt_drive__includes_windows_twin() {
+        assert_eq!(
+            cursor_project_slug_candidates("/mnt/c/dev/AI-Brains"),
+            vec![
+                "c-dev-ai-brains".to_string(),
+                "mnt-c-dev-ai-brains".to_string()
+            ]
+        );
+    }
+
+    #[test]
+    fn cursor_project_slug_candidates__unix_users_unc_mnt_wsl__no_drive_twin() {
+        assert_eq!(
+            cursor_project_slug_candidates("/Users/foo/dev/AI-Brains"),
+            vec!["users-foo-dev-ai-brains".to_string()]
+        );
+        assert_eq!(
+            cursor_project_slug_candidates(r"\\server\share"),
+            vec!["--server-share".to_string()]
+        );
+        let wsl = cursor_project_slug("/mnt/wsl/foo");
+        assert_eq!(cursor_project_slug_candidates("/mnt/wsl/foo"), vec![wsl]);
     }
 
     #[test]

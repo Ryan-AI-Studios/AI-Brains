@@ -17,6 +17,8 @@ Version banners in documentation are maintained manually from the workspace `Car
 
 ### Added
 
+- **T342 WSL/Windows Cursor slug twins:** `cursor_project_slug_candidates` adds a `/mnt/<drive>/` ↔ `X:\` twin so Cursor-on-WSL folders `mnt-c-…` bind to a Windows alias (and the reverse). T341 `cursor_project_slug` is unchanged. Coverage unbound list uses the same candidates.
+
 - **T341 Unix Cursor slug bind:** `cursor_project_slug` drops leading/trailing `/` before mapping separators so `/Users/…` matches Cursor `Users-…` folders. Windows drive paths, drive-root `c-`, and UNC `--server-share` stay-green. Same encoder feeds T337 coverage.
 
 - **T340 Agent capture guidance:** Skills + `AGENTS.md` teach session-required pins with `DECISION:` / `CONSTRAINT:` / `INVARIANT:` prefixes (T336), optional `--tx-id`, and `capture coverage` PATH honesty. Onboarding debt pointer is `conductor/deferred.md`.

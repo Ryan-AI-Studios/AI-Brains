@@ -28,6 +28,7 @@ pub use location::{
 pub use project_path::ProjectPath;
 pub use reparse::{is_reparse_or_symlink, refuse_if_reparse};
 pub use symlink::resolve_best_effort;
+pub use wsl::{windows_drive_to_wsl_mount, wsl_to_windows};
 
 #[deprecated(note = "use extract_project_id_from_ledgerful")]
 #[allow(deprecated)]
