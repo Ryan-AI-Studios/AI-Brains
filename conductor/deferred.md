@@ -2,6 +2,23 @@
 
 Tracks deferred from T142. Append-only; strike through when promoted to a real track.
 
+### T341 full plan (2026-09-01) — Unix Cursor slug bind
+
+| Item | Disposition |
+|------|-------------|
+| `#263` Bugbot leading `/` → `-` | **Absorb** F1 / AC1 / AC5 |
+| T337 Unix slug pointer | **Absorb** slug only — not coverage CLI (F3) |
+| T334 F8/F28 mixed-case | **Stay-green** AC2 / AC6 |
+| cursor-helper `.` replace | **Decline** F6 — live Windows folders keep dots |
+| WSL `/mnt/c` ↔ `C:\` slug | **Soft** T341-R1 |
+| T337-R1/R2/R8 / T338 / T339 / T340 | **Not stolen** |
+| T255 doctor 16th / T240 F2 | **Decline** |
+| `#269` Cursor usage-limit | **No leftover** — no T342 |
+| Dependabot `#250–#256` | **Decline** |
+| clap 5 / 0.1.6 | **Decline** |
+| Soft | T341-R1 WSL identity; T341-R2 interior `//` / `.`; T341-R3 numeric project dirs |
+| DOCS TX | `48091dac-56b8-49a9-90dd-6baaeb03f2db` |
+
 ### T340 fold-in (2026-09-01) — `agy-review.md` + `opencode-review.md`
 
 | Item | Disposition |
