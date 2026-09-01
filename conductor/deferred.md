@@ -2,6 +2,22 @@
 
 Tracks deferred from T142. Append-only; strike through when promoted to a real track.
 
+### T341 fold-in (2026-09-01) — `agy-review.md` + `opencode-review.md`
+
+| Item | Disposition |
+|------|-------------|
+| Agy m1 trailing Unix `/` | **Folded** F1 `trim_end_matches('/')` (input-side) + AC9 |
+| OpenCode m1 optional trailing trim / drive-root | **Folded** drop optional; **forbid** post-map `-` trim; AC10 `C:\` → `c-`, UNC `--server-share` |
+| Agy O1/O2 | **Already** F1 / F2 |
+| OpenCode O1 snapshot drift | **Already** Phase 0 recapture; embed+completion volatile |
+| OpenCode O2 cites | **Folded** bind `:385–412`; `windows.rs:20–46`; coverage `:583–629` |
+| OpenCode O3 `#263` second location | **Already** bind compare `:399` |
+| `#269` Cursor usage-limit | **Affirm** no leftover — no T342 |
+| Agy B / M | **0 / 0** |
+| OpenCode B / M / m | **0 / 0 / 1** — m1 folded |
+| Soft | T341-R1–R3 unchanged |
+| DOCS TX | `7fa74ea0-508a-4a55-856b-3436ed5d3df1` |
+
 ### T341 full plan (2026-09-01) — Unix Cursor slug bind
 
 | Item | Disposition |
