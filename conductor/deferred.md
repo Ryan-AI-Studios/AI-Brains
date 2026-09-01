@@ -2,6 +2,28 @@
 
 Tracks deferred from T142. Append-only; strike through when promoted to a real track.
 
+### T343 full plan (2026-09-01) — embed HTTP batch + ubatch guard
+
+| Item | Disposition |
+|------|-------------|
+| Placeholder F1 batch 4–8 / 2048 tok | **Absorb** F1 (count cap 8) + F2 (per-sequence 2048 scalars). Sum-of-request 2048 is **not** llama.cpp’s constraint |
+| Placeholder F2 chunk vs truncate vs skip | **Absorb** prefix truncate. **Decline** skip-forever. **Decline** mean-pool → T343-R1 |
+| Placeholder F3 status honesty | **Absorb** F3 / AC8 |
+| `llm-info.md` no router change | **Absorb** F4 |
+| T338 page/chunk 200 / deadline / keyset | **Stay-green** F8 |
+| T338 50ms yield | **Absorb** per HTTP (F1) |
+| SYSTEM optional bake | **Absorb** F11 — fourth omit-if-empty key |
+| T338-R1 / T338-R2 | **Decline** — abort token / test clock |
+| T229 4000-byte truncate | **Stay-green** AC5; **not** ubatch-sufficient |
+| T342-R1–R3 / T341-R2/R3 / T340-R* / T337-R* | **Not stolen** |
+| T336 graduation / T339 bin / doctor 16th | **Not stolen / decline** |
+| `#271` Cursor usage-limit | **No leftover** — no T344 |
+| Dependabot `#250–#256` | **Decline** |
+| clap 5 / 0.1.6 / T240 F2 | **Decline** F9 |
+| last-PR Cursor `#271` | **N/A empty** (notice only) |
+| Soft | T343-R1 chunk+mean-pool; T343-R2 live tokenize; T343-R3 Ollama `/api/embed`; T343-R4 nomic vs char cap |
+| DOCS TX | `4e0c531d-7e68-4240-a0a5-a7249eb57e6d` |
+
 ### T342 implement (2026-09-01) — residuals remain
 
 | Item | Disposition |
