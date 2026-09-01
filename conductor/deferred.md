@@ -40,6 +40,17 @@ Tracks deferred from T142. Append-only; strike through when promoted to a real t
 | Soft | T340-R1 remaining onboarding twin drift (Publish/T61–T71; ISSUES.md now DoD); T340-R2 v2.2.0 ops essay; T340-R3 PATH install; T340-R4 approve still human |
 | DOCS TX | `f5e55fce-4e9b-4844-b67a-71259435d231` |
 
+### T340 implement (2026-09-01) — residuals remain
+
+| Item | Disposition |
+|------|-------------|
+| T340-R1 onboarding twin drift (Publish §10 / T61–T71) | **Residual** — ISSUES.md sweep landed |
+| T340-R2 `.agents` v2.2.0 ops essay vs `.claude` Key & path | **Residual** — Pin pointer only |
+| T340-R3 PATH `capture coverage` | **Residual** — owner `cargo install` |
+| T340-R4 in-context decisions stay 0 until human T336 approve | **Residual** — expected |
+| DOCS TX | `bd8748a2-a6be-4fa4-bce8-fd4ff036f6a0` |
+| DOCS TX | `f5e55fce-4e9b-4844-b67a-71259435d231` |
+
 ### T339 fold-in (2026-09-01) — `agy-review.md` + `opencode-review.md`
 
 | Item | Disposition |

@@ -55,7 +55,7 @@ ledgerful index --incremental
 ai-brains recall "what is this project" --semantic
 ```
 
-Then read `conductor/conductor.md` (track registry) and `conductor/ISSUES.md` (unresolved debt). Map relevant ISSUES items into the current track's plan if scopes overlap. Reconcile dirty ledger/drift before edits unless user says otherwise.
+Then read `conductor/conductor.md` (track registry) and `conductor/deferred.md` (unresolved debt). Map relevant ISSUES items into the current track's plan if scopes overlap. Reconcile dirty ledger/drift before edits unless user says otherwise.
 
 ## Recall & Graph Commands
 
@@ -146,17 +146,17 @@ Do NOT:
 
 ## The Conductor / Track System
 
-Each track is a bounded unit of work: `spec.md` (specification) + `plan.md` (task checklist). Status in `conductor/conductor.md`. Debt in `conductor/ISSUES.md`.
+Each track is a bounded unit of work: `spec.md` (specification) + `plan.md` (task checklist). Status in `conductor/conductor.md`. Debt in `conductor/deferred.md`.
 
 | File | Purpose |
 |------|---------|
 | `conductor/conductor.md` | Track registry |
-| `conductor/ISSUES.md` | Unresolved debt (deferred mediums/lows) |
+| `conductor/deferred.md` | Unresolved debt (deferred mediums/lows) |
 | `conductor/<track>/spec.md` | Track spec (objective, API contracts, verification plan) |
 | `conductor/<track>/plan.md` | Task checklist (`- [ ]`) |
 | `conductor/<track>/review.md` | Review log (NOT the ledgerful ledger) |
 
-**Backlog routing**: When planning a track, absorb related `ISSUES.md` items into `plan.md` and remove them from `ISSUES.md`.
+**Backlog routing**: When planning a track, absorb related `deferred.md` items into `plan.md` (or decline in spec §9).
 
 ## Implement Loop
 
@@ -227,9 +227,9 @@ Gate clears only if: no open critical/high, mediums fixed or justified-deferred 
 
 Then:
 - Mark `plan.md` tasks complete. Set `conductor/conductor.md` entry to `Completed`.
-- APPEND deferred medium/low_info findings from `review.md` to `conductor/ISSUES.md` (with track name).
+- APPEND deferred medium/low_info findings from `review.md` to `conductor/deferred.md` (with track name).
 - Add one-line evidence note.
-- Pin non-obvious decisions: `ai-brains pin "DECISION: <what + why>" --tx-id <tx-id>`.
+- After `ai-brains context --show` confirms SESSION_ID, pin non-obvious decisions: `ai-brains pin "DECISION: <what + why>"` (CONSTRAINT/INVARIANT prefixes graduate; `--tx-id` optional).
 
 ## Ledgerful Integration
 
@@ -278,7 +278,7 @@ Use when ≥2 implementation agents edit code concurrently. Skip for serial runs
 
 ## Final Report
 
-After completing a track: tracks completed, files changed, checks/tests/manual evidence with exact commands, review-log summary by severity, deferred mediums/lows with justifications, confirmation deferred items appended to `conductor/ISSUES.md`, contracts synced, dependency docs/versions consulted, commits and push status, residual risks/follow-ups.
+After completing a track: tracks completed, files changed, checks/tests/manual evidence with exact commands, review-log summary by severity, deferred mediums/lows with justifications, confirmation deferred items appended to `conductor/deferred.md`, contracts synced, dependency docs/versions consulted, commits and push status, residual risks/follow-ups.
 
 ## Key Reference Documents
 
@@ -290,4 +290,4 @@ After completing a track: tracks completed, files changed, checks/tests/manual e
 | `Docs/ci-tooling.md` | CI tool install commands |
 | `AGENTS.md` | Unified project rules and mandates |
 | `conductor/conductor.md` | Track registry |
-| `conductor/ISSUES.md` | Unresolved debt |
+| `conductor/deferred.md` | Unresolved debt |
