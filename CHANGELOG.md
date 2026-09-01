@@ -17,6 +17,8 @@ Version banners in documentation are maintained manually from the workspace `Car
 
 ### Added
 
+- **T341 Unix Cursor slug bind:** `cursor_project_slug` drops leading/trailing `/` before mapping separators so `/Users/…` matches Cursor `Users-…` folders. Windows drive paths, drive-root `c-`, and UNC `--server-share` stay-green. Same encoder feeds T337 coverage.
+
 - **T340 Agent capture guidance:** Skills + `AGENTS.md` teach session-required pins with `DECISION:` / `CONSTRAINT:` / `INVARIANT:` prefixes (T336), optional `--tx-id`, and `capture coverage` PATH honesty. Onboarding debt pointer is `conductor/deferred.md`.
 
 - **T339 OpenCode Windows bin resolve:** Import and `export_session_via_cli` spawn an absolute resolved path (PATH×PATHEXT `.cmd`/`.exe`, well-known npm `opencode-windows-x64`, `AI_BRAINS_OPENCODE_BIN` / `OPENCODE_BIN_PATH` with quote-trim). Soft-skip still uses `skipped_missing_binary`; additive `resolved_bin` / `binary_attempts` on `last_multi_import` (`v` stays 1). Coverage next_step is `set AI_BRAINS_OPENCODE_BIN`. No clap `--bin`, no `which` crate, never `opencode.db`.

@@ -108,13 +108,23 @@ pub fn cursor_capability() -> AdapterCapability {
     }
 }
 
-/// Map a **normalized** Windows path to a Cursor `projects/<folder>` slug.
+/// Map a **normalized** project path to a Cursor `projects/<folder>` slug.
 ///
-/// Lowercase drive letter, drop `:`, `\`/`/` → `-`.
+/// Trim, then drop leading/trailing `/` only (Unix Cursor folders omit the
+/// root separator). Then drop `:`, map `\`/`/` → `-`, ascii-lowercase.
+/// Do **not** strip `\` or post-map `-` (drive root `C:\` → `c-`; UNC stays
+/// `--server-share`).
+///
+/// `/Users/foo/dev/AI-Brains` → `users-foo-dev-ai-brains` (matches folder
+/// `Users-foo-dev-AI-Brains` via `eq_ignore_ascii_case`).
 /// `C:\dev\ai-brains` → `c-dev-ai-brains`.
 pub fn cursor_project_slug(normalized_path: &str) -> String {
+    let trimmed = normalized_path
+        .trim()
+        .trim_start_matches('/')
+        .trim_end_matches('/');
     let mut out = String::new();
-    for ch in normalized_path.trim().chars() {
+    for ch in trimmed.chars() {
         match ch {
             ':' => {}
             '\\' | '/' => out.push('-'),
@@ -752,6 +762,31 @@ mod tests {
         let slug = cursor_project_slug(r"C:\dev\ai-brains");
         assert!(slug.eq_ignore_ascii_case("c-dev-AI-Brains"));
         assert!(!slug.eq_ignore_ascii_case("c-dev-Orca"));
+    }
+
+    #[test]
+    fn cursor_project_slug__unix_absolute_path__no_leading_hyphen() {
+        assert_eq!(
+            cursor_project_slug("/Users/foo/dev/AI-Brains"),
+            "users-foo-dev-ai-brains"
+        );
+        assert_eq!(cursor_project_slug("//Users/foo"), "users-foo");
+        assert_eq!(
+            cursor_project_slug("/Users/foo/dev/AI-Brains/"),
+            "users-foo-dev-ai-brains"
+        );
+    }
+
+    #[test]
+    fn cursor_project_slug__unix_mixed_folder__eq_ignore_ascii_case() {
+        let slug = cursor_project_slug("/Users/foo/dev/AI-Brains");
+        assert!(slug.eq_ignore_ascii_case("Users-foo-dev-AI-Brains"));
+    }
+
+    #[test]
+    fn cursor_project_slug__drive_root_and_unc__no_hyphen_strip() {
+        assert_eq!(cursor_project_slug(r"C:\"), "c-");
+        assert_eq!(cursor_project_slug(r"\\server\share"), "--server-share");
     }
 
     #[test]

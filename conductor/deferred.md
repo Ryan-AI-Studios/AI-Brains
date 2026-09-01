@@ -2,6 +2,15 @@
 
 Tracks deferred from T142. Append-only; strike through when promoted to a real track.
 
+### T341 implement (2026-09-01) — residuals remain
+
+| Item | Disposition |
+|------|-------------|
+| T341-R1 WSL `/mnt/c/dev/…` vs Windows `c-dev-…` folder identity | **Residual** — path-crate / `location.rs`; not slug DoD |
+| T341-R2 Interior `//` or `.` vs cursor-helper collapse | **Residual** — F6; re-open with a live Unix folder dump |
+| T341-R3 Numeric `projects/<epoch>` dirs | **Residual** — not path slugs; coverage lists unbound |
+| BUGFIX TX | `1abea1ce-a478-4abd-bdc2-ddb1a90a09df` |
+
 ### T341 fold-in (2026-09-01) — `agy-review.md` + `opencode-review.md`
 
 | Item | Disposition |
