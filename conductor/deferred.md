@@ -2,6 +2,56 @@
 
 Tracks deferred from T142. Append-only; strike through when promoted to a real track.
 
+### T338 fold-in (2026-08-31) — `agy-review.md` + `opencode-review.md`
+
+| Item | Disposition |
+|------|-------------|
+| OpenCode B1 poisoned-head re-query stall | **Folded** F2 keyset + AC11 + `last_embedding_backfill_failed` |
+| Agy m1 `DEADLINE_MINUTES=0` | **Folded** F1 / AC13 |
+| OpenCode m1 ETA `max(...,1)` vs null | **Folded** F4 / AC6 / §10 |
+| OpenCode m2 SYSTEM wrapper 5-key bake | **Folded** F13 / AC12 (+ `AI_BRAINS_NIGHTLY_BATCH`); cite OPERATIONS SYSTEM schedule, not `:101` |
+| OpenCode O1 Instant vs AC3 | **Folded** F8 `NightlyDeadline` |
+| OpenCode O2 `pin_graduation.rs` ×3 | **Folded** §6 / plan checklist |
+| Agy O1/O2 | **Already** F2 `since_days=None` / 50ms yield (O1 partial: policy-denied stay in COUNT) |
+| F3 CLI `ProbeStatus` | **Already** — `probe_health` not on `ModelProvider` |
+| `#266` Cursor usage-limit | **Affirm** no leftover — no T342 |
+| Agy B / M | **0 / 0** |
+| OpenCode B / M / m | **1 / 0 / 2** — all folded |
+| DOCS TX | `609852cc-4547-48a5-b911-ad138cd0ce81` |
+
+### T338 full plan (2026-08-31) — nightly throughput window
+
+| Item | Disposition |
+|------|-------------|
+| Summarize “unlimited vs 8 sessions” | **Honesty** — already unlimited (`lib.rs:113`); last run **5** / unsummarized **0** |
+| Embedding 50/run | **Absorb** F2 — chunk until deadline, floor 50 |
+| 7-day `updated_at` window | **Absorb** F2 / AC2 — nightly uses `since_days=None` |
+| Placeholder 52,891 | **Honesty** — 2026-08-30 snapshot; F5 COUNT recapture at execute |
+| T334 F27 first-run volume / no hidden cap | **Absorb** F4 / F6 — remaining COUNT; no new summarize cap |
+| T334 hermetic 105s / 120s timeout | **Decline** as product cap — test hygiene |
+| Probe-down still tries 3 sessions | **Absorb** F3 — skip summarize; stay-green consecutive-3 when probe Ok |
+| T229 F14 / T255 50ms yield | **Decline reopen** — keep F2 |
+| T255 doctor 16th / persist-probe / `.cmd` | **Decline** F9 |
+| T61 synthesis 50 | **Affirm** F7 |
+| T336 graduation | **Not stolen** |
+| T337 / T339 / T340 / T341 | **Not stolen** |
+| `#266` Cursor usage-limit | **No leftover** — no T342 |
+| Dependabot `#250–#256` | **Decline** |
+| last-PR Cursor `#266` | **N/A empty** (notice only) |
+| clap 5 / 0.1.6 / T240 F2 / T307 | **Decline** |
+| clap `--deadline-minutes` | **Decline** — env only F1 |
+| DOCS TX | `33619a3b-6333-4778-8e4b-edbeff6f6810` |
+
+### T338 implement residuals (2026-08-31) — nightly throughput window
+
+| Item | Disposition |
+|------|-------------|
+| Consecutive-3 persist reason `consecutive_errors` | **Defer** T338-R1 low — extra vs F3 named tokens; consumers treat unknown as abort |
+| `ExpireAfter` `remaining_secs` always 3600 | **Defer** T338-R2 low — F8 test clock; production uses Instant |
+| FEATURE TX | `f59a1193-3406-4454-ae97-0f96af020c5b` |
+| `dev-check` nextest | **3864** passed, 1 skipped (`NEXTEST_TEST_THREADS=2`) |
+| `ledgerful verify` nextest 600s | **Observed** (same as T335–T337) — equivalent nextest **3864** passed in `dev-check.ps1` |
+
 ### T337 implement residuals (2026-08-31) — capture coverage CLI
 
 | Item | Disposition |

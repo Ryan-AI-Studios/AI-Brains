@@ -4,7 +4,7 @@ use crate::commands::multi_import::{MultiImportStatusView, SourceImportReport};
 use crate::commands::nightly::{
     explain_last_task_result, format_endpoint_line, host_port_from_url,
 };
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 /// Human heading so Nightly Last Result is not read as the Router task (T269 F1).
 pub(crate) const NIGHTLY_TASK_HEADING: &str = "Nightly: AI-Brains-Nightly";
@@ -53,14 +53,14 @@ pub(crate) fn resolve_nightly_status_format(explicit: &str, is_tty: bool) -> &'s
     crate::commands::format_resolve::resolve_human_json_format(explicit, is_tty)
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) struct EndpointJson {
     pub host_port: String,
     pub model: String,
     pub probe: String,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) struct RouterJson {
     pub scheduled: bool,
     pub status: Option<String>,
@@ -71,26 +71,26 @@ pub(crate) struct RouterJson {
 
 /// never/unreadable: only `{ "status": "never"|"unreadable" }`.
 /// ok: `{ "status": "ok", "at", "agy", "grok", "opencode", "claude", "codex", "cursor" }` using existing [`SourceImportReport`].
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) struct MultiImportJson {
     pub status: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub at: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub agy: Option<SourceImportReport>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub grok: Option<SourceImportReport>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub opencode: Option<SourceImportReport>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub claude: Option<SourceImportReport>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub codex: Option<SourceImportReport>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub cursor: Option<SourceImportReport>,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) struct NightlyStatusJson {
     pub schema_version: u32,
     pub scheduled: Option<bool>,
@@ -110,6 +110,31 @@ pub(crate) struct NightlyStatusJson {
     pub embedding: EndpointJson,
     pub multi_import: MultiImportJson,
     pub router: Option<RouterJson>,
+    /// Effective `AI_BRAINS_NIGHTLY_DEADLINE_MINUTES` (default 150). Always a number.
+    #[serde(default = "default_deadline_minutes")]
+    pub deadline_minutes: u64,
+    /// From `last_nightly_aborted`; missing/corrupt → false.
+    #[serde(default)]
+    pub aborted_early: bool,
+    /// From `last_nightly_aborted`; missing/early-false → null.
+    #[serde(default)]
+    pub abort_reason: Option<String>,
+    /// COUNT pinned `embedding IS NULL`. COUNT failure fail-opens to 0.
+    #[serde(default)]
+    pub embedding_backlog: u64,
+    /// Last run successful embed stores; missing → null.
+    #[serde(default)]
+    pub embedding_backfill_last: Option<u64>,
+    /// Last run failed/skipped embeds; missing → null.
+    #[serde(default)]
+    pub embedding_backfill_failed_last: Option<u64>,
+    /// `0` when backlog is 0; null when last_backfill is 0 and backlog > 0; else ceil.
+    #[serde(default)]
+    pub embedding_eta_nights: Option<u64>,
+}
+
+fn default_deadline_minutes() -> u64 {
+    150
 }
 
 pub(crate) struct NightlyStatusInput {
@@ -132,6 +157,11 @@ pub(crate) struct NightlyStatusInput {
     pub embedding_probe: String,
     pub multi_import: MultiImportStatusView,
     pub router: Option<RouterStatusInput>,
+    pub deadline_minutes: u64,
+    pub aborted_raw: Option<String>,
+    pub embedding_backlog: u64,
+    pub last_backfill_raw: Option<String>,
+    pub last_failed_raw: Option<String>,
 }
 
 pub(crate) struct RouterStatusInput {
@@ -149,6 +179,11 @@ pub(crate) fn build_nightly_status_json(input: NightlyStatusInput) -> NightlySta
         .map(str::to_string);
     let (errors_last_run, errors_last_run_unreadable) =
         parse_errors_last_run(input.last_errors_raw.as_deref());
+    let (aborted_early, abort_reason) = parse_nightly_aborted(input.aborted_raw.as_deref());
+    let embedding_backfill_last = parse_u64_count(input.last_backfill_raw.as_deref());
+    let embedding_backfill_failed_last = parse_u64_count(input.last_failed_raw.as_deref());
+    let embedding_eta_nights =
+        embedding_eta_nights(input.embedding_backlog, embedding_backfill_last);
     NightlyStatusJson {
         schema_version: 1,
         scheduled: input.scheduled,
@@ -178,6 +213,13 @@ pub(crate) fn build_nightly_status_json(input: NightlyStatusInput) -> NightlySta
         ),
         multi_import: multi_import_json(input.multi_import),
         router: input.router.as_ref().map(router_json_from_input),
+        deadline_minutes: input.deadline_minutes,
+        aborted_early,
+        abort_reason,
+        embedding_backlog: input.embedding_backlog,
+        embedding_backfill_last,
+        embedding_backfill_failed_last,
+        embedding_eta_nights,
     }
 }
 
@@ -317,6 +359,62 @@ fn parse_sessions_summarized_last_run(raw: Option<&str>) -> Option<usize> {
     raw?.trim().parse().ok()
 }
 
+fn parse_u64_count(raw: Option<&str>) -> Option<u64> {
+    raw?.trim().parse().ok()
+}
+
+/// T338 F4: backlog 0 → 0; last_backfill 0 and backlog > 0 → None; else ceil division.
+pub(crate) fn embedding_eta_nights(backlog: u64, last_backfill: Option<u64>) -> Option<u64> {
+    if backlog == 0 {
+        return Some(0);
+    }
+    match last_backfill {
+        None | Some(0) => None,
+        Some(n) => Some(backlog.div_ceil(n)),
+    }
+}
+
+pub(crate) fn format_embedding_throughput_line(
+    backlog: u64,
+    last_backfill: Option<u64>,
+    failed_last: Option<u64>,
+) -> String {
+    let eta_part = match embedding_eta_nights(backlog, last_backfill) {
+        Some(n) => format!("{n} nights at last_backfill/run"),
+        None => "unknown".to_string(),
+    };
+    let failed = match failed_last {
+        Some(n) => n.to_string(),
+        None => "null".to_string(),
+    };
+    format!("embedding backlog={backlog} (~{eta_part}); failed last={failed}")
+}
+
+#[derive(serde::Deserialize)]
+struct NightlyAbortedBlob {
+    #[serde(default)]
+    early: bool,
+    #[serde(default)]
+    reason: Option<String>,
+}
+
+/// Missing/corrupt → `false` / `null`. Reason null when early is false.
+fn parse_nightly_aborted(raw: Option<&str>) -> (bool, Option<String>) {
+    let Some(s) = raw else {
+        return (false, None);
+    };
+    match serde_json::from_str::<NightlyAbortedBlob>(s) {
+        Ok(blob) => {
+            if blob.early {
+                (true, blob.reason)
+            } else {
+                (false, None)
+            }
+        }
+        Err(_) => (false, None),
+    }
+}
+
 /// F20: missing → `(null, false)`; JSON array → `(array, false)`; else raw string + `true`.
 fn parse_errors_last_run(raw: Option<&str>) -> (Option<serde_json::Value>, bool) {
     match raw {
@@ -353,6 +451,13 @@ mod tests {
         "embedding",
         "multi_import",
         "router",
+        "deadline_minutes",
+        "aborted_early",
+        "abort_reason",
+        "embedding_backlog",
+        "embedding_backfill_last",
+        "embedding_backfill_failed_last",
+        "embedding_eta_nights",
     ];
 
     fn fixture_input() -> NightlyStatusInput {
@@ -381,6 +486,11 @@ mod tests {
                 last_result: Some("267009".to_string()),
                 task_to_run: Some(r"C:\llm\router.bat".to_string()),
             }),
+            deadline_minutes: 150,
+            aborted_raw: None,
+            embedding_backlog: 0,
+            last_backfill_raw: None,
+            last_failed_raw: None,
         }
     }
 
@@ -956,5 +1066,68 @@ mod tests {
         let value = to_value(&status);
         assert_eq!(value["errors_last_run"], "{}");
         assert_eq!(value["errors_last_run_unreadable"], true);
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn nightly_status_json__additive_throughput_keys__dual_read() {
+        let mut input = fixture_input();
+        input.aborted_raw = None;
+        input.last_backfill_raw = None;
+        input.last_failed_raw = None;
+        input.embedding_backlog = 10;
+        input.deadline_minutes = 150;
+        let status = build_nightly_status_json(input);
+        assert!(!status.aborted_early);
+        assert_eq!(status.abort_reason, None);
+        assert_eq!(status.embedding_backlog, 10);
+        assert_eq!(status.embedding_backfill_failed_last, None);
+        assert_eq!(status.embedding_eta_nights, None);
+        assert_eq!(status.deadline_minutes, 150);
+        assert_eq!(status.schema_version, 1);
+        let value = to_value(&status);
+        assert_eq!(value["aborted_early"], false);
+        assert_eq!(value["abort_reason"], serde_json::Value::Null);
+        assert_eq!(
+            value["embedding_backfill_failed_last"],
+            serde_json::Value::Null
+        );
+        assert_eq!(value["embedding_eta_nights"], serde_json::Value::Null);
+
+        let old = r#"{"schema_version":1,"scheduled":null,"next_run":null,"last_task_result":null,"last_task_result_hint":null,"last_scheduled_run":null,"action_target":null,"action_target_missing":false,"next_step":null,"last_nightly_run":null,"unsummarized_sessions":0,"sessions_summarized_last_run":null,"errors_last_run":null,"errors_last_run_unreadable":false,"completion":{"host_port":"127.0.0.1:8081","model":"m","probe":"skipped"},"embedding":{"host_port":"127.0.0.1:8083","model":"e","probe":"ok"},"multi_import":{"status":"never"},"router":null}"#;
+        let parsed: NightlyStatusJson = match serde_json::from_str(old) {
+            Ok(v) => v,
+            Err(e) => panic!("dual-read deserialize NightlyStatusJson: {e}"),
+        };
+        assert_eq!(parsed.schema_version, 1);
+        assert!(!parsed.aborted_early);
+        assert!(parsed.abort_reason.is_none());
+        assert_eq!(parsed.deadline_minutes, 150);
+        assert_eq!(parsed.embedding_backlog, 0);
+        assert!(parsed.embedding_backfill_last.is_none());
+        assert!(parsed.embedding_backfill_failed_last.is_none());
+        assert!(parsed.embedding_eta_nights.is_none());
+    }
+
+    #[rstest::rstest]
+    #[case(0, None, Some(0))]
+    #[case(0, Some(0), Some(0))]
+    #[case(100, Some(50), Some(2))]
+    #[case(101, Some(50), Some(3))]
+    #[case(10, Some(0), None)]
+    #[case(10, None, None)]
+    #[allow(non_snake_case)]
+    fn nightly_status_json__eta_nights__rstest_cases(
+        #[case] backlog: u64,
+        #[case] last_backfill: Option<u64>,
+        #[case] expected: Option<u64>,
+    ) {
+        assert_eq!(embedding_eta_nights(backlog, last_backfill), expected);
+        let mut input = fixture_input();
+        input.embedding_backlog = backlog;
+        input.last_backfill_raw = last_backfill.map(|n| n.to_string());
+        let status = build_nightly_status_json(input);
+        assert_eq!(status.embedding_eta_nights, expected);
+        assert_eq!(status.schema_version, 1);
     }
 }

@@ -1,6 +1,6 @@
 use crate::connection::VaultConnection;
 use crate::errors::{Result, StoreError};
-use crate::{MemoryListFilter, MemoryListRow, MemoryListStatus, QueryStore};
+use crate::{MemoryListFilter, MemoryListRow, MemoryListStatus, QueryStore, UnembeddedMemoryRow};
 use ai_brains_core::ids::{MemoryId, ProjectId, SessionId};
 use ai_brains_core::privacy::Privacy;
 use rusqlite::{OptionalExtension, params, params_from_iter};
@@ -132,6 +132,19 @@ fn list_memory_rows(
         results.push(row?);
     }
     Ok(results)
+}
+
+/// Bind-safe LIMIT for rusqlite i64 parameters.
+fn limit_as_i64(limit: usize) -> i64 {
+    i64::try_from(limit).unwrap_or(i64::MAX)
+}
+
+fn map_unembedded_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<UnembeddedMemoryRow> {
+    Ok(UnembeddedMemoryRow {
+        memory_id: row.get(0)?,
+        content: row.get(1)?,
+        updated_at: row.get(2)?,
+    })
 }
 
 impl QueryStore for VaultConnection {
@@ -487,6 +500,100 @@ impl QueryStore for VaultConnection {
         Ok(())
     }
 
+    fn count_pinned_without_embeddings(&self) -> Result<u64> {
+        let conn = self.lock()?;
+        let count: i64 = conn.query_row(
+            "SELECT COUNT(*) FROM memory_projection
+             WHERE embedding IS NULL AND status = 'pinned'",
+            [],
+            |row| row.get(0),
+        )?;
+        Ok(count as u64)
+    }
+
+    fn page_pinned_without_embeddings(
+        &self,
+        limit: usize,
+        after: Option<(&str, &str)>,
+    ) -> Result<Vec<UnembeddedMemoryRow>> {
+        let conn = self.lock()?;
+        let limit_i = limit_as_i64(limit);
+        let mut results = Vec::new();
+        match after {
+            None => {
+                let mut stmt = conn.prepare(
+                    "SELECT memory_id, content, updated_at FROM memory_projection
+                     WHERE embedding IS NULL AND status = 'pinned'
+                     ORDER BY updated_at DESC, memory_id DESC
+                     LIMIT ?",
+                )?;
+                let rows = stmt.query_map(params![limit_i], map_unembedded_row)?;
+                for row in rows {
+                    results.push(row?);
+                }
+            }
+            Some((updated_at, memory_id)) => {
+                let mut stmt = conn.prepare(
+                    "SELECT memory_id, content, updated_at FROM memory_projection
+                     WHERE embedding IS NULL AND status = 'pinned'
+                       AND (updated_at < ?1 OR (updated_at = ?1 AND memory_id < ?2))
+                     ORDER BY updated_at DESC, memory_id DESC
+                     LIMIT ?3",
+                )?;
+                let rows =
+                    stmt.query_map(params![updated_at, memory_id, limit_i], map_unembedded_row)?;
+                for row in rows {
+                    results.push(row?);
+                }
+            }
+        }
+        Ok(results)
+    }
+
+    fn get_memories_without_embeddings(
+        &self,
+        limit: usize,
+        since_days: Option<i32>,
+    ) -> Result<Vec<(String, String)>> {
+        let conn = self.lock()?;
+        let limit_i = limit_as_i64(limit);
+        let mut results = Vec::new();
+        match since_days {
+            Some(days) => {
+                let window = format!("-{days} days");
+                let mut stmt = conn.prepare(
+                    "SELECT memory_id, content FROM memory_projection
+                     WHERE embedding IS NULL
+                       AND status = 'pinned'
+                       AND updated_at > datetime('now', ?)
+                     ORDER BY updated_at DESC
+                     LIMIT ?",
+                )?;
+                let rows = stmt.query_map(params![window, limit_i], |row| {
+                    Ok((row.get(0)?, row.get(1)?))
+                })?;
+                for row in rows {
+                    results.push(row?);
+                }
+            }
+            None => {
+                let mut stmt = conn.prepare(
+                    "SELECT memory_id, content FROM memory_projection
+                     WHERE embedding IS NULL
+                       AND status = 'pinned'
+                     ORDER BY updated_at DESC
+                     LIMIT ?",
+                )?;
+                let rows =
+                    stmt.query_map(params![limit_i], |row| Ok((row.get(0)?, row.get(1)?)))?;
+                for row in rows {
+                    results.push(row?);
+                }
+            }
+        }
+        Ok(results)
+    }
+
     fn get_stale_memories(
         &self,
         days_threshold: i32,
@@ -504,45 +611,6 @@ impl QueryStore for VaultConnection {
              LIMIT {}",
             days_threshold, limit
         );
-        let mut stmt = conn.prepare(&sql)?;
-        let rows = stmt.query_map([], |row| {
-            let id: String = row.get(0)?;
-            let content: String = row.get(1)?;
-            Ok((id, content))
-        })?;
-        let mut results = Vec::new();
-        for row in rows {
-            results.push(row?);
-        }
-        Ok(results)
-    }
-
-    fn get_memories_without_embeddings(
-        &self,
-        limit: usize,
-        since_days: Option<i32>,
-    ) -> Result<Vec<(String, String)>> {
-        let conn = self.lock()?;
-        let sql = if let Some(days) = since_days {
-            format!(
-                "SELECT memory_id, content FROM memory_projection
-                 WHERE embedding IS NULL
-                   AND status = 'pinned'
-                   AND updated_at > datetime('now', '-{} days')
-                 ORDER BY updated_at DESC
-                 LIMIT {}",
-                days, limit
-            )
-        } else {
-            format!(
-                "SELECT memory_id, content FROM memory_projection
-                 WHERE embedding IS NULL
-                   AND status = 'pinned'
-                 ORDER BY updated_at DESC
-                 LIMIT {}",
-                limit
-            )
-        };
         let mut stmt = conn.prepare(&sql)?;
         let rows = stmt.query_map([], |row| {
             let id: String = row.get(0)?;

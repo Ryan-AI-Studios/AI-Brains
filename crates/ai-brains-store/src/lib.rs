@@ -106,6 +106,17 @@ pub trait QueryStore: std::marker::Send + std::marker::Sync {
         limit: usize,
         since_days: Option<i32>,
     ) -> Result<Vec<(String, String)>>;
+    /// T338 F5: pinned rows with `embedding IS NULL` (includes policy-denied).
+    fn count_pinned_without_embeddings(&self) -> Result<u64>;
+    /// T338 F2/F5: keyset page of pinned NULL embeddings, newest `updated_at` first.
+    ///
+    /// `after` is the last fetched `(updated_at, memory_id)` from the previous page
+    /// (exclusive). `None` starts at the head. LIMIT is a bound parameter.
+    fn page_pinned_without_embeddings(
+        &self,
+        limit: usize,
+        after: Option<(&str, &str)>,
+    ) -> Result<Vec<UnembeddedMemoryRow>>;
     fn get_stale_memories(
         &self,
         days_threshold: i32,
@@ -208,6 +219,14 @@ pub struct MemoryListFilter {
     /// Query page size (caller typically passes `limit + 1` for more_available).
     /// For tag candidate over-fetch, pass the elevated candidate cap.
     pub limit: usize,
+}
+
+/// T338 keyset row: pinned memory with `embedding IS NULL`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct UnembeddedMemoryRow {
+    pub memory_id: String,
+    pub content: String,
+    pub updated_at: String,
 }
 
 /// Row from [`QueryStore::list_projects_detail`] (T212).

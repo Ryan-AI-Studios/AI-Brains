@@ -7,6 +7,8 @@ use ai_brains_store::QueryStore;
 use std::str::FromStr;
 use std::sync::Arc;
 
+use crate::deadline::NightlyDeadline;
+
 /// Service for generating and storing embeddings for vault memories.
 pub struct EmbeddingService {
     query_store: Arc<dyn QueryStore>,
@@ -127,6 +129,60 @@ impl EmbeddingService {
 
             // Brief yield to avoid overwhelming the embedding server
             tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
+        }
+
+        eprintln!(
+            "[Nightly] Embedding backfill complete: {} succeeded, {} failed.",
+            success, failed
+        );
+        Ok((success, failed))
+    }
+
+    /// Deadline-bound keyset catch-up of pinned NULL embeddings (T338 F2).
+    ///
+    /// Pages `(updated_at DESC, memory_id DESC)`. After each chunk, the next page
+    /// starts strictly after the last **fetched** cursor (including failures).
+    /// Keeps the 50ms yield. Chunk size is `chunk_env` unless remaining time is
+    /// under 60s, then 50.
+    pub async fn backfill_catchup(
+        &self,
+        deadline: &NightlyDeadline,
+        chunk_env: usize,
+    ) -> Result<(usize, usize), Box<dyn std::error::Error>> {
+        let mut success = 0;
+        let mut failed = 0;
+        let mut after: Option<(String, String)> = None;
+
+        loop {
+            if deadline.expired() {
+                break;
+            }
+            let remaining = deadline.remaining_secs();
+            let limit = if remaining < 60 { 50 } else { chunk_env };
+            let cursor = after
+                .as_ref()
+                .map(|(updated_at, memory_id)| (updated_at.as_str(), memory_id.as_str()));
+            let page = self
+                .query_store
+                .page_pinned_without_embeddings(limit, cursor)?;
+            if page.is_empty() {
+                break;
+            }
+            let last = page
+                .last()
+                .map(|row| (row.updated_at.clone(), row.memory_id.clone()));
+            eprintln!(
+                "[Nightly] Backfilling embeddings for {} memories (keyset page)...",
+                page.len()
+            );
+            for row in page {
+                match self.generate_and_store(&row.memory_id, &row.content).await {
+                    Ok(true) => success += 1,
+                    Ok(false) | Err(_) => failed += 1,
+                }
+                tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
+            }
+            after = last;
         }
 
         eprintln!(
