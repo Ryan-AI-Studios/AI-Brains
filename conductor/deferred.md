@@ -2,6 +2,27 @@
 
 Tracks deferred from T142. Append-only; strike through when promoted to a real track.
 
+### T340 full plan (2026-09-01) — agent capture guidance (skills)
+
+| Item | Disposition |
+|------|-------------|
+| T336 live 0 prefix samples | **Absorb** F1 / AC1–AC2 |
+| Placeholder F1 session/orphan | **Absorb** F1 rewritten — CLI already requires SESSION_ID; T335 `PINNED_IN_PROJECT`; T70 honesty |
+| Placeholder F2 close-time pin | **Absorb** F2 — `--tx-id` already on pin clap; expand WHEN/session; ISSUES.md → deferred.md |
+| Placeholder F3 AGENTS.md | **Absorb** F3 one Track Discipline sentence; Self-Usage `:47` stays |
+| Placeholder F4 wait T334 | **Absorb** F4 hygiene — T334/T337/T339 shipped in source; PATH `capture` may lag |
+| `.claude` onboarding ISSUES.md | **Absorb** AC4 |
+| T337-R1/R2/R8 | **Decline** — not skills |
+| T338-R1/R2 | **Decline** — not skills |
+| T339 / T341 | **Not stolen** |
+| T255 doctor 16th / T240 F2 | **Decline** |
+| Un-gitignore `.agents/` | **Decline** F5 — local dual-write only |
+| `#268` Cursor usage-limit ×2 | **No leftover** — no T342 |
+| Dependabot `#250–#256` | **Decline** |
+| clap 5 / 0.1.6 / crate tests | **Decline** |
+| Soft | T340-R1 onboarding twin full-sync; T340-R2 v2.2.0 ops essay; T340-R3 PATH install; T340-R4 approve still human |
+| DOCS TX | `f5e55fce-4e9b-4844-b67a-71259435d231` |
+
 ### T339 fold-in (2026-09-01) — `agy-review.md` + `opencode-review.md`
 
 | Item | Disposition |
