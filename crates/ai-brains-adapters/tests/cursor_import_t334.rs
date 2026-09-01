@@ -347,6 +347,108 @@ fn import_cursor__hermetic_unix_path_alias_slug__bound_turns() {
 }
 
 #[test]
+fn import_cursor__hermetic_wsl_folder_windows_alias__bound_turns() {
+    let root = tempdir().unwrap();
+    let home = root.path().join("home");
+    let vault_dir = root.path().join("vault");
+    fs::create_dir_all(&home).unwrap();
+    fs::create_dir_all(&vault_dir).unwrap();
+
+    let sid = "cccccccc-cccc-cccc-cccc-cccccccccccc";
+    write_cursor_session(&home, "mnt-c-dev-AI-Brains", sid, CURSOR_JSONL);
+
+    let (conn, store) = open_vault(&vault_dir);
+    let project_id = ProjectId::new();
+    register_path_alias(&store, project_id, r"C:\dev\AI-Brains");
+
+    let mut sink = TestSink {
+        store,
+        last_error: None,
+    };
+    let service = CaptureService::new();
+    let stats = import_cursor_sessions(
+        &conn,
+        &service,
+        &mut sink,
+        CursorImportOptions {
+            days: 30,
+            default_project_id: ProjectId::new(),
+            allow_default_project: false,
+            force: true,
+            home_override: Some(home),
+            dry_run: false,
+        },
+    )
+    .expect("import");
+    assert!(sink.last_error.is_none(), "{:?}", sink.last_error);
+    assert!(stats.sessions >= 1, "sessions: {stats:?}");
+    assert!(stats.imported_turns >= 2, "turns: {stats:?}");
+    assert!(stats.bound_via_path >= 1, "bound: {stats:?}");
+    assert_eq!(stats.unbound_project, 0, "unbound: {stats:?}");
+
+    let turns = conn.get_session_turns(sid).expect("turns");
+    assert!(
+        turns.iter().any(|(_, c)| c.contains("hello-cursor")),
+        "user text kept: {turns:?}"
+    );
+    assert!(
+        turns.iter().all(|(_, c)| {
+            !c.contains("skills dump")
+                && !c.contains("manually_attached_skills")
+                && !c.contains("Shell")
+                && !c.contains("tool_use")
+        }),
+        "skill/tool dropped: {turns:?}"
+    );
+}
+
+#[test]
+fn import_cursor__hermetic_windows_folder_wsl_alias__bound_turns() {
+    let root = tempdir().unwrap();
+    let home = root.path().join("home");
+    let vault_dir = root.path().join("vault");
+    fs::create_dir_all(&home).unwrap();
+    fs::create_dir_all(&vault_dir).unwrap();
+
+    let sid = "dddddddd-eeee-ffff-aaaa-bbbbbbbbbbbb";
+    write_cursor_session(&home, "c-dev-AI-Brains", sid, CURSOR_JSONL);
+
+    let (conn, store) = open_vault(&vault_dir);
+    let project_id = ProjectId::new();
+    register_unix_path_alias(&store, project_id, "/mnt/c/dev/AI-Brains");
+    let aliases = conn.list_path_aliases().expect("aliases");
+    assert!(
+        aliases.iter().any(|(_, p)| p == "/mnt/c/dev/AI-Brains"),
+        "stored alias must stay WSL (no Windows cwd-join): {aliases:?}"
+    );
+
+    let mut sink = TestSink {
+        store,
+        last_error: None,
+    };
+    let service = CaptureService::new();
+    let stats = import_cursor_sessions(
+        &conn,
+        &service,
+        &mut sink,
+        CursorImportOptions {
+            days: 30,
+            default_project_id: ProjectId::new(),
+            allow_default_project: false,
+            force: true,
+            home_override: Some(home),
+            dry_run: false,
+        },
+    )
+    .expect("import");
+    assert!(sink.last_error.is_none(), "{:?}", sink.last_error);
+    assert!(stats.sessions >= 1, "sessions: {stats:?}");
+    assert!(stats.imported_turns >= 2, "turns: {stats:?}");
+    assert!(stats.bound_via_path >= 1, "bound: {stats:?}");
+    assert_eq!(stats.unbound_project, 0, "unbound: {stats:?}");
+}
+
+#[test]
 fn import_cursor__subagents_dir__skipped_sidechain() {
     let root = tempdir().unwrap();
     let home = root.path().join("home");

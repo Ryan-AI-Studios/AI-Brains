@@ -2,11 +2,37 @@
 
 Tracks deferred from T142. Append-only; strike through when promoted to a real track.
 
+### T342 implement (2026-09-01) — residuals remain
+
+| Item | Disposition |
+|------|-------------|
+| T342-R1 `\\wsl$\Distro\…` / `\\wsl.localhost\…` folder identity | **Residual** — different UNC encoder; no live folders |
+| T342-R2 `/mnt/wsl` / `/mnt/wslg` mounts | **Residual** — `wsl_to_windows` rejects non-single-letter |
+| T342-R3 Two stored aliases (Windows + `/mnt/c`) for the same repo | **Residual** — F9 first-wins |
+| BUGFIX TX | `6d6c7b95-f197-4cb1-9c85-5c8804af10b3` |
+
+### T342 full plan (2026-09-01) — WSL/Windows Cursor slug twins
+
+| Item | Disposition |
+|------|-------------|
+| T341-R1 WSL `/mnt/c` ↔ `c-dev-…` | **Absorb** F1–F4 / AC1–AC6 |
+| T341 Unix / UNC stay-green | **Stay-green** AC3 / AC4 / AC7 |
+| T341-R2 interior `//` / `.` | **Decline** — live Unix dump still required |
+| T341-R3 numeric project dirs | **Decline** — not path slugs |
+| T337 coverage rewrite / T337-R1/R2/R8 | **Not stolen / decline** — inherit candidates only |
+| T334 hooks / `HarnessId::Cursor` | **Decline** |
+| T340 / T338 / T339 / doctor 16th | **Not stolen / decline** |
+| `#270` Cursor usage-limit | **No leftover** — no T343 |
+| Dependabot `#250–#256` | **Decline** |
+| clap 5 / 0.1.6 | **Decline** |
+| Soft | T342-R1 `\\wsl$\` UNC; T342-R2 `/mnt/wsl`; T342-R3 dual stored aliases |
+| DOCS TX | `1ffca249-a911-4708-b4da-951ae780e6b0` |
+
 ### T341 implement (2026-09-01) — residuals remain
 
 | Item | Disposition |
 |------|-------------|
-| T341-R1 WSL `/mnt/c/dev/…` vs Windows `c-dev-…` folder identity | **Residual** — path-crate / `location.rs`; not slug DoD |
+| ~~T341-R1 WSL `/mnt/c/dev/…` vs Windows `c-dev-…` folder identity~~ | **Promoted T342** |
 | T341-R2 Interior `//` or `.` vs cursor-helper collapse | **Residual** — F6; re-open with a live Unix folder dump |
 | T341-R3 Numeric `projects/<epoch>` dirs | **Residual** — not path slugs; coverage lists unbound |
 | BUGFIX TX | `1abea1ce-a478-4abd-bdc2-ddb1a90a09df` |
