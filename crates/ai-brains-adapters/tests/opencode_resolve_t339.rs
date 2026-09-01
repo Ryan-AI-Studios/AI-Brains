@@ -172,8 +172,13 @@ fn resolve_opencode_bin__env_override__rstest_cases(#[case] kind: &str) {
     let _g = isolate(tmp.path());
     let path_dir = tmp.path().join("pathdir");
     fs::create_dir_all(&path_dir).expect("pathdir");
-    let path_cmd = path_dir.join("opencode.cmd");
-    touch(&path_cmd);
+    // Windows PATH×PATHEXT skips extensionless shims; Unix looks for `opencode`.
+    let path_bin = if cfg!(windows) {
+        path_dir.join("opencode.cmd")
+    } else {
+        path_dir.join("opencode")
+    };
+    touch(&path_bin);
     let brains = tmp.path().join("brains-opencode.cmd");
     let pathenv = tmp.path().join("pathenv-opencode.cmd");
     touch(&brains);
@@ -210,7 +215,7 @@ fn resolve_opencode_bin__env_override__rstest_cases(#[case] kind: &str) {
     match kind {
         "brains" | "quoted" | "both" => assert_eq!(got, brains),
         "pathenv" => assert_eq!(got, pathenv),
-        "missing" => assert_eq!(got, path_cmd),
+        "missing" => assert_eq!(got, path_bin),
         _ => {}
     }
 }
