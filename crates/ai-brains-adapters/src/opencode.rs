@@ -18,7 +18,7 @@ use ai_brains_events::{
     Actor, AggregateType, Payload, ProjectAliasAddedPayload, ProjectRegisteredPayload,
 };
 use serde_json::Value;
-use std::collections::HashMap;
+use std::collections::{BTreeSet, HashMap};
 use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
@@ -43,6 +43,18 @@ pub const OPENCODE_LIST_DEFAULT_CAP: usize = 100;
 
 /// Cursor file name under `~/.ai-brains/` (F18).
 pub const OPENCODE_IMPORT_CURSOR_FILENAME: &str = "opencode-import-cursor.json";
+
+/// Operator override for the OpenCode CLI (absolute `.exe` or `.cmd`).
+pub const OPENCODE_BIN_ENV: &str = "AI_BRAINS_OPENCODE_BIN";
+/// Community/npm wrapper override (honored after [`OPENCODE_BIN_ENV`]).
+pub const OPENCODE_BIN_PATH_ENV: &str = "OPENCODE_BIN_PATH";
+
+/// Result of [`resolve_opencode_bin`] (T339).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ResolveOutcome {
+    pub path: Option<PathBuf>,
+    pub attempts: Vec<String>,
+}
 
 // ---------------------------------------------------------------------------
 // Capability
@@ -348,6 +360,8 @@ pub struct OpenCodeImportOptions {
     pub config_dir_override: Option<PathBuf>,
     /// When set, treat binary as missing (hermetic AC12).
     pub force_missing_binary: bool,
+    /// Optional absolute CLI path (tests / callers). Env is still read inside resolve.
+    pub bin_override: Option<PathBuf>,
     /// Override list cap for AC23 tests (default [`OPENCODE_LIST_DEFAULT_CAP`]).
     pub list_cap: usize,
 }
@@ -366,6 +380,7 @@ impl OpenCodeImportOptions {
             cursor_path_override: None,
             config_dir_override: None,
             force_missing_binary: false,
+            bin_override: None,
             list_cap: OPENCODE_LIST_DEFAULT_CAP,
         }
     }
@@ -388,6 +403,10 @@ pub struct OpenCodeImportStats {
     pub timed_out: usize,
     pub list_capped: usize,
     pub sessions: usize,
+    /// Absolute path used for spawn when resolve succeeded.
+    pub resolved_bin: Option<PathBuf>,
+    /// Sorted unique candidates checked; set only when unresolved.
+    pub binary_attempts: Option<Vec<String>>,
 }
 
 /// A discovered OpenCode session from list JSON.
@@ -557,12 +576,196 @@ fn default_cursor_path() -> Option<PathBuf> {
 }
 
 // ---------------------------------------------------------------------------
+// Binary resolve (T339)
+// ---------------------------------------------------------------------------
+
+fn trim_env_path_value(raw: &str) -> String {
+    let t = raw.trim();
+    if let Some(inner) = t.strip_prefix('"').and_then(|s| s.strip_suffix('"')) {
+        return inner.to_string();
+    }
+    if let Some(inner) = t.strip_prefix('\'').and_then(|s| s.strip_suffix('\'')) {
+        return inner.to_string();
+    }
+    t.to_string()
+}
+
+fn record_attempt(attempts: &mut BTreeSet<String>, path: &Path) {
+    attempts.insert(path.to_string_lossy().into_owned());
+}
+
+/// Prefer an absolute spawn path so `Command::new` never depends on cwd (T339 F2).
+fn spawnable_path(path: &Path) -> PathBuf {
+    if path.is_absolute() {
+        return path.to_path_buf();
+    }
+    match std::path::absolute(path) {
+        Ok(abs) => abs,
+        Err(_) => path.to_path_buf(),
+    }
+}
+
+fn consider_file(attempts: &mut BTreeSet<String>, path: &Path) -> Option<PathBuf> {
+    record_attempt(attempts, path);
+    if path.is_file() {
+        Some(spawnable_path(path))
+    } else {
+        None
+    }
+}
+
+fn env_path_candidate(key: &str) -> Option<PathBuf> {
+    let raw = std::env::var(key).ok()?;
+    let trimmed = trim_env_path_value(&raw);
+    if trimmed.is_empty() {
+        None
+    } else {
+        Some(PathBuf::from(trimmed))
+    }
+}
+
+fn appdata_dir() -> Option<PathBuf> {
+    if let Some(v) = std::env::var_os("APPDATA")
+        && !v.is_empty()
+    {
+        return Some(PathBuf::from(v));
+    }
+    dirs::home_dir().map(|h| h.join("AppData").join("Roaming"))
+}
+
+fn well_known_candidates() -> Vec<PathBuf> {
+    let mut out = Vec::new();
+    if let Some(appdata) = appdata_dir() {
+        let npm = appdata.join("npm");
+        let modules = npm.join("node_modules");
+        out.push(
+            modules
+                .join("opencode-ai")
+                .join("node_modules")
+                .join("opencode-windows-x64")
+                .join("bin")
+                .join("opencode.exe"),
+        );
+        out.push(
+            modules
+                .join("opencode-windows-x64")
+                .join("bin")
+                .join("opencode.exe"),
+        );
+        out.push(npm.join("opencode.cmd"));
+        out.push(npm.join("opencode.exe"));
+        out.push(modules.join("opencode-ai").join("bin").join("opencode.exe"));
+    }
+    if let Some(home) = dirs::home_dir() {
+        out.push(home.join(".local").join("bin").join("opencode.exe"));
+        out.push(home.join(".opencode").join("bin").join("opencode.exe"));
+        #[cfg(not(windows))]
+        {
+            out.push(home.join(".local").join("bin").join("opencode"));
+            out.push(home.join(".opencode").join("bin").join("opencode"));
+        }
+    }
+    out
+}
+
+#[cfg(windows)]
+fn pathext_list() -> Vec<String> {
+    let raw = std::env::var("PATHEXT").unwrap_or_else(|_| ".COM;.EXE;.BAT;.CMD".to_string());
+    raw.split(';')
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(|s| s.to_string())
+        .collect()
+}
+
+fn search_path_dirs(attempts: &mut BTreeSet<String>) -> Option<PathBuf> {
+    let path_os = std::env::var_os("PATH")?;
+    #[cfg(windows)]
+    {
+        let exts = pathext_list();
+        for dir in std::env::split_paths(&path_os) {
+            for ext in &exts {
+                let name = format!("opencode{}", ext.to_ascii_lowercase());
+                let candidate = dir.join(&name);
+                if let Some(hit) = consider_file(attempts, &candidate) {
+                    return Some(hit);
+                }
+            }
+        }
+        None
+    }
+    #[cfg(not(windows))]
+    {
+        for dir in std::env::split_paths(&path_os) {
+            let candidate = dir.join("opencode");
+            if let Some(hit) = consider_file(attempts, &candidate) {
+                return Some(hit);
+            }
+        }
+        None
+    }
+}
+
+/// Locate a spawnable OpenCode CLI. First existing file wins (T339 F2).
+pub fn resolve_opencode_bin(bin_override: Option<&Path>) -> ResolveOutcome {
+    let mut attempts = BTreeSet::new();
+
+    if let Some(p) = bin_override
+        && let Some(hit) = consider_file(&mut attempts, p)
+    {
+        return ResolveOutcome {
+            path: Some(hit),
+            attempts: attempts.into_iter().collect(),
+        };
+    }
+
+    for key in [OPENCODE_BIN_ENV, OPENCODE_BIN_PATH_ENV] {
+        if let Some(p) = env_path_candidate(key)
+            && let Some(hit) = consider_file(&mut attempts, &p)
+        {
+            return ResolveOutcome {
+                path: Some(hit),
+                attempts: attempts.into_iter().collect(),
+            };
+        }
+    }
+
+    if let Some(hit) = search_path_dirs(&mut attempts) {
+        return ResolveOutcome {
+            path: Some(hit),
+            attempts: attempts.into_iter().collect(),
+        };
+    }
+
+    for candidate in well_known_candidates() {
+        if let Some(hit) = consider_file(&mut attempts, &candidate) {
+            return ResolveOutcome {
+                path: Some(hit),
+                attempts: attempts.into_iter().collect(),
+            };
+        }
+    }
+
+    ResolveOutcome {
+        path: None,
+        attempts: attempts.into_iter().collect(),
+    }
+}
+
+fn unresolved_hint(attempt_count: usize) -> String {
+    format!(
+        "[OpenCode] binary not resolved — tried {attempt_count} paths. next: set {OPENCODE_BIN_ENV} to opencode.cmd or the windows-x64 opencode.exe"
+    )
+}
+
+// ---------------------------------------------------------------------------
 // Export subprocess / inject
 // ---------------------------------------------------------------------------
 
 fn export_session(
     session_id: &str,
     options: &OpenCodeImportOptions,
+    spawn_bin: Option<&Path>,
 ) -> std::result::Result<Value, ExportErr> {
     // Injected fixture path for hermetic tests (never open opencode.db).
     if let Some(dir) = options.export_json_override_dir.as_ref() {
@@ -583,7 +786,11 @@ fn export_session(
     }
 
     // Real CLI export with timeout + child kill. Never opens opencode.db (AC14).
+    let Some(bin) = spawn_bin else {
+        return Err(ExportErr::Binary);
+    };
     let output = run_opencode_export_blocking(
+        bin,
         session_id,
         Duration::from_secs(OPENCODE_EXPORT_TIMEOUT_SECS),
         options.config_dir_override.as_deref(),
@@ -606,7 +813,12 @@ enum ExportErr {
 /// Returns parsed turns, or empty on soft failure (missing binary, timeout, parse).
 /// **Never** opens `opencode.db`.
 pub fn export_session_via_cli(session_id: &str) -> Result<Vec<OpenCodeIngestTurn>> {
+    let resolved = resolve_opencode_bin(None);
+    let Some(bin) = resolved.path else {
+        return Ok(Vec::new());
+    };
     match run_opencode_export_blocking(
+        &bin,
         session_id,
         Duration::from_secs(OPENCODE_EXPORT_TIMEOUT_SECS),
         None,
@@ -629,15 +841,16 @@ pub fn export_session_via_cli(session_id: &str) -> Result<Vec<OpenCodeIngestTurn
     }
 }
 
-/// Spawn `opencode` with optional config-dir env, poll until exit or deadline, kill on timeout.
+/// Spawn resolved OpenCode with optional config-dir env, poll until exit or deadline, kill on timeout.
 ///
 /// Reads stdout/stderr on background threads so large exports cannot deadlock the pipe buffer.
 fn run_opencode_command_blocking(
+    bin: &Path,
     args: &[&str],
     timeout: Duration,
     config_dir: Option<&Path>,
 ) -> std::result::Result<String, ExportErr> {
-    let mut cmd = Command::new("opencode");
+    let mut cmd = Command::new(bin);
     cmd.args(args)
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
@@ -709,19 +922,22 @@ fn run_opencode_command_blocking(
 }
 
 fn run_opencode_export_blocking(
+    bin: &Path,
     session_id: &str,
     timeout: Duration,
     config_dir: Option<&Path>,
 ) -> std::result::Result<String, ExportErr> {
-    run_opencode_command_blocking(&["export", session_id], timeout, config_dir)
+    run_opencode_command_blocking(bin, &["export", session_id], timeout, config_dir)
 }
 
 fn run_opencode_list(
+    bin: &Path,
     max_n: usize,
     config_dir: Option<&Path>,
 ) -> std::result::Result<String, ExportErr> {
     let n = max_n.to_string();
     run_opencode_command_blocking(
+        bin,
         &["session", "list", "--format", "json", "-n", &n],
         Duration::from_secs(OPENCODE_EXPORT_TIMEOUT_SECS),
         config_dir,
@@ -751,27 +967,45 @@ pub fn import_opencode_sessions<S: CaptureSink>(
         eprintln!("[OpenCode] opencode binary missing — soft skip (no sessions imported).");
         return Ok(stats);
     } else {
-        match run_opencode_list(
-            options.max_sessions.max(1),
-            options.config_dir_override.as_deref(),
-        ) {
-            Ok(s) => s,
-            Err(ExportErr::Binary) => {
+        let resolved = resolve_opencode_bin(options.bin_override.as_deref());
+        match resolved.path {
+            Some(bin) => {
+                stats.resolved_bin = Some(bin.clone());
+                match run_opencode_list(
+                    &bin,
+                    options.max_sessions.max(1),
+                    options.config_dir_override.as_deref(),
+                ) {
+                    Ok(s) => s,
+                    Err(ExportErr::Binary) => {
+                        stats.skipped_missing_binary = 1;
+                        stats.binary_attempts = Some(resolved.attempts);
+                        eprintln!(
+                            "{}",
+                            unresolved_hint(stats.binary_attempts.as_ref().map_or(0, Vec::len))
+                        );
+                        return Ok(stats);
+                    }
+                    Err(ExportErr::Timeout) => {
+                        stats.timed_out += 1;
+                        stats.export_errors += 1;
+                        eprintln!("[OpenCode] session list timed out — soft skip.");
+                        return Ok(stats);
+                    }
+                    Err(e) => {
+                        stats.export_errors += 1;
+                        eprintln!("[OpenCode] session list failed: {}", export_err_msg(&e));
+                        return Ok(stats);
+                    }
+                }
+            }
+            None => {
                 stats.skipped_missing_binary = 1;
+                stats.binary_attempts = Some(resolved.attempts);
                 eprintln!(
-                    "[OpenCode] opencode binary not on PATH — soft skip (batch requires opencode)."
+                    "{}",
+                    unresolved_hint(stats.binary_attempts.as_ref().map_or(0, Vec::len))
                 );
-                return Ok(stats);
-            }
-            Err(ExportErr::Timeout) => {
-                stats.timed_out += 1;
-                stats.export_errors += 1;
-                eprintln!("[OpenCode] session list timed out — soft skip.");
-                return Ok(stats);
-            }
-            Err(e) => {
-                stats.export_errors += 1;
-                eprintln!("[OpenCode] session list failed: {}", export_err_msg(&e));
                 return Ok(stats);
             }
         }
@@ -874,7 +1108,7 @@ pub fn import_opencode_sessions<S: CaptureSink>(
             );
         }
 
-        let export_doc = match export_session(&source.id, &options) {
+        let export_doc = match export_session(&source.id, &options, stats.resolved_bin.as_deref()) {
             Ok(v) => {
                 stats.exported += 1;
                 v
@@ -1102,6 +1336,9 @@ pub fn print_opencode_import_stats(stats: &OpenCodeImportStats) {
         stats.timed_out,
         stats.list_capped
     );
+    if let Some(bin) = stats.resolved_bin.as_ref() {
+        eprintln!("[OpenCode] resolved_bin={}", bin.display());
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -1166,6 +1403,13 @@ mod tests {
         assert_eq!(list[1].project_id_field.as_deref(), Some("p2"));
         assert_eq!(list[1].parent_id.as_deref(), Some("ses_1"));
         assert_eq!(list[2].worktree.as_deref(), Some("C:\\wt"));
+    }
+
+    #[test]
+    fn unresolved_hint__includes_env_and_count() {
+        let s = unresolved_hint(4);
+        assert!(s.contains("AI_BRAINS_OPENCODE_BIN"));
+        assert!(s.contains("tried 4 paths"));
     }
 
     #[test]

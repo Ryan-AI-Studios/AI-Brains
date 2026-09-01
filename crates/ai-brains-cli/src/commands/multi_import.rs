@@ -121,6 +121,12 @@ pub struct SourceImportReport {
     pub timed_out: Option<usize>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub skipped_missing_binary: Option<usize>,
+    /// Absolute OpenCode CLI used when resolve succeeded (T339).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub resolved_bin: Option<String>,
+    /// Sorted unique candidates checked; present on unresolved miss (T339).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub binary_attempts: Option<Vec<String>>,
 }
 
 impl SourceImportReport {
@@ -136,6 +142,8 @@ impl SourceImportReport {
             export_errors: None,
             timed_out: None,
             skipped_missing_binary: None,
+            resolved_bin: None,
+            binary_attempts: None,
         }
     }
 
@@ -151,6 +159,8 @@ impl SourceImportReport {
             export_errors: None,
             timed_out: None,
             skipped_missing_binary: None,
+            resolved_bin: None,
+            binary_attempts: None,
         }
     }
 
@@ -166,6 +176,8 @@ impl SourceImportReport {
             export_errors: None,
             timed_out: None,
             skipped_missing_binary: None,
+            resolved_bin: None,
+            binary_attempts: None,
         }
     }
 }
@@ -416,6 +428,7 @@ fn run_opencode_source(
         cursor_path_override: opts.opencode_cursor_path_override.clone(),
         config_dir_override: opts.opencode_config_dir_override.clone(),
         force_missing_binary: false,
+        bin_override: None,
         list_cap: max_sessions,
     };
 
@@ -448,6 +461,13 @@ fn run_opencode_source(
             report.export_errors = Some(stats.export_errors);
             report.timed_out = Some(stats.timed_out);
             report.skipped_missing_binary = Some(stats.skipped_missing_binary);
+            report.resolved_bin = stats
+                .resolved_bin
+                .as_ref()
+                .map(|p| p.to_string_lossy().into_owned());
+            if stats.skipped_missing_binary > 0 {
+                report.binary_attempts = stats.binary_attempts.clone();
+            }
             report
         }
         Err(e) => {
@@ -733,8 +753,24 @@ fn append_opencode_health(line: &mut String, name: &str, src: &SourceImportRepor
     if let Some(n) = src.timed_out {
         line.push_str(&format!(" timed_out={n}"));
     }
+    if let Some(bin) = src.resolved_bin.as_deref() {
+        line.push_str(&format!(" resolved_bin={bin}"));
+    }
     if let Some(n) = src.skipped_missing_binary {
         line.push_str(&format!(" skipped_missing_binary={n}"));
+    }
+    if src.resolved_bin.is_none()
+        && let Some(attempts) = src.binary_attempts.as_ref()
+        && !attempts.is_empty()
+    {
+        const MAX_SHOWN: usize = 3;
+        let shown = attempts.iter().take(MAX_SHOWN).cloned().collect::<Vec<_>>();
+        let extra = attempts.len().saturating_sub(shown.len());
+        let mut bit = shown.join(";");
+        if extra > 0 {
+            bit.push_str(&format!(";+{extra}"));
+        }
+        line.push_str(&format!(" binary_attempts={bit}"));
     }
 }
 
@@ -1373,5 +1409,50 @@ mod tests {
         assert_eq!(back.claude.skip_reason.as_deref(), Some("absent_pre_t334"));
         assert_eq!(back.codex.skip_reason.as_deref(), Some("absent_pre_t334"));
         assert_eq!(back.cursor.skip_reason.as_deref(), Some("absent_pre_t334"));
+    }
+
+    #[test]
+    fn source_import_report__resolved_bin_keys__dual_read() {
+        let old = r#"{"v":1,"at":"2026-09-01T07:00:22Z","agy":{"status":"ok","sessions":0,"imported_turns":0,"unbound":0},"grok":{"status":"ok","sessions":0,"imported_turns":0,"unbound":0},"opencode":{"status":"ok","sessions":0,"imported_turns":0,"unbound":0,"skipped_missing_binary":1},"claude":{"status":"skipped","skip_reason":"absent_pre_t334"},"codex":{"status":"skipped","skip_reason":"absent_pre_t334"},"cursor":{"status":"skipped","skip_reason":"absent_pre_t334"}}"#;
+        let back: MultiImportReport = serde_json::from_str(old).expect("de");
+        assert_eq!(back.v, 1);
+        assert_eq!(back.opencode.skipped_missing_binary, Some(1));
+        assert!(back.opencode.resolved_bin.is_none());
+        assert!(back.opencode.binary_attempts.is_none());
+        let mut fresh = back.clone();
+        fresh.opencode.resolved_bin = None;
+        fresh.opencode.binary_attempts = None;
+        let value = serde_json::to_value(&fresh).expect("ser");
+        assert!(value["opencode"].get("resolved_bin").is_none());
+        assert!(value["opencode"].get("binary_attempts").is_none());
+        assert_eq!(value["v"], 1);
+    }
+
+    #[test]
+    fn append_opencode_health__unresolved__prints_attempt_paths() {
+        let mut line = String::from("  opencode: ok");
+        let src = SourceImportReport {
+            status: "ok".to_string(),
+            skip_reason: None,
+            sessions: 0,
+            imported_turns: 0,
+            unbound: 0,
+            error: None,
+            list_capped: None,
+            export_errors: None,
+            timed_out: None,
+            skipped_missing_binary: Some(1),
+            resolved_bin: None,
+            binary_attempts: Some(vec![
+                "C:\\a\\opencode.cmd".into(),
+                "C:\\b\\opencode.exe".into(),
+            ]),
+        };
+        append_opencode_health(&mut line, "opencode", &src);
+        assert!(
+            line.contains("C:\\a\\opencode.cmd"),
+            "human F4 must surface attempt paths: {line}"
+        );
+        assert!(line.contains("skipped_missing_binary=1"), "{line}");
     }
 }

@@ -70,7 +70,7 @@ ai-brains capture coverage --global
 - `--global`: vault counts across all projects; otherwise `AI_BRAINS_PROJECT_ID`.
 - Status `deficit` means disk-eligible files exist and vault count is 0 — next step is a copy-paste importer (`cursor-import`, `claude-import`, `codex-import`, `antigravity-import`). Exit **0** (honesty, not a fail).
 - Grok files without a path-explainable `subagent-` / `worktrees` skip and vault 0 → `unverifiable_subagent`; next step is `grok-import --days N --dry-run` (**never** `--force`). Live Grok hooks remain the capture path.
-- OpenCode disk cell is `—` / JSON `null` (`requires_opencode_bin`) until T339. Missing `opencode` on PATH in `last_multi_import` → `expected_skip`.
+- OpenCode disk cell is `—` / JSON `null` (`requires_opencode_bin`). Missing binary in `last_multi_import` → `expected_skip` with next step `set AI_BRAINS_OPENCODE_BIN`.
 - Pre-T334 three-source `last_multi_import` blobs warn `stale_multi_import` (`skip_reason=absent_pre_t334`). PATH may still lack `cursor-import` until the owner installs the T334 binary.
 
 ### Antigravity Import
@@ -148,7 +148,7 @@ ai-brains opencode-import --days 7 --force --dry-run
 ai-brains opencode-import --days 7 --max-sessions 100
 ```
 
-**OpenCode content SOOT:** nested export `{info,messages}` with message-only filter (drop tool/reasoning/step/snapshot/patch/file/subtask/agent/retry/compaction + synthetic/ignored/editor_context parts). **Never open `opencode.db`**. Watermark: `~/.ai-brains/opencode-import-cursor.json` (corrupt JSON → `cursor_corrupt` warn + empty start; optional additive `last_msg_id`). Missing `opencode` binary → soft skip. Child sessions (`parentID`) skipped. List length ≥100 (vendor default) or at requested cap → `list_capped` stderr warn. Export/list subprocesses killed on 120s timeout.
+**OpenCode content SOOT:** nested export `{info,messages}` with message-only filter (drop tool/reasoning/step/snapshot/patch/file/subtask/agent/retry/compaction + synthetic/ignored/editor_context parts). **Never open `opencode.db`**. Watermark: `~/.ai-brains/opencode-import-cursor.json` (corrupt JSON → `cursor_corrupt` warn + empty start; optional additive `last_msg_id`). Missing binary → soft skip (`skipped_missing_binary`). On Windows, npm ships `opencode.cmd` plus a POSIX shim — Rust `Command` will not find the bare name; set `AI_BRAINS_OPENCODE_BIN` to `opencode.cmd` or the nested `opencode-windows-x64\bin\opencode.exe`, or rely on PATH×PATHEXT + well-known AppData npm paths. Child sessions (`parentID`) skipped. List length ≥100 (vendor default) or at requested cap → `list_capped` stderr warn. Export/list subprocesses killed on 120s timeout.
 
 Preflight summary appends a **Harnesses installed on machine:** block when ≥1 harness is not absent. Flags: `--no-hook-prompt`, `--install-hooks`. Doctor soft check: `harness_wiring` (never fails solely for missing hooks). After T253, the pending-backend clause is gone when Claude/Codex are install_ready; next-action is `ai-brains harness install --harness all-ready --dry-run` for any ready-missing wiring. Severity remains soft ok.
 
