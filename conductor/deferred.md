@@ -2,6 +2,24 @@
 
 Tracks deferred from T142. Append-only; strike through when promoted to a real track.
 
+### T339 fold-in (2026-09-01) — `agy-review.md` + `opencode-review.md`
+
+| Item | Disposition |
+|------|-------------|
+| Agy m1 quoted env | **Folded** F2 / AC3 |
+| OpenCode m1 F12 hook spawn | **Folded** F11 / AC11 |
+| OpenCode m2 no-bare-name guard | **Folded** AC12 |
+| OpenCode m3 stats plumbing | **Folded** F3 / AC4 |
+| OpenCode m4 `#267` mergedAt | **Folded** §2.1 **03:36:51Z** (live `gh pr view`) |
+| OpenCode O2 `OPENCODE_BIN_PATH` | **Folded** AC3 rstest |
+| OpenCode O3 human print file | **Folded** F4 `multi_import.rs` |
+| Agy O1/O2 | **Already** F9 / F3 |
+| OpenCode O1 AC9 live PE | **Already** §6 defense in depth |
+| `#267` Cursor usage-limit | **Affirm** no leftover — no T342 |
+| Agy B / M | **0 / 0** |
+| OpenCode B / M / m | **0 / 0 / 4** — all folded |
+| DOCS TX | `40e70d38-3f2a-4047-a3a0-95fa39fa3820` |
+
 ### T339 full plan (2026-09-01) — OpenCode Windows shim resolve
 
 | Item | Disposition |
