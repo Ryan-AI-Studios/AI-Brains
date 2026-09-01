@@ -2,6 +2,23 @@
 
 Tracks deferred from T142. Append-only; strike through when promoted to a real track.
 
+### T343 fold-in (2026-09-01) — `agy-review.md` + `opencode-review.md`
+
+| Item | Disposition |
+|------|-------------|
+| Agy m1 trailing 1..=7 flush | **Absorb** F1 / AC1 page-of-10 / §5 flush test |
+| OpenCode m1 AC4 helper-only | **Absorb** AC4b service test + F2 3-tuple |
+| OpenCode m2 httpmock vs F9 | **Absorb** wiremock 0.6; no new crate |
+| OpenCode m3 AC6 len>1 string fallback | **Absorb** F5/AC6 unconditional array |
+| OpenCode m4 status-time env lie | **Absorb** persist `last_embed_http_batch`; missing → null |
+| Agy O1 / O2 | **Already** F6 / F4 |
+| OpenCode O1 snapshot | **Already** §2.1 recapture |
+| OpenCode O2 `llm-info.md` 9083 | **Already** Docs stay 8083 |
+| OpenCode O3 `embed_calls` | **Absorb** F5/AC1 override counts `embed_batch` |
+| OpenCode O4 stale eprintln | **Decline** — cosmetic; free to reformat |
+| last-PR `#271` | **No leftover** — no T344 |
+| DOCS TX | `bc974a85-f65b-4ca1-83ec-853b0234c7c7` |
+
 ### T343 full plan (2026-09-01) — embed HTTP batch + ubatch guard
 
 | Item | Disposition |
