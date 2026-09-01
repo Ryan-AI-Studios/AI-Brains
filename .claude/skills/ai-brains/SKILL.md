@@ -73,7 +73,25 @@ ai-brains sync query "<topic>" --quiet   # vault + Ledgerful ledger
 - Ignore stale DECISION text that contradicts current docs (e.g. pre-T187 “SQLCipher not live”); prefer Ledgerful ledger rows + `Docs/COMPATIBILITY.md` F8.
 
 ### Phase 3: Record (mutating)
-`ai-brains pin "DECISION: …"` / `CONSTRAINT:` / `INVARIANT:` — dense knowledge only. Tags: `--tag`. Long text: `--stdin`.
+
+`pin` requires session — run `context` first if `AI_BRAINS_SESSION_ID` is unset.
+
+```powershell
+ai-brains context --show
+ai-brains pin "DECISION: <what + why>"
+ai-brains pin "CONSTRAINT: <rule>"
+ai-brains pin "INVARIANT: <must-hold>"
+```
+
+Optional: `--tx-id <uuid>` or `LEDGERFUL_TX_ID` to link a ledger TX. `--tag` is fine (T285 skips the `TAGS:` envelope). `--stdin` for long text.
+
+WHEN: owner-approved architecture / constraint / invariant — not every turn. First contentful line after optional `TAGS:` must be `DECISION:` / `CONSTRAINT:` / `INVARIANT:` (T274/T336). Unprefixed pins classify as `Other` and T336 skips them. `INVARIANT:` maps to Constraint. `HOTSPOT:` classifies as Hotspot; T336 does not graduate it.
+
+Dense knowledge only. Never pin CoT, tool logs, or model reasoning.
+
+CLI pin is not session-less. T70 symbol pins may still lack RECALLS — `graph neighbors`. `PINNED_IN_PROJECT` is the T335 fallback, not a reason to skip `context`.
+
+After multi-harness days: `ai-brains capture coverage --days 2` exists in **source** (T337); PATH 0.1.5 may lack `capture` until owner install. Or `ai-brains nightly --status --quick`. Do not assume same-day import. Do not run live `nightly` without `--status`. T334 six-source + T339 `AI_BRAINS_OPENCODE_BIN` are in source.
 
 ### Phase 4: Forget (mutating)
 `forget --list-forgotten` (read); `--memory-id` / `--match` + `-f`; `--restore <uuid>`.

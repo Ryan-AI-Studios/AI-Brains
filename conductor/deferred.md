@@ -2,6 +2,55 @@
 
 Tracks deferred from T142. Append-only; strike through when promoted to a real track.
 
+### T340 fold-in (2026-09-01) — `agy-review.md` + `opencode-review.md`
+
+| Item | Disposition |
+|------|-------------|
+| Agy m1 `--tx-id` optional | **Folded** F1.7 / §6 (env only, not ledger scrape) |
+| OpenCode m1 `--tag` defeats prefix | **Declined** — T285 skips `TAGS:`; honesty F1.8 / AC10 |
+| OpenCode m2 ISSUES.md 7+6 | **Folded** F2 file-level + AC4/AC7 |
+| OpenCode m3 AC4 not red | **Folded** AC4 rewrite |
+| OpenCode O2 `HOTSPOT:` | **Partial** F1 mention; not graduation copy-paste |
+| OpenCode O3 cites | **Folded** §2.3 `:2418–2440` / `:85–100` |
+| Agy O1/O2 | **Already** F2/F5 |
+| OpenCode O1/O4 | **Already** volatile doctor/preflight |
+| `#268` Cursor usage-limit | **Affirm** no leftover — no T342 |
+| Agy B / M | **0 / 0** |
+| OpenCode B / M / m | **0 / 0 / 3** — m1 declined; m2/m3 folded |
+| DOCS TX | `e1ef63ec-3dc1-47f1-b466-5bb7acccea60` |
+
+### T340 full plan (2026-09-01) — agent capture guidance (skills)
+
+| Item | Disposition |
+|------|-------------|
+| T336 live 0 prefix samples | **Absorb** F1 / AC1–AC2 |
+| Placeholder F1 session/orphan | **Absorb** F1 rewritten — CLI already requires SESSION_ID; T335 `PINNED_IN_PROJECT`; T70 honesty |
+| Placeholder F2 close-time pin | **Absorb** F2 — `--tx-id` already on pin clap; expand WHEN/session; ISSUES.md → deferred.md |
+| Placeholder F3 AGENTS.md | **Absorb** F3 one Track Discipline sentence; Self-Usage `:47` stays |
+| Placeholder F4 wait T334 | **Absorb** F4 hygiene — T334/T337/T339 shipped in source; PATH `capture` may lag |
+| `.claude` onboarding ISSUES.md | **Absorb** AC4 |
+| T337-R1/R2/R8 | **Decline** — not skills |
+| T338-R1/R2 | **Decline** — not skills |
+| T339 / T341 | **Not stolen** |
+| T255 doctor 16th / T240 F2 | **Decline** |
+| Un-gitignore `.agents/` | **Decline** F5 — local dual-write only |
+| `#268` Cursor usage-limit ×2 | **No leftover** — no T342 |
+| Dependabot `#250–#256` | **Decline** |
+| clap 5 / 0.1.6 / crate tests | **Decline** |
+| Soft | T340-R1 remaining onboarding twin drift (Publish/T61–T71; ISSUES.md now DoD); T340-R2 v2.2.0 ops essay; T340-R3 PATH install; T340-R4 approve still human |
+| DOCS TX | `f5e55fce-4e9b-4844-b67a-71259435d231` |
+
+### T340 implement (2026-09-01) — residuals remain
+
+| Item | Disposition |
+|------|-------------|
+| T340-R1 onboarding twin drift (Publish §10 / T61–T71) | **Residual** — ISSUES.md sweep landed |
+| T340-R2 `.agents` v2.2.0 ops essay vs `.claude` Key & path | **Residual** — Pin pointer only |
+| T340-R3 PATH `capture coverage` | **Residual** — owner `cargo install` |
+| T340-R4 in-context decisions stay 0 until human T336 approve | **Residual** — expected |
+| DOCS TX | `bd8748a2-a6be-4fa4-bce8-fd4ff036f6a0` |
+| DOCS TX | `f5e55fce-4e9b-4844-b67a-71259435d231` |
+
 ### T339 fold-in (2026-09-01) — `agy-review.md` + `opencode-review.md`
 
 | Item | Disposition |
