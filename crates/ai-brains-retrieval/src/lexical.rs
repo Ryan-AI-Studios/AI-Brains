@@ -1,5 +1,6 @@
 use crate::errors::Result;
 use crate::privacy_filter::is_injectable_privacy;
+use crate::session_chrome::{index_pass1_glob_sql, is_authority_pin_content};
 use ai_brains_core::{
     LEXICAL_MATCH_HARD_CAP, contentful_tokens, extract_fts_tokens, is_contentless_query, match_and,
     match_or, select_or_tokens,
@@ -538,6 +539,84 @@ pub fn substring_fallback(
                 project_id: row.get(5)?,
             });
         }
+    }
+
+    Ok(results)
+}
+
+/// T346: project-scoped Index-authority pins when FTS + LIKE retain 0.
+///
+/// Same GLOB as [`index_pass1_glob_sql`], then [`is_authority_pin_content`]
+/// (DECISION / CONSTRAINT / INVARIANT — not Other, not Hotspot).
+/// `LIMIT` is the caller `--limit`. Does **not** skip vaults over 10_000 rows.
+pub fn index_authority_fill(
+    conn: &VaultConnection,
+    project_id: ai_brains_core::ids::ProjectId,
+    session_id: Option<ai_brains_core::ids::SessionId>,
+    limit: usize,
+    exclude_symbol_stubs: bool,
+) -> Result<Vec<RetrievalMemory>> {
+    let conn = conn.lock()?;
+    let take = match_limit_bound(limit);
+    if take == 0 {
+        return Ok(Vec::new());
+    }
+
+    let mut sql = "SELECT memory_id, content, privacy, session_id, updated_at,
+            COALESCE(project_id, (SELECT sp.project_id FROM session_projection sp WHERE sp.session_id = memory_projection.session_id LIMIT 1))
+         FROM memory_projection
+         WHERE status = 'pinned'"
+        .to_string();
+    sql.push_str(&index_pass1_glob_sql("content"));
+    let mut params_vec: Vec<rusqlite::types::Value> = Vec::new();
+
+    if let Some(sid) = session_id {
+        sql.push_str(" AND session_id = ?");
+        params_vec.push(sid.to_string().into());
+    }
+
+    sql.push_str(
+        " AND (project_id = ? OR EXISTS (
+             SELECT 1 FROM session_projection sp
+             WHERE sp.session_id = memory_projection.session_id
+             AND sp.project_id = ?))",
+    );
+    let pid_str = project_id.to_string();
+    params_vec.push(pid_str.clone().into());
+    params_vec.push(pid_str.into());
+
+    if exclude_symbol_stubs {
+        sql.push_str(&crate::symbol_stub::symbol_stub_sql_exclusion("content"));
+    }
+
+    // Over-fetch so HOTSPOT/TAGS-Other GLOB rows can be dropped without starving LIMIT.
+    sql.push_str(" ORDER BY updated_at DESC, memory_id ASC LIMIT ?");
+    params_vec.push((LEXICAL_MATCH_HARD_CAP as i64).into());
+
+    let mut stmt = conn.prepare(&sql)?;
+    let mut rows = stmt.query(params_from_iter(params_vec))?;
+    let mut results = Vec::new();
+
+    while let Some(row) = rows.next()? {
+        if results.len() >= take {
+            break;
+        }
+        let privacy: String = row.get(2)?;
+        if !is_injectable_privacy(&privacy) {
+            continue;
+        }
+        let content: String = row.get(1)?;
+        if !is_authority_pin_content(&content) {
+            continue;
+        }
+        results.push(RetrievalMemory {
+            memory_id: row.get(0)?,
+            content,
+            score: None,
+            session_id: row.get(3)?,
+            updated_at: row.get(4)?,
+            project_id: row.get(5)?,
+        });
     }
 
     Ok(results)

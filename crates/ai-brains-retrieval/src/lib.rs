@@ -27,7 +27,8 @@ pub use hybrid::{
     semantic_min_cosine, semantic_only_min_cosine,
 };
 pub use lexical::{
-    LexicalSearchOptions, RetrievalMemory, lexical_search, match_limit_bound, substring_fallback,
+    LexicalSearchOptions, RetrievalMemory, index_authority_fill, lexical_search, match_limit_bound,
+    substring_fallback,
 };
 pub use prefer_project::merge_preferred_then_global;
 pub use preflight::{
@@ -39,7 +40,8 @@ pub use ranking::{
     first_contentful_line, rerank_hits, rerank_hits_with_query, strip_assistant_prefix,
 };
 pub use recall::{
-    RecallHit, RecallOptions, RecallOutcome, graph_neighbor_stored_score, recall, recall_full,
+    RecallHit, RecallOptions, RecallOutcome, graph_neighbor_stored_score, merge_bridge_then_local,
+    recall, recall_full,
 };
 pub use semantic::{
     SemanticOutcome, classify_embedding_error, classify_model_error, embedding_endpoint,

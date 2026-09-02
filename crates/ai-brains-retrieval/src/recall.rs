@@ -2,7 +2,9 @@ use crate::GraphSearch;
 use crate::errors::Result;
 use crate::fts_utils::sanitize_fts_query;
 use crate::hybrid::{candidate_depth, fuse_local_and_semantic, rrf_k};
-use crate::lexical::{LexicalSearchOptions, lexical_search, substring_fallback};
+use crate::lexical::{
+    LexicalSearchOptions, index_authority_fill, lexical_search, substring_fallback,
+};
 use crate::ranking::ScoreKind;
 use crate::semantic::classify_embedding_error;
 use ai_brains_contracts::bridge::BridgeRecord;
@@ -130,6 +132,30 @@ impl RecallHit {
         }
     }
 
+    /// Create a hit from Index-authority fill when FTS + LIKE retain 0 (T346).
+    ///
+    /// Distinct `source` so pretty honesty and `has_fts_arm` do not treat fill as FTS.
+    pub fn index(
+        memory_id: String,
+        content: String,
+        session_id: Option<String>,
+        updated_at: Option<String>,
+    ) -> Self {
+        Self {
+            memory_id,
+            content,
+            source: "index".to_string(),
+            score: None,
+            privacy: None,
+            session_id,
+            updated_at,
+            is_plan_demoted: false,
+            score_kind: ScoreKind::Bm25LowerBetter,
+            cosine: None,
+            project_id: None,
+        }
+    }
+
     /// Create a hit added via graph neighbor expansion.
     ///
     /// `score_kind` must be inherited from the parent hit (T215 F13 / AC16).
@@ -222,6 +248,30 @@ pub struct RecallOutcome {
     /// before RRF; T218 F11/L3). `None` when semantic was not requested. Used
     /// for pretty F11 honesty (`ok` + zero post-threshold + FTS non-empty).
     pub semantic_post_threshold_count: Option<usize>,
+}
+
+/// Phase 4 blend: bridge first (id wins, capped), then local vault hits (T346 AC11).
+///
+/// Index-authority fill lives in `local` as `source=index`, so a bridge hit cannot
+/// starve vault rescue the way a Phase-4-empty gate would.
+pub fn merge_bridge_then_local(
+    bridge: &[RecallHit],
+    local: Vec<RecallHit>,
+    bridge_cap: usize,
+) -> Vec<RecallHit> {
+    let mut seen = std::collections::HashSet::new();
+    let mut blended = Vec::with_capacity(bridge_cap.saturating_add(local.len()));
+    for hit in bridge.iter().take(bridge_cap) {
+        if seen.insert(hit.memory_id.clone()) {
+            blended.push(hit.clone());
+        }
+    }
+    for hit in local {
+        if seen.insert(hit.memory_id.clone()) {
+            blended.push(hit);
+        }
+    }
+    blended
 }
 
 /// Primary recall entry point. Attempts unified IPC recall via Ledgerful
@@ -377,6 +427,33 @@ pub fn recall_full(
         }
     }
 
+    // Phase 2c: project-scoped Index-authority fill when FTS + T105 retain 0 (T346).
+    // Must run before Phase 4 so a bridge hit cannot starve vault fill.
+    if local_hits.is_empty()
+        && let Some(pid) = project_id
+    {
+        let fill = index_authority_fill(conn, pid, session_id, limit, exclude_stubs)?;
+        if !fill.is_empty() {
+            local_hits = fill
+                .into_iter()
+                .map(|memory| {
+                    let project = memory.project_id.clone();
+                    let mut hit = RecallHit::index(
+                        memory.memory_id,
+                        memory.content,
+                        memory.session_id,
+                        memory.updated_at,
+                    );
+                    hit.project_id = project;
+                    hit
+                })
+                .collect();
+            if exclude_stubs {
+                crate::symbol_stub::retain_non_symbol_stubs(&mut local_hits);
+            }
+        }
+    }
+
     // Phase 3: Semantic search when requested (soft-fail; structured status).
     let (semantic_hits, embedding_status, semantic_post_threshold_count): (
         Vec<RecallHit>,
@@ -427,34 +504,23 @@ pub fn recall_full(
 
     // Phase 4: Blend (T215 F14).
     // When semantic: RRF(fts, semantic) → merge bridge (cap; bridge wins id) → graph → rerank.
-    // When !semantic: bridge → FTS → graph → rerank (no RRF); ScoreKind still correct.
-    let mut seen_ids = std::collections::HashSet::new();
-    let mut blended = Vec::new();
-
-    let push_bridge = |blended: &mut Vec<RecallHit>,
-                       seen: &mut std::collections::HashSet<String>| {
-        match &bridge_hits {
-            Ok(bridge) => {
-                for hit in bridge.iter().take(bridge_cap) {
-                    if seen.insert(hit.memory_id.clone()) {
-                        blended.push(hit.clone());
-                    }
-                }
+    // When !semantic: bridge → FTS/substring/index (no RRF); ScoreKind still correct.
+    let bridge_ok: Vec<RecallHit> = match bridge_hits {
+        Ok(bridge) => bridge,
+        Err(e) => {
+            if !options.quiet {
+                eprintln!(
+                    "Ledgerful bridge query failed, falling back to local FTS5 only: {}",
+                    e
+                );
             }
-            Err(e) => {
-                if !options.quiet {
-                    eprintln!(
-                        "Ledgerful bridge query failed, falling back to local FTS5 only: {}",
-                        e
-                    );
-                }
-            }
+            Vec::new()
         }
     };
 
-    if options.semantic {
+    let mut blended = if options.semantic {
         // F37/F41 + dual floor: production SOOT is fuse_local_and_semantic
-        // (apply_dual_semantic_floor + FTS-only RRF + substring outside).
+        // (apply_dual_semantic_floor + FTS-only RRF + substring/index outside).
         // semantic_post_threshold_count is already post-0.55 / pre-dual-floor.
         let fused_local = fuse_local_and_semantic(
             &local_hits,
@@ -464,22 +530,10 @@ pub fn recall_full(
             rrf_k(),
         );
 
-        // Bridge first (wins on id), then fused FTS/semantic + substring rest.
-        push_bridge(&mut blended, &mut seen_ids);
-        for hit in fused_local {
-            if seen_ids.insert(hit.memory_id.clone()) {
-                blended.push(hit);
-            }
-        }
+        merge_bridge_then_local(&bridge_ok, fused_local, bridge_cap)
     } else {
-        // !semantic: bridge → FTS/substring (no RRF).
-        push_bridge(&mut blended, &mut seen_ids);
-        for hit in local_hits {
-            if seen_ids.insert(hit.memory_id.clone()) {
-                blended.push(hit);
-            }
-        }
-    }
+        merge_bridge_then_local(&bridge_ok, local_hits, bridge_cap)
+    };
 
     // T260 F8 / §5.3: drop stub-shaped bridge Insights *before* they can seed
     // graph neighbors. Retain again after graph for stub-shaped neighbors.

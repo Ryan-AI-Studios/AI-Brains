@@ -17,6 +17,8 @@ Version banners in documentation are maintained manually from the workspace `Car
 
 ### Added
 
+- **T346 Retrieval empty-rescue:** When project-scoped FTS + LIKE retain 0, `recall`/`search` fill up to `--limit` Index-authority pins (`DECISION:` / `CONSTRAINT:` / `INVARIANT:`) with honesty `No FTS hits; showing in-scope pins` and JSON `source: "index"` (omit `score`). Pretty hides BM25 `score=`; JSON keeps it. Contentless / `--global` / no pins stay T261/T111. Lexical still does not probe embed.
+
 - **T345 Session-start card:** `preflight --summary` prints `path=` / leftover / `last_decision:` and **one** `next:` ladder (`context` when unbound, else policy bootstrap, else T315 recall). Project JSON `path` is always present (`null` when unbound). `--show` unchanged.
 
 - **T344 Fail-closed cwd auto-bind:** `ai-brains context` (not `--show`) registers the git toplevel for the `.env` project when unowned and sets a unique sanitized git-slug alias. Nested cwd still binds toplevel. `--no-auto-bind` / `AI_BRAINS_NO_AUTO_BIND` skips. Never steals another project's path or rewrites `PROJECT_ID`.

@@ -361,6 +361,9 @@ pub fn run(
                         );
                     }
                 }
+                if hits.iter().any(|h| h.source == "index") {
+                    println!("No FTS hits; showing in-scope pins");
+                }
                 if options.global {
                     let tags = crate::commands::recall_global::tags_for_hits(&ctx.conn, &hits)?;
                     print_pretty_hits_with_tags(&hits, &tags);
@@ -476,9 +479,8 @@ fn pretty_score_bracket(
             }
             Some(parts.join(" | "))
         }
-        ScoreKind::Bm25LowerBetter | ScoreKind::BridgeHigherIsBetter => {
-            score.map(|s| format!("score={s:.3}"))
-        }
+        ScoreKind::Bm25LowerBetter => None,
+        ScoreKind::BridgeHigherIsBetter => score.map(|s| format!("score={s:.3}")),
     }
 }
 
@@ -1210,7 +1212,7 @@ mod tests {
 
     #[test]
     #[allow(non_snake_case)]
-    fn format_pretty_hit_line__bm25__keeps_score__ac4() {
+    fn format_pretty_hit_line__bm25__hides_score__ac4() {
         let line = format_pretty_hit_line(
             "mem-2",
             "lexical",
@@ -1223,8 +1225,16 @@ mod tests {
             None,
         );
         assert!(
-            line.contains("score=-13.700"),
-            "BM25 must keep score= polarity; got {line}"
+            line.contains("mem-2"),
+            "BM25 must keep memory id; got {line}"
+        );
+        assert!(
+            !line.contains("score=-13.700"),
+            "BM25 pretty must hide score= polarity; got {line}"
+        );
+        assert!(
+            !line.contains("score="),
+            "BM25 pretty must omit score=; got {line}"
         );
         assert!(
             !line.contains("rank="),
@@ -1563,6 +1573,16 @@ mod tests {
             Some(0),
             &hits,
         ));
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn should_show_semantic_threshold_honesty__index_hits__false() {
+        let hits = vec![hit_with_source("a", "index")];
+        assert!(
+            !should_show_semantic_threshold_honesty(true, Some("ok"), Some(0), &hits,),
+            "T346: fill source=index must not fake semantic lexical honesty"
+        );
     }
 
     #[test]
