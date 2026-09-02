@@ -2,6 +2,25 @@
 
 Tracks deferred from T142. Append-only; strike through when promoted to a real track.
 
+### T350–T355 full plans (2026-09-02) — gold upgrade
+
+`/plan-track 350-355`. Specs **Planned** (F-list/ACs). Registry **Pending**. last-PR `#278` Cursor usage-limit. Gold DOCS TX `0576fb88-f71e-48d7-ae6c-bcf1ae962a61`.
+
+| Item | Disposition |
+|------|-------------|
+| T350 connect_timeout 2s / request 30s | **Absorb** T350 F1–F5 |
+| T350 SQLCipher pragma | **Decline** — T350-R1 |
+| T351 mean-pool one BLOB max 4 chunks | **Absorb** T351 F1–F5; cookbook heuristic documented |
+| T351 multi-vector / tokenize / Ollama embed | **Not stolen** T351-R2 / T343-R2 / R3 |
+| T352 `--summary --bind` | **Absorb** T344-R1; default summary stays query |
+| T352 doctor bind / default writer | **Decline** F1 |
+| T353 vault SQL capture line | **Absorb** T348-R1; no disk walk |
+| T354 Index Decision last_decision | **Absorb** T345-R2; counts unchanged |
+| T355 live collapse already in path crate | **Absorb** lock + coverage AC + human list-paths |
+| T355 UNC / `/mnt/wsl` | **Not stolen** |
+| `#278` Cursor | **N/A empty** |
+| Dependabot `#250–#256` | **Decline** |
+
 ### T350–T355 placeholders (2026-09-02) — highest-benefit residuals after T344–T349
 
 Minted as **Placeholder** (no F-list). `/plan-track TNN` before go. last-PR `#278` Cursor = usage-limit only. Dependabot `#250–#256` **Decline**. DOCS TX `f43bed7c-f352-44f3-8f38-7f3ee0b58c3e`.
