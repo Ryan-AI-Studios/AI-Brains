@@ -548,6 +548,8 @@ pub fn recall_full(
         && let Some(searcher) = graph
     {
         let mut graph_hits: Vec<RecallHit> = Vec::new();
+        let mut seen_ids: std::collections::HashSet<String> =
+            blended.iter().map(|h| h.memory_id.clone()).collect();
         // Snapshot id/score/kind/content so chrome skip can read parent body (T285 F10).
         let existing: Vec<(String, Option<f64>, ScoreKind, String)> = blended
             .iter()
