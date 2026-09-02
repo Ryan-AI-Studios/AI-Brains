@@ -134,7 +134,7 @@ pub(crate) struct NightlyStatusJson {
     /// Last-run parsed HTTP batch (1..=8 persist). Missing → null (not env default 8).
     #[serde(default)]
     pub embed_http_batch: Option<u64>,
-    /// Last-run ubatch prefix-truncation count. Missing → null.
+    /// Last-run T351 truncated count (5th+ window or per-chunk 4000-byte cap). Missing → null.
     #[serde(default)]
     pub last_embedding_truncated: Option<u64>,
 }

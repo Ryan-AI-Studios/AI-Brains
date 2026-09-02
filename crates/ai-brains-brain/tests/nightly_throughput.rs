@@ -352,6 +352,207 @@ impl ModelProvider for CountingBatchProvider {
     }
 }
 
+/// T351 AC1: orthogonal unit vectors per chunk so tail influences the mean-pooled BLOB.
+struct OrthogonalChunkProvider {
+    embed_calls: AtomicUsize,
+    batch_calls: AtomicUsize,
+}
+
+impl OrthogonalChunkProvider {
+    fn new() -> Self {
+        Self {
+            embed_calls: AtomicUsize::new(0),
+            batch_calls: AtomicUsize::new(0),
+        }
+    }
+}
+
+#[async_trait]
+impl ModelProvider for OrthogonalChunkProvider {
+    async fn complete(&self, _request: CompletionRequest) -> ModelResult<CompletionResponse> {
+        Ok(CompletionResponse {
+            text: "NO CONFLICT".to_string(),
+            model: "ortho".to_string(),
+        })
+    }
+
+    async fn embed(&self, _request: EmbeddingRequest) -> ModelResult<EmbeddingResponse> {
+        self.embed_calls.fetch_add(1, Ordering::SeqCst);
+        Ok(EmbeddingResponse {
+            vector: vec![1.0, 0.0],
+        })
+    }
+
+    async fn embed_batch(&self, texts: Vec<String>) -> ModelResult<Vec<EmbeddingResponse>> {
+        self.batch_calls.fetch_add(1, Ordering::SeqCst);
+        Ok(texts
+            .iter()
+            .enumerate()
+            .map(|(i, _)| EmbeddingResponse {
+                vector: if i == 0 {
+                    vec![1.0, 0.0]
+                } else {
+                    vec![0.0, 1.0]
+                },
+            })
+            .collect())
+    }
+
+    async fn tokenize(&self, request: TokenizeRequest) -> ModelResult<TokenizeResponse> {
+        let tokens = request
+            .text
+            .split_whitespace()
+            .enumerate()
+            .map(|(i, _)| i as u32)
+            .collect();
+        Ok(TokenizeResponse { tokens })
+    }
+
+    fn name(&self) -> &str {
+        "ortho-chunk"
+    }
+
+    fn is_local(&self) -> bool {
+        true
+    }
+}
+
+/// AC9: unequal chunk dims must skip store (not helper-only).
+struct DimMismatchBatchProvider;
+
+#[async_trait]
+impl ModelProvider for DimMismatchBatchProvider {
+    async fn complete(&self, _request: CompletionRequest) -> ModelResult<CompletionResponse> {
+        Ok(CompletionResponse {
+            text: "NO CONFLICT".to_string(),
+            model: "dim-mismatch".to_string(),
+        })
+    }
+
+    async fn embed(&self, _request: EmbeddingRequest) -> ModelResult<EmbeddingResponse> {
+        Ok(EmbeddingResponse {
+            vector: vec![1.0, 0.0],
+        })
+    }
+
+    async fn embed_batch(&self, texts: Vec<String>) -> ModelResult<Vec<EmbeddingResponse>> {
+        Ok(texts
+            .iter()
+            .enumerate()
+            .map(|(i, _)| EmbeddingResponse {
+                vector: if i == 0 { vec![1.0, 0.0] } else { vec![0.0] },
+            })
+            .collect())
+    }
+
+    async fn tokenize(&self, request: TokenizeRequest) -> ModelResult<TokenizeResponse> {
+        let tokens = request
+            .text
+            .split_whitespace()
+            .enumerate()
+            .map(|(i, _)| i as u32)
+            .collect();
+        Ok(TokenizeResponse { tokens })
+    }
+
+    fn name(&self) -> &str {
+        "dim-mismatch"
+    }
+
+    fn is_local(&self) -> bool {
+        true
+    }
+}
+
+/// Isolated/one-shot long path must reject embed_batch length ≠ chunk count.
+struct ShortCountBatchProvider;
+
+#[async_trait]
+impl ModelProvider for ShortCountBatchProvider {
+    async fn complete(&self, _request: CompletionRequest) -> ModelResult<CompletionResponse> {
+        Ok(CompletionResponse {
+            text: "NO CONFLICT".to_string(),
+            model: "short-count".to_string(),
+        })
+    }
+
+    async fn embed(&self, _request: EmbeddingRequest) -> ModelResult<EmbeddingResponse> {
+        Ok(EmbeddingResponse {
+            vector: vec![1.0, 0.0],
+        })
+    }
+
+    async fn embed_batch(&self, _texts: Vec<String>) -> ModelResult<Vec<EmbeddingResponse>> {
+        Ok(vec![EmbeddingResponse {
+            vector: vec![1.0, 0.0],
+        }])
+    }
+
+    async fn tokenize(&self, request: TokenizeRequest) -> ModelResult<TokenizeResponse> {
+        let tokens = request
+            .text
+            .split_whitespace()
+            .enumerate()
+            .map(|(i, _)| i as u32)
+            .collect();
+        Ok(TokenizeResponse { tokens })
+    }
+
+    fn name(&self) -> &str {
+        "short-count"
+    }
+
+    fn is_local(&self) -> bool {
+        true
+    }
+}
+
+/// AC9: non-finite chunk vectors skip store.
+struct NanBatchProvider;
+
+#[async_trait]
+impl ModelProvider for NanBatchProvider {
+    async fn complete(&self, _request: CompletionRequest) -> ModelResult<CompletionResponse> {
+        Ok(CompletionResponse {
+            text: "NO CONFLICT".to_string(),
+            model: "nan-batch".to_string(),
+        })
+    }
+
+    async fn embed(&self, _request: EmbeddingRequest) -> ModelResult<EmbeddingResponse> {
+        Ok(EmbeddingResponse {
+            vector: vec![1.0, 0.0],
+        })
+    }
+
+    async fn embed_batch(&self, texts: Vec<String>) -> ModelResult<Vec<EmbeddingResponse>> {
+        Ok(texts
+            .iter()
+            .map(|_| EmbeddingResponse {
+                vector: vec![f32::NAN, 0.0],
+            })
+            .collect())
+    }
+
+    async fn tokenize(&self, request: TokenizeRequest) -> ModelResult<TokenizeResponse> {
+        let tokens = request
+            .text
+            .split_whitespace()
+            .enumerate()
+            .map(|(i, _)| i as u32)
+            .collect();
+        Ok(TokenizeResponse { tokens })
+    }
+
+    fn name(&self) -> &str {
+        "nan-batch"
+    }
+
+    fn is_local(&self) -> bool {
+        true
+    }
+}
+
 #[test]
 fn nightly__deadline_unparseable__defaults_150() {
     assert_eq!(parse_deadline_minutes(Some("abc")), 150);
@@ -903,9 +1104,9 @@ async fn backfill_catchup__over_2048_scalar_memory__truncated_counted_and_stored
         .await?;
     assert_eq!(failed, 0);
     assert_eq!(success, 1);
-    assert!(
-        truncated >= 1,
-        "ASCII >2048 scalars must increment truncated, got {truncated}"
+    assert_eq!(
+        truncated, 0,
+        "3000 ASCII scalars fit in 2 chunks; truncated must be 0, got {truncated}"
     );
     {
         let conn = vault.lock()?;
@@ -916,19 +1117,308 @@ async fn backfill_catchup__over_2048_scalar_memory__truncated_counted_and_stored
         )?;
         assert!(
             blob.as_ref().is_some_and(|b| !b.is_empty()),
-            "truncated memory must still store a vector"
+            "chunked memory must still store a vector"
         );
     }
     let captured = provider
         .captured_texts
         .lock()
         .unwrap_or_else(|e| e.into_inner());
-    assert_eq!(captured.len(), 1);
-    assert!(
-        captured[0].chars().count() <= 2048,
-        "POST body must be <=2048 scalars, got {}",
-        captured[0].chars().count()
-    );
-    assert!(std::str::from_utf8(captured[0].as_bytes()).is_ok());
+    assert_eq!(captured.len(), 2, "3000 scalars → 2 chunks");
+    for t in captured.iter() {
+        assert!(
+            t.chars().count() <= 2048,
+            "POST body must be <=2048 scalars, got {}",
+            t.chars().count()
+        );
+        assert!(std::str::from_utf8(t.as_bytes()).is_ok());
+    }
     Ok(())
+}
+
+#[tokio::test]
+async fn backfill_catchup__over_8192_scalar_memory__truncated_counted_and_stored()
+-> Result<(), Box<dyn std::error::Error>> {
+    let _lock = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let _batch = TempEnv::set("AI_BRAINS_EMBED_HTTP_BATCH", "8");
+    let (_dir, vault, event_store, query_store) = open_vault()?;
+    let project_id = ProjectId::new();
+    register_project(event_store.as_ref(), project_id)?;
+    let long = "a".repeat(9000);
+    let id = seed_memory(event_store.as_ref(), project_id, Privacy::LocalOnly, &long)?;
+    let provider = Arc::new(CountingBatchProvider::new());
+    let service = EmbeddingService::new(query_store, provider.clone());
+    let (success, failed, truncated) = service
+        .backfill_catchup(&NightlyDeadline::from_minutes(150), 200)
+        .await?;
+    assert_eq!(failed, 0);
+    assert_eq!(success, 1);
+    assert!(
+        truncated >= 1,
+        "ASCII >8192 scalars must increment truncated, got {truncated}"
+    );
+    {
+        let conn = vault.lock()?;
+        let blob: Option<Vec<u8>> = conn.query_row(
+            "SELECT embedding FROM memory_projection WHERE memory_id = ?",
+            [id.to_string()],
+            |row| row.get(0),
+        )?;
+        assert!(blob.as_ref().is_some_and(|b| !b.is_empty()));
+    }
+    let captured = provider
+        .captured_texts
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    assert_eq!(captured.len(), 4);
+    Ok(())
+}
+
+#[tokio::test]
+async fn generate_and_store__short_memory__one_embed_not_batch()
+-> Result<(), Box<dyn std::error::Error>> {
+    let _lock = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let (_dir, _vault, event_store, query_store) = open_vault()?;
+    let project_id = ProjectId::new();
+    register_project(event_store.as_ref(), project_id)?;
+    let id = seed_memory(
+        event_store.as_ref(),
+        project_id,
+        Privacy::LocalOnly,
+        "short pin",
+    )?;
+    let provider = Arc::new(OrthogonalChunkProvider::new());
+    let service = EmbeddingService::new(query_store, provider.clone());
+    let stored = service
+        .generate_and_store(&id.to_string(), "short pin")
+        .await?;
+    assert!(stored);
+    assert_eq!(provider.embed_calls.load(Ordering::SeqCst), 1);
+    assert_eq!(provider.batch_calls.load(Ordering::SeqCst), 0);
+    Ok(())
+}
+
+#[tokio::test]
+async fn generate_and_store__chunk_meanpool__tail_influences_blob()
+-> Result<(), Box<dyn std::error::Error>> {
+    let _lock = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let (_dir, vault, event_store, query_store) = open_vault()?;
+    let project_id = ProjectId::new();
+    register_project(event_store.as_ref(), project_id)?;
+    let content = format!("{}{}", "H".repeat(2048), "T".repeat(2048));
+    let id = seed_memory(
+        event_store.as_ref(),
+        project_id,
+        Privacy::LocalOnly,
+        &content,
+    )?;
+    let provider = Arc::new(OrthogonalChunkProvider::new());
+    let service = EmbeddingService::new(query_store, provider.clone());
+    let stored = service
+        .generate_and_store(&id.to_string(), &content)
+        .await?;
+    assert!(stored);
+    let blob: Vec<u8> = {
+        let conn = vault.lock()?;
+        conn.query_row(
+            "SELECT embedding FROM memory_projection WHERE memory_id = ?",
+            [id.to_string()],
+            |row| row.get(0),
+        )?
+    };
+    let stored_vec = bytes_to_f32(&blob);
+    let tail = [0.0_f32, 1.0];
+    let prefix = [1.0_f32, 0.0];
+    let cos_tail = cosine(&stored_vec, &tail);
+    let cos_prefix_to_tail = cosine(&prefix, &tail);
+    assert!(
+        cos_tail > cos_prefix_to_tail,
+        "mean-pool must beat prefix-only vs tail; stored·tail={cos_tail} prefix·tail={cos_prefix_to_tail}"
+    );
+    let n = stored_vec.iter().map(|x| x * x).sum::<f32>().sqrt();
+    assert!(
+        (n - 1.0).abs() < 1e-4,
+        "stored mean must be unit-norm, got {n}"
+    );
+    assert_eq!(provider.embed_calls.load(Ordering::SeqCst), 0);
+    assert_eq!(provider.batch_calls.load(Ordering::SeqCst), 1);
+    Ok(())
+}
+
+fn two_chunk_content() -> String {
+    format!("{}{}", "H".repeat(2048), "T".repeat(2048))
+}
+
+fn embedding_blob(
+    vault: &VaultConnection,
+    id: &MemoryId,
+) -> Result<Option<Vec<u8>>, Box<dyn std::error::Error>> {
+    let conn = vault.lock()?;
+    Ok(conn.query_row(
+        "SELECT embedding FROM memory_projection WHERE memory_id = ?",
+        [id.to_string()],
+        |row| row.get(0),
+    )?)
+}
+
+#[tokio::test]
+async fn generate_and_store__chunk_meanpool__dim_mismatch__skips_store()
+-> Result<(), Box<dyn std::error::Error>> {
+    let _lock = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let (_dir, vault, event_store, query_store) = open_vault()?;
+    let project_id = ProjectId::new();
+    register_project(event_store.as_ref(), project_id)?;
+    let content = two_chunk_content();
+    let id = seed_memory(
+        event_store.as_ref(),
+        project_id,
+        Privacy::LocalOnly,
+        &content,
+    )?;
+    let service = EmbeddingService::new(query_store, Arc::new(DimMismatchBatchProvider));
+    let stored = service
+        .generate_and_store(&id.to_string(), &content)
+        .await?;
+    assert!(!stored);
+    assert!(
+        embedding_blob(&vault, &id)?.is_none(),
+        "dim mismatch must skip store"
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn generate_and_store__chunk_meanpool__batch_len_mismatch__skips_store()
+-> Result<(), Box<dyn std::error::Error>> {
+    let _lock = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let (_dir, vault, event_store, query_store) = open_vault()?;
+    let project_id = ProjectId::new();
+    register_project(event_store.as_ref(), project_id)?;
+    let content = two_chunk_content();
+    let id = seed_memory(
+        event_store.as_ref(),
+        project_id,
+        Privacy::LocalOnly,
+        &content,
+    )?;
+    let service = EmbeddingService::new(query_store, Arc::new(ShortCountBatchProvider));
+    let stored = service
+        .generate_and_store(&id.to_string(), &content)
+        .await?;
+    assert!(!stored);
+    assert!(
+        embedding_blob(&vault, &id)?.is_none(),
+        "embed_batch length mismatch must skip store"
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn generate_and_store__chunk_meanpool__nan_vector__skips_store()
+-> Result<(), Box<dyn std::error::Error>> {
+    let _lock = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let (_dir, vault, event_store, query_store) = open_vault()?;
+    let project_id = ProjectId::new();
+    register_project(event_store.as_ref(), project_id)?;
+    let content = two_chunk_content();
+    let id = seed_memory(
+        event_store.as_ref(),
+        project_id,
+        Privacy::LocalOnly,
+        &content,
+    )?;
+    let service = EmbeddingService::new(query_store, Arc::new(NanBatchProvider));
+    let stored = service
+        .generate_and_store(&id.to_string(), &content)
+        .await?;
+    assert!(!stored);
+    assert!(
+        embedding_blob(&vault, &id)?.is_none(),
+        "non-finite mean must skip store"
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn backfill_catchup__long_memory__batch_len_mismatch__counts_failed()
+-> Result<(), Box<dyn std::error::Error>> {
+    let _lock = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let (_dir, vault, event_store, query_store) = open_vault()?;
+    let project_id = ProjectId::new();
+    register_project(event_store.as_ref(), project_id)?;
+    let content = two_chunk_content();
+    let id = seed_memory(
+        event_store.as_ref(),
+        project_id,
+        Privacy::LocalOnly,
+        &content,
+    )?;
+    let service = EmbeddingService::new(query_store, Arc::new(ShortCountBatchProvider));
+    let (success, failed, _truncated) = service
+        .backfill_catchup(&NightlyDeadline::from_minutes(150), 200)
+        .await?;
+    assert_eq!(success, 0);
+    assert_eq!(failed, 1);
+    assert!(
+        embedding_blob(&vault, &id)?.is_none(),
+        "isolated long path must not store on batch length mismatch"
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn backfill_catchup__long_memory__isolated_chunk_batch_meanpool()
+-> Result<(), Box<dyn std::error::Error>> {
+    let _lock = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let _batch = TempEnv::set("AI_BRAINS_EMBED_HTTP_BATCH", "8");
+    let (_dir, _vault, event_store, query_store) = open_vault()?;
+    let project_id = ProjectId::new();
+    register_project(event_store.as_ref(), project_id)?;
+    seed_memory(
+        event_store.as_ref(),
+        project_id,
+        Privacy::LocalOnly,
+        "short",
+    )?;
+    let long = format!("{}{}", "H".repeat(2048), "T".repeat(500));
+    seed_memory(event_store.as_ref(), project_id, Privacy::LocalOnly, &long)?;
+    let provider = Arc::new(CountingBatchProvider::new());
+    let service = EmbeddingService::new(query_store, provider.clone());
+    let (success, failed, truncated) = service
+        .backfill_catchup(&NightlyDeadline::from_minutes(150), 200)
+        .await?;
+    assert_eq!(failed, 0);
+    assert_eq!(success, 2);
+    assert_eq!(truncated, 0);
+    let lens = provider
+        .batch_lens
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    assert!(
+        lens.contains(&2),
+        "long memory must be an isolated chunk batch of 2, got {lens:?}"
+    );
+    assert!(
+        !lens.iter().any(|&n| n > 2),
+        "must not mix long-memory chunks into the 8-slot page; lens={lens:?}"
+    );
+    Ok(())
+}
+
+fn bytes_to_f32(bytes: &[u8]) -> Vec<f32> {
+    bytes
+        .chunks_exact(4)
+        .map(|c| f32::from_le_bytes([c[0], c[1], c[2], c[3]]))
+        .collect()
+}
+
+fn cosine(a: &[f32], b: &[f32]) -> f32 {
+    let dot: f32 = a.iter().zip(b).map(|(x, y)| x * y).sum();
+    let na = a.iter().map(|x| x * x).sum::<f32>().sqrt();
+    let nb = b.iter().map(|x| x * x).sum::<f32>().sqrt();
+    if na <= 1e-12 || nb <= 1e-12 {
+        0.0
+    } else {
+        dot / (na * nb)
+    }
 }

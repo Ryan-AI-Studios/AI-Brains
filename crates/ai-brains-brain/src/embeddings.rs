@@ -67,17 +67,10 @@ impl EmbeddingService {
             return Ok(false);
         }
 
-        // T229 F5 then T343 F2: 4000 UTF-8 bytes, then 2048 unicode scalars.
-        let t229 = truncate_for_embed(content);
-        let text = truncate_for_embed_ubatch(t229);
-
-        let request = EmbeddingRequest {
-            text: text.to_string(),
-        };
-
-        match self.embedding_provider.embed(request).await {
-            Ok(response) => {
-                let bytes = f32_vec_to_bytes(&response.vector);
+        // T351 F1: chunk raw content (max 4×2048 scalars), then per-chunk T229 4000-byte cap.
+        let (chunks, _truncated) = chunk_for_embed(content);
+        match self.embed_chunks_to_blob(&chunks).await {
+            Ok(Some(bytes)) => {
                 if let Err(e) = self.query_store.store_embedding(memory_id, &bytes) {
                     tracing::warn!("Failed to store embedding for memory {}: {}", memory_id, e);
                     Ok(false)
@@ -86,6 +79,7 @@ impl EmbeddingService {
                     Ok(true)
                 }
             }
+            Ok(None) => Ok(false),
             Err(e) => {
                 tracing::warn!(
                     "Failed to generate embedding for memory {}: {}",
@@ -101,7 +95,7 @@ impl EmbeddingService {
     ///
     /// Policy-denied memories count as `failed` (no model call). Soft model/store
     /// failures also increment `failed`. Only successful stores increment `success`.
-    /// Third tuple is ubatch prefix-truncations (T343 F2).
+    /// Third tuple is T351 truncations (5th+ scalar window or per-chunk 4000-byte cap).
     pub async fn backfill_recent(
         &self,
         limit: usize,
@@ -251,12 +245,23 @@ impl EmbeddingService {
                 failed += 1;
                 continue;
             }
-            let t229 = truncate_for_embed(&content);
-            let text = truncate_for_embed_ubatch(t229);
-            if text.chars().count() < t229.chars().count() {
+            let (chunks, chunk_trunc) = chunk_for_embed(&content);
+            if chunk_trunc {
                 truncated += 1;
             }
-            buffer.push((memory_id, text.to_string()));
+            if chunks.len() > 1 {
+                if !buffer.is_empty() {
+                    let (s, f) = self.flush_embed_batch(&mut buffer).await;
+                    success += s;
+                    failed += f;
+                }
+                let (s, f) = self.embed_long_memory_isolated(&memory_id, chunks).await;
+                success += s;
+                failed += f;
+                continue;
+            }
+            let text = chunks.into_iter().next().unwrap_or_default();
+            buffer.push((memory_id, text));
             if buffer.len() == batch {
                 let (s, f) = self.flush_embed_batch(&mut buffer).await;
                 success += s;
@@ -312,6 +317,71 @@ impl EmbeddingService {
             }
         }
     }
+
+    /// Single-chunk: `embed()`. Multi-chunk: `embed_batch` then mean-pool + L2 (T351).
+    async fn embed_chunks_to_blob(
+        &self,
+        chunks: &[String],
+    ) -> Result<Option<Vec<u8>>, Box<dyn std::error::Error>> {
+        if chunks.len() <= 1 {
+            let text = chunks.first().cloned().unwrap_or_default();
+            let response = self
+                .embedding_provider
+                .embed(EmbeddingRequest { text })
+                .await?;
+            return Ok(Some(f32_vec_to_bytes(&response.vector)));
+        }
+        let expected = chunks.len();
+        let responses = self.embedding_provider.embed_batch(chunks.to_vec()).await?;
+        if responses.len() != expected {
+            tracing::warn!(
+                expected,
+                got = responses.len(),
+                "embed_batch length mismatch; skipping long-memory store"
+            );
+            return Ok(None);
+        }
+        let vectors: Vec<Vec<f32>> = responses.into_iter().map(|r| r.vector).collect();
+        Ok(mean_pool_l2(&vectors).map(|v| f32_vec_to_bytes(&v)))
+    }
+
+    async fn embed_long_memory_isolated(
+        &self,
+        memory_id: &str,
+        chunks: Vec<String>,
+    ) -> (usize, usize) {
+        let expected = chunks.len();
+        let result = self.embedding_provider.embed_batch(chunks).await;
+        tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
+        match result {
+            Ok(responses) => {
+                if responses.len() != expected {
+                    tracing::warn!(
+                        expected,
+                        got = responses.len(),
+                        memory_id,
+                        "embed_batch length mismatch; failing isolated long memory"
+                    );
+                    return (0, 1);
+                }
+                let vectors: Vec<Vec<f32>> = responses.into_iter().map(|r| r.vector).collect();
+                let Some(pooled) = mean_pool_l2(&vectors) else {
+                    return (0, 1);
+                };
+                let bytes = f32_vec_to_bytes(&pooled);
+                if let Err(e) = self.query_store.store_embedding(memory_id, &bytes) {
+                    tracing::warn!("Failed to store embedding for memory {memory_id}: {e}");
+                    (0, 1)
+                } else {
+                    (1, 0)
+                }
+            }
+            Err(e) => {
+                tracing::warn!("Failed to generate embeddings for long memory {memory_id}: {e}");
+                (0, 1)
+            }
+        }
+    }
 }
 
 /// Max UTF-8 bytes sent to the embedding model (T229 F5).
@@ -332,7 +402,9 @@ const EMBED_UBATCH_MAX_CHARS: usize = 2048;
 
 /// Prefix-truncate to [`EMBED_UBATCH_MAX_CHARS`] unicode scalars at a char boundary.
 ///
+/// Stay-green T343 helper (production packer uses [`chunk_for_embed`]).
 /// Does **not** use [`ai_brains_models::estimate_tokens`] (len/3.5 under-counts dense ASCII).
+#[cfg(test)]
 pub(crate) fn truncate_for_embed_ubatch(content: &str) -> &str {
     if content.chars().count() <= EMBED_UBATCH_MAX_CHARS {
         return content;
@@ -341,6 +413,68 @@ pub(crate) fn truncate_for_embed_ubatch(content: &str) -> &str {
         Some((i, _)) => &content[..i],
         None => content,
     }
+}
+
+const MAX_EMBED_CHUNKS: usize = 4;
+const MEAN_POOL_MIN_NORM: f32 = 1e-12;
+
+/// Split raw content into ≤2048-scalar windows (max 4), then per-chunk 4000-byte cap (T351 F1).
+/// Second flag is true when a 5th+ window was dropped or a per-chunk byte cap trimmed a window.
+pub(crate) fn chunk_for_embed(content: &str) -> (Vec<String>, bool) {
+    let mut truncated = content.chars().count() > MAX_EMBED_CHUNKS * EMBED_UBATCH_MAX_CHARS;
+    let mut chunks = Vec::new();
+    let mut iter = content.chars();
+    for _ in 0..MAX_EMBED_CHUNKS {
+        let window: String = iter.by_ref().take(EMBED_UBATCH_MAX_CHARS).collect();
+        if window.is_empty() {
+            break;
+        }
+        let capped = truncate_for_embed(&window);
+        if capped.len() < window.len() {
+            truncated = true;
+        }
+        chunks.push(capped.to_string());
+    }
+    if chunks.is_empty() {
+        chunks.push(String::new());
+    }
+    (chunks, truncated)
+}
+
+/// Uniform mean then L2-normalize. None on dim mismatch, non-finite, or near-zero norm.
+pub(crate) fn mean_pool_l2(vectors: &[Vec<f32>]) -> Option<Vec<f32>> {
+    let first = vectors.first()?;
+    let dim = first.len();
+    if dim == 0 {
+        return None;
+    }
+    if vectors.iter().any(|v| v.len() != dim) {
+        return None;
+    }
+    let n = vectors.len() as f32;
+    let mut mean = vec![0.0_f32; dim];
+    for v in vectors {
+        for (i, &x) in v.iter().enumerate() {
+            if !x.is_finite() {
+                return None;
+            }
+            mean[i] += x;
+        }
+    }
+    for m in &mut mean {
+        *m /= n;
+        if !m.is_finite() {
+            return None;
+        }
+    }
+    let norm = mean.iter().map(|x| x * x).sum::<f32>().sqrt();
+    if !norm.is_finite() || norm <= MEAN_POOL_MIN_NORM {
+        return None;
+    }
+    for m in &mut mean {
+        *m /= norm;
+    }
+    Some(mean)
 }
 
 fn f32_vec_to_bytes(vec: &[f32]) -> Vec<u8> {
@@ -439,7 +573,7 @@ mod tests {
         assert_eq!(out, "c".repeat(3999));
     }
 
-    /// AC9: production calls `truncate_for_embed` (T229) then `truncate_for_embed_ubatch` (T343).
+    /// AC9: production chunks via `chunk_for_embed` (T351) which applies T229 per chunk.
     /// Helper units prove the panic class; production section must not reintroduce
     /// the raw mid-UTF8 slice.
     #[test]
@@ -451,13 +585,46 @@ mod tests {
             "raw mid-UTF8 slice residual must not return in production code"
         );
         assert!(
-            production.contains("truncate_for_embed("),
-            "generate_and_store / packer must call truncate_for_embed"
+            production.contains("chunk_for_embed("),
+            "generate_and_store / packer must call chunk_for_embed"
         );
         assert!(
-            production.contains("truncate_for_embed_ubatch("),
-            "packer must call truncate_for_embed_ubatch after T229"
+            production.contains("truncate_for_embed("),
+            "per-chunk T229 cap must still call truncate_for_embed"
         );
+    }
+
+    #[test]
+    fn chunk_windows__max_2048_scalars() {
+        let long = "x".repeat(3000);
+        let (chunks, truncated) = chunk_for_embed(&long);
+        assert_eq!(chunks.len(), 2);
+        assert!(!truncated);
+        assert_eq!(chunks[0].chars().count(), EMBED_UBATCH_MAX_CHARS);
+        assert_eq!(chunks[1].chars().count(), 952);
+        let cjk = "你".repeat(3000);
+        let (cjk_chunks, cjk_trunc) = chunk_for_embed(&cjk);
+        assert_eq!(cjk_chunks.len(), 2);
+        // 2048 CJK scalars × 3 UTF-8 bytes > 4000: T229 caps each window (F5 truncated).
+        assert!(cjk_trunc);
+        for c in &cjk_chunks {
+            assert!(c.chars().count() <= EMBED_UBATCH_MAX_CHARS);
+            assert!(c.len() <= EMBED_TEXT_MAX_BYTES);
+            assert!(std::str::from_utf8(c.as_bytes()).is_ok());
+        }
+        let over = "y".repeat(9000);
+        let (over_chunks, over_trunc) = chunk_for_embed(&over);
+        assert_eq!(over_chunks.len(), 4);
+        assert!(over_trunc);
+    }
+
+    #[test]
+    fn mean_pool_l2__dim_mismatch__none() {
+        assert!(mean_pool_l2(&[vec![1.0, 0.0], vec![0.0]]).is_none());
+        assert!(mean_pool_l2(&[vec![0.0, 0.0]]).is_none());
+        let pooled = mean_pool_l2(&[vec![1.0, 0.0], vec![0.0, 1.0]]).expect("mean");
+        let n = pooled.iter().map(|x| x * x).sum::<f32>().sqrt();
+        assert!((n - 1.0).abs() < 1e-5);
     }
 
     #[test]

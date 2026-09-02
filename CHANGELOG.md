@@ -21,6 +21,8 @@ Version banners in documentation are maintained manually from the workspace `Car
 
 ### Added
 
+- **T351 Chunk + mean-pool long embeddings:** Memories longer than 2048 unicode scalars are split into up to **4** non-overlapping windows, each 4000-byte-capped, `embed_batch`’d, then uniform-mean + L2 into **one** BLOB. `last_embedding_truncated` increments when a 5th window is dropped **or** a per-chunk 4000-byte cap trims a window (3000 ASCII scalars is 2 chunks / truncated 0). Average-of-chunks is a heuristic (not reconstruction). Short memories still one `embed()`.
+
 - **T350 Semantic embed-down stall:** Shared llama.cpp HTTP client sets `connect_timeout` **2s** (handshake only; `ClientBuilder::timeout` is not set so `complete` keeps 120s). Connected slow embed still uses the 30s per-request timeout. `--semantic` against a refused loopback stays exit **0** / `embedding.status=unreachable`.
 
 - **T348 Capture coverage this-project:** Default `capture coverage` is this env project (path-alias slug, else cwd/git toplevel) for disk, vault, and unbound Cursor folders. `--global` stays the machine table. Project JSON always has `scope` + `slug` (string or `null`); global omits `slug`. agy/codex project disk is JSON `null`.

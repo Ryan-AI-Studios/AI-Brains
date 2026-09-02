@@ -2,6 +2,17 @@
 
 Tracks deferred from T142. Append-only; strike through when promoted to a real track.
 
+### T351 implement (2026-09-02) — chunk + mean-pool
+
+FEATURE TX `71c3c90d-1927-4389-a2f5-0df2b2f29604`. Codex re-review PASS. `dev-check.ps1` nextest **4000** passed (1 skipped). `ledgerful verify --scope fast` (T351 brain lib + nightly_throughput + embedding_cloud_policy) exit 0.
+
+| Item | Disposition |
+|------|-------------|
+| T343-R1 Chunk + mean-pool | **Absorbed** F1–F5 |
+| T351-R1 Overlapping windows / 5th chunk | **Residual** |
+| T351-R2 Per-chunk RAG rows | **Residual** |
+| T343-R2/R3/R4 tokenize / Ollama `/api/embed` / nomic vs char | **Not stolen** |
+
 ### T350 implement (2026-09-02) — connect_timeout 2s
 
 FEATURE TX `754656cc-2401-4f60-aa0b-18be37d33ac5`. Cross-model CLEAN. Full gate + `ledgerful verify --scope full` exit 0.
