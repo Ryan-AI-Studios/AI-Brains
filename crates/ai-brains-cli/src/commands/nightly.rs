@@ -51,6 +51,9 @@ pub async fn run(
         let last_aborted_raw = query_store.get_sync_state("last_nightly_aborted")?;
         let last_backfill_raw = query_store.get_sync_state("last_embedding_backfill_count")?;
         let last_failed_raw = query_store.get_sync_state("last_embedding_backfill_failed")?;
+        let last_embed_http_batch_raw = query_store.get_sync_state("last_embed_http_batch")?;
+        let last_embedding_truncated_raw =
+            query_store.get_sync_state("last_embedding_truncated")?;
         let embedding_backlog = match query_store.count_pinned_without_embeddings() {
             Ok(n) => n,
             Err(e) => {
@@ -171,6 +174,8 @@ pub async fn run(
                 embedding_backlog,
                 last_backfill_raw: last_backfill_raw.clone(),
                 last_failed_raw: last_failed_raw.clone(),
+                last_embed_http_batch_raw: last_embed_http_batch_raw.clone(),
+                last_embedding_truncated_raw: last_embedding_truncated_raw.clone(),
             };
             let status_json = crate::commands::nightly_status::build_nightly_status_json(input);
             crate::commands::identity_warn::print_json_stdout(&status_json)?;
@@ -214,12 +219,20 @@ pub async fn run(
         let last_failed = last_failed_raw
             .as_deref()
             .and_then(|s| s.trim().parse().ok());
+        let last_http_batch = last_embed_http_batch_raw
+            .as_deref()
+            .and_then(|s| s.trim().parse().ok());
+        let last_truncated = last_embedding_truncated_raw
+            .as_deref()
+            .and_then(|s| s.trim().parse().ok());
         println!(
             "{}",
             crate::commands::nightly_status::format_embedding_throughput_line(
                 embedding_backlog,
                 last_backfill,
                 last_failed,
+                last_http_batch,
+                last_truncated,
             )
         );
         let embedding_human = crate::commands::nightly_status::format_probe_label_human(
@@ -1221,10 +1234,11 @@ const REQUIRED_ENV_VARS: [&str; 5] = [
 
 /// Optional nightly knobs baked into SYSTEM wrappers when set (T338 F13).
 /// Omit `set "K=V"` when empty/unset. Never fail schedule on these. Never bake `AI_BRAINS_KEY`.
-const OPTIONAL_NIGHTLY_ENV_VARS: [&str; 3] = [
+const OPTIONAL_NIGHTLY_ENV_VARS: [&str; 4] = [
     "AI_BRAINS_NIGHTLY_DEADLINE_MINUTES",
     "AI_BRAINS_EMBED_CHUNK",
     "AI_BRAINS_NIGHTLY_BATCH",
+    "AI_BRAINS_EMBED_HTTP_BATCH",
 ];
 
 /// Build SYSTEM wrapper content from **current process env**.
@@ -2290,12 +2304,42 @@ Author: N/A\n";
             ("AI_BRAINS_NIGHTLY_DEADLINE_MINUTES", String::new()),
             ("AI_BRAINS_EMBED_CHUNK", String::new()),
             ("AI_BRAINS_NIGHTLY_BATCH", String::new()),
+            ("AI_BRAINS_EMBED_HTTP_BATCH", String::new()),
         ];
         let content =
             generate_nightly_wrapper_script_from_env(r"C:\fake\ai-brains.exe", &env_values)?;
         assert!(!content.contains("AI_BRAINS_NIGHTLY_DEADLINE_MINUTES"));
         assert!(!content.contains("AI_BRAINS_EMBED_CHUNK"));
         assert!(!content.contains("AI_BRAINS_NIGHTLY_BATCH"));
+        assert!(!content.contains("AI_BRAINS_EMBED_HTTP_BATCH"));
+        Ok(())
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn generate_nightly_wrapper__embed_http_batch__omit_if_empty()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let required = vec![
+            ("AI_BRAINS_VAULT_PATH", "C:\\vault.db".to_string()),
+            ("AI_BRAINS_MODEL_URL", "http://127.0.0.1:8081".to_string()),
+            ("AI_BRAINS_COMPLETION_MODEL", "model.gguf".to_string()),
+            (
+                "AI_BRAINS_EMBEDDING_URL",
+                "http://127.0.0.1:8083".to_string(),
+            ),
+            ("AI_BRAINS_EMBEDDING_MODEL", "embed-model".to_string()),
+        ];
+        let omitted = {
+            let mut env_values = required.clone();
+            env_values.push(("AI_BRAINS_EMBED_HTTP_BATCH", String::new()));
+            generate_nightly_wrapper_script_from_env(r"C:\fake\ai-brains.exe", &env_values)?
+        };
+        assert!(!omitted.contains("AI_BRAINS_EMBED_HTTP_BATCH"));
+
+        let mut baked = required;
+        baked.push(("AI_BRAINS_EMBED_HTTP_BATCH", "4".to_string()));
+        let content = generate_nightly_wrapper_script_from_env(r"C:\fake\ai-brains.exe", &baked)?;
+        assert!(content.contains("set \"AI_BRAINS_EMBED_HTTP_BATCH=4\""));
         Ok(())
     }
 }

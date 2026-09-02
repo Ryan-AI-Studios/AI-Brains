@@ -235,7 +235,7 @@ async fn backfill_recent__policy_denial__counts_failed_not_success()
     let mock = Arc::new(mock);
     let service = EmbeddingService::new(query_store, mock.clone());
 
-    let (success, failed) = service.backfill_recent(10, None).await?;
+    let (success, failed, _truncated) = service.backfill_recent(10, None).await?;
     assert_eq!(success, 0, "policy denials must not count as success");
     assert!(failed >= 2, "policy denials count as failed, got {failed}");
     assert_eq!(mock.embed_call_count(), 0);

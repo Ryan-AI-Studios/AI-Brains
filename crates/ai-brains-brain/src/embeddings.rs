@@ -7,7 +7,7 @@ use ai_brains_store::QueryStore;
 use std::str::FromStr;
 use std::sync::Arc;
 
-use crate::deadline::NightlyDeadline;
+use crate::deadline::{MAX_EMBED_HTTP_BATCH, NightlyDeadline, parse_embed_http_batch_from_env};
 
 /// Service for generating and storing embeddings for vault memories.
 pub struct EmbeddingService {
@@ -67,8 +67,9 @@ impl EmbeddingService {
             return Ok(false);
         }
 
-        // T229 F5: char-boundary safe truncate (never panic on multi-byte UTF-8).
-        let text = truncate_for_embed(content);
+        // T229 F5 then T343 F2: 4000 UTF-8 bytes, then 2048 unicode scalars.
+        let t229 = truncate_for_embed(content);
+        let text = truncate_for_embed_ubatch(t229);
 
         let request = EmbeddingRequest {
             text: text.to_string(),
@@ -100,17 +101,18 @@ impl EmbeddingService {
     ///
     /// Policy-denied memories count as `failed` (no model call). Soft model/store
     /// failures also increment `failed`. Only successful stores increment `success`.
+    /// Third tuple is ubatch prefix-truncations (T343 F2).
     pub async fn backfill_recent(
         &self,
         limit: usize,
         since_days: Option<i32>,
-    ) -> Result<(usize, usize), Box<dyn std::error::Error>> {
+    ) -> Result<(usize, usize, usize), Box<dyn std::error::Error>> {
         let memories = self
             .query_store
             .get_memories_without_embeddings(limit, since_days)?;
 
         if memories.is_empty() {
-            return Ok((0, 0));
+            return Ok((0, 0, 0));
         }
 
         eprintln!(
@@ -118,40 +120,33 @@ impl EmbeddingService {
             memories.len()
         );
 
-        let mut success = 0;
-        let mut failed = 0;
-
-        for (memory_id, content) in memories {
-            match self.generate_and_store(&memory_id, &content).await {
-                Ok(true) => success += 1,
-                Ok(false) | Err(_) => failed += 1,
-            }
-
-            // Brief yield to avoid overwhelming the embedding server
-            tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
-        }
+        let http_batch = parse_embed_http_batch_from_env();
+        let (success, failed, truncated) = self.process_rows(memories, http_batch).await;
 
         eprintln!(
             "[Nightly] Embedding backfill complete: {} succeeded, {} failed.",
             success, failed
         );
-        Ok((success, failed))
+        Ok((success, failed, truncated))
     }
 
     /// Deadline-bound keyset catch-up of pinned NULL embeddings (T338 F2).
     ///
     /// Pages `(updated_at DESC, memory_id DESC)`. After each chunk, the next page
     /// starts strictly after the last **fetched** cursor (including failures).
-    /// Keeps the 50ms yield. Chunk size is `chunk_env` unless remaining time is
-    /// under 60s, then 50.
+    /// Inner HTTP batch is [`parse_embed_http_batch_from_env`] (T343); 50ms yield
+    /// is once per HTTP (including trailing flush). Chunk size is `chunk_env`
+    /// unless remaining time is under 60s, then 50.
     pub async fn backfill_catchup(
         &self,
         deadline: &NightlyDeadline,
         chunk_env: usize,
-    ) -> Result<(usize, usize), Box<dyn std::error::Error>> {
+    ) -> Result<(usize, usize, usize), Box<dyn std::error::Error>> {
         let mut success = 0;
         let mut failed = 0;
+        let mut truncated = 0;
         let mut after: Option<(String, String)> = None;
+        let http_batch = parse_embed_http_batch_from_env();
 
         loop {
             if deadline.expired() {
@@ -175,13 +170,14 @@ impl EmbeddingService {
                 "[Nightly] Backfilling embeddings for {} memories (keyset page)...",
                 page.len()
             );
-            for row in page {
-                match self.generate_and_store(&row.memory_id, &row.content).await {
-                    Ok(true) => success += 1,
-                    Ok(false) | Err(_) => failed += 1,
-                }
-                tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
-            }
+            let rows = page
+                .into_iter()
+                .map(|row| (row.memory_id, row.content))
+                .collect::<Vec<_>>();
+            let (s, f, t) = self.process_rows(rows, http_batch).await;
+            success += s;
+            failed += f;
+            truncated += t;
             after = last;
         }
 
@@ -189,7 +185,7 @@ impl EmbeddingService {
             "[Nightly] Embedding backfill complete: {} succeeded, {} failed.",
             success, failed
         );
-        Ok((success, failed))
+        Ok((success, failed, truncated))
     }
 
     /// Refresh stale embeddings (older than threshold)
@@ -197,11 +193,11 @@ impl EmbeddingService {
         &self,
         days_threshold: i32,
         limit: usize,
-    ) -> Result<(usize, usize), Box<dyn std::error::Error>> {
+    ) -> Result<(usize, usize, usize), Box<dyn std::error::Error>> {
         let memories = self.query_store.get_stale_memories(days_threshold, limit)?;
 
         if memories.is_empty() {
-            return Ok((0, 0));
+            return Ok((0, 0, 0));
         }
 
         eprintln!(
@@ -210,30 +206,111 @@ impl EmbeddingService {
             days_threshold
         );
 
-        let mut success = 0;
-        let mut failed = 0;
-
-        for (idx, (memory_id, content)) in memories.iter().enumerate() {
+        for (idx, (memory_id, _)) in memories.iter().enumerate() {
             eprintln!(
                 "    [Stale {}/{}] Re-embedding memory {}...",
                 idx + 1,
                 memories.len(),
                 &memory_id[..8.min(memory_id.len())]
             );
-
-            match self.generate_and_store(memory_id, content).await {
-                Ok(true) => success += 1,
-                Ok(false) | Err(_) => failed += 1,
-            }
-
-            tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
         }
+
+        let http_batch = parse_embed_http_batch_from_env();
+        let (success, failed, truncated) = self.process_rows(memories, http_batch).await;
 
         eprintln!(
             "[Nightly] Stale refresh complete: {} succeeded, {} failed.",
             success, failed
         );
-        Ok((success, failed))
+        Ok((success, failed, truncated))
+    }
+
+    /// Cloud-policy per memory, then pack 1..=8 texts per `embed_batch` (T343 F1/F7).
+    /// Flushes a trailing 1..=7 buffer. Yields 50ms once per HTTP, including the flush.
+    async fn process_rows(
+        &self,
+        rows: impl IntoIterator<Item = (String, String)>,
+        http_batch: usize,
+    ) -> (usize, usize, usize) {
+        let allow_cloud = allow_cloud_extraction_from_env();
+        let is_local = self.embedding_provider.is_local();
+        let batch = http_batch.clamp(1, MAX_EMBED_HTTP_BATCH);
+        let mut success = 0usize;
+        let mut failed = 0usize;
+        let mut truncated = 0usize;
+        let mut buffer: Vec<(String, String)> = Vec::with_capacity(batch);
+
+        for (memory_id, content) in rows {
+            let privacy = self.resolve_memory_privacy(&memory_id);
+            if let Err(denial) = cloud_route_allowed(privacy, is_local, allow_cloud) {
+                tracing::warn!(
+                    reason_code = %denial.reason_code,
+                    memory_id = %memory_id,
+                    "skipping embedding: cloud-policy gate denied"
+                );
+                failed += 1;
+                continue;
+            }
+            let t229 = truncate_for_embed(&content);
+            let text = truncate_for_embed_ubatch(t229);
+            if text.chars().count() < t229.chars().count() {
+                truncated += 1;
+            }
+            buffer.push((memory_id, text.to_string()));
+            if buffer.len() == batch {
+                let (s, f) = self.flush_embed_batch(&mut buffer).await;
+                success += s;
+                failed += f;
+            }
+        }
+        if !buffer.is_empty() {
+            let (s, f) = self.flush_embed_batch(&mut buffer).await;
+            success += s;
+            failed += f;
+        }
+        (success, failed, truncated)
+    }
+
+    async fn flush_embed_batch(&self, buffer: &mut Vec<(String, String)>) -> (usize, usize) {
+        if buffer.is_empty() {
+            return (0, 0);
+        }
+        let ids: Vec<String> = buffer.iter().map(|(id, _)| id.clone()).collect();
+        let texts: Vec<String> = buffer.iter().map(|(_, text)| text.clone()).collect();
+        buffer.clear();
+
+        let result = self.embedding_provider.embed_batch(texts).await;
+        tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
+
+        match result {
+            Ok(vectors) => {
+                if vectors.len() != ids.len() {
+                    tracing::warn!(
+                        expected = ids.len(),
+                        got = vectors.len(),
+                        "embed_batch length mismatch; failing whole batch"
+                    );
+                    return (0, ids.len());
+                }
+                let mut success = 0usize;
+                let mut failed = 0usize;
+                for (id, response) in ids.iter().zip(vectors) {
+                    let bytes = f32_vec_to_bytes(&response.vector);
+                    if let Err(e) = self.query_store.store_embedding(id, &bytes) {
+                        tracing::warn!("Failed to store embedding for memory {}: {}", id, e);
+                        failed += 1;
+                    } else {
+                        tracing::info!("Stored embedding for memory {}", id);
+                        success += 1;
+                    }
+                }
+                (success, failed)
+            }
+            Err(e) => {
+                tracing::warn!("Failed to generate embeddings for batch: {}", e);
+                (0, ids.len())
+            }
+        }
     }
 }
 
@@ -248,6 +325,22 @@ const EMBED_TEXT_MAX_BYTES: usize = 4000;
 pub(crate) fn truncate_for_embed(content: &str) -> &str {
     let end = content.floor_char_boundary(EMBED_TEXT_MAX_BYTES.min(content.len()));
     &content[..end]
+}
+
+/// Max unicode scalars sent after T229 (llama.cpp embed `--ubatch-size` 2048).
+const EMBED_UBATCH_MAX_CHARS: usize = 2048;
+
+/// Prefix-truncate to [`EMBED_UBATCH_MAX_CHARS`] unicode scalars at a char boundary.
+///
+/// Does **not** use [`ai_brains_models::estimate_tokens`] (len/3.5 under-counts dense ASCII).
+pub(crate) fn truncate_for_embed_ubatch(content: &str) -> &str {
+    if content.chars().count() <= EMBED_UBATCH_MAX_CHARS {
+        return content;
+    }
+    match content.char_indices().nth(EMBED_UBATCH_MAX_CHARS) {
+        Some((i, _)) => &content[..i],
+        None => content,
+    }
 }
 
 fn f32_vec_to_bytes(vec: &[f32]) -> Vec<u8> {
@@ -346,7 +439,7 @@ mod tests {
         assert_eq!(out, "c".repeat(3999));
     }
 
-    /// AC9: sole production call site is `truncate_for_embed` in `generate_and_store`.
+    /// AC9: production calls `truncate_for_embed` (T229) then `truncate_for_embed_ubatch` (T343).
     /// Helper units prove the panic class; production section must not reintroduce
     /// the raw mid-UTF8 slice.
     #[test]
@@ -358,8 +451,35 @@ mod tests {
             "raw mid-UTF8 slice residual must not return in production code"
         );
         assert!(
-            production.contains("truncate_for_embed(content)"),
-            "generate_and_store must call truncate_for_embed"
+            production.contains("truncate_for_embed("),
+            "generate_and_store / packer must call truncate_for_embed"
         );
+        assert!(
+            production.contains("truncate_for_embed_ubatch("),
+            "packer must call truncate_for_embed_ubatch after T229"
+        );
+    }
+
+    #[test]
+    fn truncate_for_embed_ubatch__over_2048_scalars__prefix_char_boundary() {
+        let long = "x".repeat(3000);
+        let out = truncate_for_embed_ubatch(&long);
+        assert_eq!(out.chars().count(), EMBED_UBATCH_MAX_CHARS);
+        assert!(std::str::from_utf8(out.as_bytes()).is_ok());
+        assert!(out.is_char_boundary(out.len()));
+        assert_eq!(out, "x".repeat(2048));
+
+        let short = "hello";
+        assert_eq!(truncate_for_embed_ubatch(short), short);
+
+        let exact = "y".repeat(2048);
+        assert_eq!(truncate_for_embed_ubatch(&exact), exact);
+
+        // CJK: 2048 scalars at a char boundary (each 你 is one scalar, 3 bytes).
+        let cjk = "你".repeat(2100);
+        let out_cjk = truncate_for_embed_ubatch(&cjk);
+        assert_eq!(out_cjk.chars().count(), EMBED_UBATCH_MAX_CHARS);
+        assert!(std::str::from_utf8(out_cjk.as_bytes()).is_ok());
+        assert!(out_cjk.is_char_boundary(out_cjk.len()));
     }
 }

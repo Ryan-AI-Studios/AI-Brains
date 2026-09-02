@@ -23,9 +23,10 @@ pub use backup::{
 };
 use conflict_detection::ConflictDetectionService;
 pub use deadline::{
-    DEADLINE_ENV, DEFAULT_DEADLINE_MINUTES, DEFAULT_EMBED_CHUNK, EMBED_CHUNK_ENV, NightlyDeadline,
+    DEADLINE_ENV, DEFAULT_DEADLINE_MINUTES, DEFAULT_EMBED_CHUNK, DEFAULT_EMBED_HTTP_BATCH,
+    EMBED_CHUNK_ENV, EMBED_HTTP_BATCH_ENV, MAX_EMBED_HTTP_BATCH, NightlyDeadline,
     parse_deadline_minutes, parse_deadline_minutes_from_env, parse_embed_chunk,
-    parse_embed_chunk_from_env,
+    parse_embed_chunk_from_env, parse_embed_http_batch, parse_embed_http_batch_from_env,
 };
 pub use embeddings::EmbeddingService;
 pub use feedback_loop::FeedbackLoopService;
@@ -314,7 +315,9 @@ impl NightlyService {
             EmbeddingService::new(self.query_store.clone(), self._embedding_provider.clone());
         let mut backfill_success = 0;
         let mut backfill_failed = 0;
+        let mut backfill_truncated = 0;
         let mut stale_success = 0;
+        let embed_http_batch = parse_embed_http_batch_from_env();
 
         if embedding_probe != ProbeStatus::Ok {
             tracing::warn!(
@@ -329,9 +332,10 @@ impl NightlyService {
         } else {
             let chunk_env = parse_embed_chunk_from_env();
             match embed_service.backfill_catchup(&deadline, chunk_env).await {
-                Ok((success, failed)) => {
+                Ok((success, failed, truncated)) => {
                     backfill_success = success;
                     backfill_failed = failed;
+                    backfill_truncated = truncated;
                     eprintln!(
                         "[Nightly] Embedding backfill: {} succeeded, {} failed.",
                         success, failed
@@ -356,8 +360,9 @@ impl NightlyService {
                     10
                 };
                 match embed_service.refresh_stale(30, stale_limit).await {
-                    Ok((success, failed)) => {
+                    Ok((success, failed, truncated)) => {
                         stale_success = success;
+                        backfill_truncated = backfill_truncated.saturating_add(truncated);
                         eprintln!(
                             "[Nightly] Stale refresh: {} succeeded, {} failed.",
                             success, failed
@@ -383,6 +388,18 @@ impl NightlyService {
             &backfill_failed.to_string(),
         ) {
             tracing::warn!("Failed to persist embedding backfill failed count: {}", e);
+        }
+        if let Err(e) = self
+            .event_store
+            .set_sync_state("last_embedding_truncated", &backfill_truncated.to_string())
+        {
+            tracing::warn!("Failed to persist embedding truncated count: {}", e);
+        }
+        if let Err(e) = self
+            .event_store
+            .set_sync_state("last_embed_http_batch", &embed_http_batch.to_string())
+        {
+            tracing::warn!("Failed to persist last embed HTTP batch: {}", e);
         }
         if let Err(e) = self
             .event_store

@@ -30,6 +30,12 @@ struct LlamaEmbeddingRequest<'a> {
 }
 
 #[derive(Serialize)]
+struct LlamaEmbeddingBatchRequest<'a> {
+    model: &'a str,
+    input: &'a [String],
+}
+
+#[derive(Serialize)]
 struct LlamaTokenizeRequest<'a> {
     content: &'a str,
 }
@@ -320,6 +326,69 @@ impl ModelProvider for LlamaCppProvider {
             .collect();
 
         Ok(EmbeddingResponse { vector })
+    }
+
+    async fn embed_batch(&self, texts: Vec<String>) -> Result<Vec<EmbeddingResponse>> {
+        if texts.is_empty() {
+            return Ok(Vec::new());
+        }
+        let body = LlamaEmbeddingBatchRequest {
+            model: &self.model,
+            input: &texts,
+        };
+
+        let res = self
+            .client
+            .post(format!("{}/v1/embeddings", self.endpoint))
+            .json(&body)
+            .timeout(self.embedding_timeout)
+            .send()
+            .await
+            .map_err(map_send_error)?;
+
+        if !res.status().is_success() {
+            let status = res.status();
+            let text = res.text().await.unwrap_or_default();
+            return Err(ModelError::Provider(format!(
+                "llama.cpp (embeddings batch) returned {}: {}",
+                status, text
+            )));
+        }
+
+        let json: serde_json::Value = res
+            .json()
+            .await
+            .map_err(|e| ModelError::Provider(e.to_string()))?;
+
+        let data = json["data"].as_array().ok_or_else(|| {
+            ModelError::Provider("Missing data array in embeddings batch response".to_string())
+        })?;
+        if data.len() != texts.len() {
+            return Err(ModelError::Provider(format!(
+                "embeddings batch length mismatch: input {} data {}",
+                texts.len(),
+                data.len()
+            )));
+        }
+
+        let mut out = Vec::with_capacity(data.len());
+        for (i, item) in data.iter().enumerate() {
+            if let Some(idx) = item.get("index").and_then(|v| v.as_u64())
+                && idx as usize != i
+            {
+                return Err(ModelError::Provider(format!(
+                    "embeddings batch index mismatch at {i}: got {idx}"
+                )));
+            }
+            let vector = item["embedding"]
+                .as_array()
+                .ok_or_else(|| ModelError::Provider(format!("Missing data[{i}].embedding field")))?
+                .iter()
+                .map(|v| v.as_f64().unwrap_or(0.0) as f32)
+                .collect();
+            out.push(EmbeddingResponse { vector });
+        }
+        Ok(out)
     }
 
     async fn tokenize(&self, request: TokenizeRequest) -> Result<TokenizeResponse> {

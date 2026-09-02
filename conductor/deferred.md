@@ -2,6 +2,55 @@
 
 Tracks deferred from T142. Append-only; strike through when promoted to a real track.
 
+### T343 implement (2026-09-01) — residuals remain
+
+| Item | Disposition |
+|------|-------------|
+| T343-R1 Chunk + mean-pool (OpenAI cookbook `average`) | **Residual** — better long-doc recall; extra HTTP |
+| T343-R2 Pack with `tokenize()` | **Residual** — exact vs char estimate; extra RTT; F12 froze char count |
+| T343-R3 Ollama `/api/embed` native batch | **Residual** — live crate still `/api/embeddings` |
+| T343-R4 nomic tokenizer vs char cap | **Residual** — Codex P1; char cap may still miss token-dense CJK vs `--ubatch-size` |
+| FEATURE TX | `cb463b7f-cd15-41f9-bc4e-1de19de60c6b` |
+
+### T343 fold-in (2026-09-01) — `agy-review.md` + `opencode-review.md`
+
+| Item | Disposition |
+|------|-------------|
+| Agy m1 trailing 1..=7 flush | **Absorb** F1 / AC1 page-of-10 / §5 flush test |
+| OpenCode m1 AC4 helper-only | **Absorb** AC4b service test + F2 3-tuple |
+| OpenCode m2 httpmock vs F9 | **Absorb** wiremock 0.6; no new crate |
+| OpenCode m3 AC6 len>1 string fallback | **Absorb** F5/AC6 unconditional array |
+| OpenCode m4 status-time env lie | **Absorb** persist `last_embed_http_batch`; missing → null |
+| Agy O1 / O2 | **Already** F6 / F4 |
+| OpenCode O1 snapshot | **Already** §2.1 recapture |
+| OpenCode O2 `llm-info.md` 9083 | **Already** Docs stay 8083 |
+| OpenCode O3 `embed_calls` | **Absorb** F5/AC1 override counts `embed_batch` |
+| OpenCode O4 stale eprintln | **Decline** — cosmetic; free to reformat |
+| last-PR `#271` | **No leftover** — no T344 |
+| DOCS TX | `bc974a85-f65b-4ca1-83ec-853b0234c7c7` |
+
+### T343 full plan (2026-09-01) — embed HTTP batch + ubatch guard
+
+| Item | Disposition |
+|------|-------------|
+| Placeholder F1 batch 4–8 / 2048 tok | **Absorb** F1 (count cap 8) + F2 (per-sequence 2048 scalars). Sum-of-request 2048 is **not** llama.cpp’s constraint |
+| Placeholder F2 chunk vs truncate vs skip | **Absorb** prefix truncate. **Decline** skip-forever. **Decline** mean-pool → T343-R1 |
+| Placeholder F3 status honesty | **Absorb** F3 / AC8 |
+| `llm-info.md` no router change | **Absorb** F4 |
+| T338 page/chunk 200 / deadline / keyset | **Stay-green** F8 |
+| T338 50ms yield | **Absorb** per HTTP (F1) |
+| SYSTEM optional bake | **Absorb** F11 — fourth omit-if-empty key |
+| T338-R1 / T338-R2 | **Decline** — abort token / test clock |
+| T229 4000-byte truncate | **Stay-green** AC5; **not** ubatch-sufficient |
+| T342-R1–R3 / T341-R2/R3 / T340-R* / T337-R* | **Not stolen** |
+| T336 graduation / T339 bin / doctor 16th | **Not stolen / decline** |
+| `#271` Cursor usage-limit | **No leftover** — no T344 |
+| Dependabot `#250–#256` | **Decline** |
+| clap 5 / 0.1.6 / T240 F2 | **Decline** F9 |
+| last-PR Cursor `#271` | **N/A empty** (notice only) |
+| Soft | T343-R1 chunk+mean-pool; T343-R2 live tokenize; T343-R3 Ollama `/api/embed`; T343-R4 nomic vs char cap |
+| DOCS TX | `4e0c531d-7e68-4240-a0a5-a7249eb57e6d` |
+
 ### T342 implement (2026-09-01) — residuals remain
 
 | Item | Disposition |

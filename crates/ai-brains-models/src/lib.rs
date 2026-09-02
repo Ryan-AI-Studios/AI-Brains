@@ -59,6 +59,14 @@ pub struct TokenizeResponse {
 pub trait ModelProvider: Send + Sync {
     async fn complete(&self, request: CompletionRequest) -> Result<CompletionResponse>;
     async fn embed(&self, request: EmbeddingRequest) -> Result<EmbeddingResponse>;
+    /// Batch embed. Default loops [`Self::embed`]. Llama.cpp overrides with one POST.
+    async fn embed_batch(&self, texts: Vec<String>) -> Result<Vec<EmbeddingResponse>> {
+        let mut out = Vec::with_capacity(texts.len());
+        for text in texts {
+            out.push(self.embed(EmbeddingRequest { text }).await?);
+        }
+        Ok(out)
+    }
     async fn tokenize(&self, request: TokenizeRequest) -> Result<TokenizeResponse>;
     fn name(&self) -> &str;
     /// Whether this provider is local for privacy routing (loopback / in-process).

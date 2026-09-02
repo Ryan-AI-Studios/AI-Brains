@@ -131,6 +131,12 @@ pub(crate) struct NightlyStatusJson {
     /// `0` when backlog is 0; null when last_backfill is 0 and backlog > 0; else ceil.
     #[serde(default)]
     pub embedding_eta_nights: Option<u64>,
+    /// Last-run parsed HTTP batch (1..=8 persist). Missing → null (not env default 8).
+    #[serde(default)]
+    pub embed_http_batch: Option<u64>,
+    /// Last-run ubatch prefix-truncation count. Missing → null.
+    #[serde(default)]
+    pub last_embedding_truncated: Option<u64>,
 }
 
 fn default_deadline_minutes() -> u64 {
@@ -162,6 +168,8 @@ pub(crate) struct NightlyStatusInput {
     pub embedding_backlog: u64,
     pub last_backfill_raw: Option<String>,
     pub last_failed_raw: Option<String>,
+    pub last_embed_http_batch_raw: Option<String>,
+    pub last_embedding_truncated_raw: Option<String>,
 }
 
 pub(crate) struct RouterStatusInput {
@@ -182,6 +190,8 @@ pub(crate) fn build_nightly_status_json(input: NightlyStatusInput) -> NightlySta
     let (aborted_early, abort_reason) = parse_nightly_aborted(input.aborted_raw.as_deref());
     let embedding_backfill_last = parse_u64_count(input.last_backfill_raw.as_deref());
     let embedding_backfill_failed_last = parse_u64_count(input.last_failed_raw.as_deref());
+    let embed_http_batch = parse_u64_count(input.last_embed_http_batch_raw.as_deref());
+    let last_embedding_truncated = parse_u64_count(input.last_embedding_truncated_raw.as_deref());
     let embedding_eta_nights =
         embedding_eta_nights(input.embedding_backlog, embedding_backfill_last);
     NightlyStatusJson {
@@ -220,6 +230,8 @@ pub(crate) fn build_nightly_status_json(input: NightlyStatusInput) -> NightlySta
         embedding_backfill_last,
         embedding_backfill_failed_last,
         embedding_eta_nights,
+        embed_http_batch,
+        last_embedding_truncated,
     }
 }
 
@@ -378,6 +390,8 @@ pub(crate) fn format_embedding_throughput_line(
     backlog: u64,
     last_backfill: Option<u64>,
     failed_last: Option<u64>,
+    embed_http_batch: Option<u64>,
+    truncated: Option<u64>,
 ) -> String {
     let eta_part = match embedding_eta_nights(backlog, last_backfill) {
         Some(n) => format!("{n} nights at last_backfill/run"),
@@ -387,7 +401,17 @@ pub(crate) fn format_embedding_throughput_line(
         Some(n) => n.to_string(),
         None => "null".to_string(),
     };
-    format!("embedding backlog={backlog} (~{eta_part}); failed last={failed}")
+    let batch = match embed_http_batch {
+        Some(n) => n.to_string(),
+        None => "null".to_string(),
+    };
+    let trunc = match truncated {
+        Some(n) => n.to_string(),
+        None => "null".to_string(),
+    };
+    format!(
+        "embedding backlog={backlog} (~{eta_part}); failed last={failed}; last HTTP batch={batch}; truncated last={trunc}"
+    )
 }
 
 #[derive(serde::Deserialize)]
@@ -458,6 +482,8 @@ mod tests {
         "embedding_backfill_last",
         "embedding_backfill_failed_last",
         "embedding_eta_nights",
+        "embed_http_batch",
+        "last_embedding_truncated",
     ];
 
     fn fixture_input() -> NightlyStatusInput {
@@ -491,6 +517,8 @@ mod tests {
             embedding_backlog: 0,
             last_backfill_raw: None,
             last_failed_raw: None,
+            last_embed_http_batch_raw: None,
+            last_embedding_truncated_raw: None,
         }
     }
 
@@ -1109,6 +1137,35 @@ mod tests {
         assert!(parsed.embedding_backfill_last.is_none());
         assert!(parsed.embedding_backfill_failed_last.is_none());
         assert!(parsed.embedding_eta_nights.is_none());
+        assert!(parsed.embed_http_batch.is_none());
+        assert!(parsed.last_embedding_truncated.is_none());
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn nightly_status_json__embed_http_batch_and_truncated__additive_v1() {
+        let mut missing = fixture_input();
+        missing.last_embed_http_batch_raw = None;
+        missing.last_embedding_truncated_raw = None;
+        let status = build_nightly_status_json(missing);
+        assert_eq!(status.schema_version, 1);
+        assert_eq!(status.embed_http_batch, None);
+        assert_eq!(status.last_embedding_truncated, None);
+        let value = to_value(&status);
+        assert_eq!(value["schema_version"], 1);
+        assert_eq!(value["embed_http_batch"], serde_json::Value::Null);
+        assert_eq!(value["last_embedding_truncated"], serde_json::Value::Null);
+
+        let mut present = fixture_input();
+        present.last_embed_http_batch_raw = Some("8".to_string());
+        present.last_embedding_truncated_raw = Some("3".to_string());
+        let status = build_nightly_status_json(present);
+        assert_eq!(status.schema_version, 1);
+        assert_eq!(status.embed_http_batch, Some(8));
+        assert_eq!(status.last_embedding_truncated, Some(3));
+        let value = to_value(&status);
+        assert_eq!(value["embed_http_batch"], 8);
+        assert_eq!(value["last_embedding_truncated"], 3);
     }
 
     #[rstest::rstest]
