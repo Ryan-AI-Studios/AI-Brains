@@ -2,6 +2,32 @@
 
 Tracks deferred from T142. Append-only; strike through when promoted to a real track.
 
+### T350–T355 placeholders (2026-09-02) — highest-benefit residuals after T344–T349
+
+Minted as **Placeholder** (no F-list). `/plan-track TNN` before go. last-PR `#278` Cursor = usage-limit only. Dependabot `#250–#256` **Decline**. DOCS TX `f43bed7c-f352-44f3-8f38-7f3ee0b58c3e`.
+
+| Item | Disposition |
+|------|-------------|
+| T346-R2 `--semantic` + embed-down RTT | **Promoted T350** |
+| T346-R4 cold SQLCipher / first-open stall | **Promoted T350** |
+| T343-R1 chunk + mean-pool | **Promoted T351** |
+| T344-R1 preflight auto-bind | **Promoted T352** |
+| T348-R1 / T345-R1 remainder (`--summary` coverage line) | **Promoted T353** |
+| T345-R2 last_decision from Index SQL | **Promoted T354** |
+| T348-R3 twin alias slug-collide | **Promoted T355** |
+| T342-R3 dual stored Windows + `/mnt/c` aliases | **Promoted T355** |
+| T346-R1 Porter / T346-R3 this-repo dumps | **Not stolen** |
+| T343-R2 tokenize / R3 Ollama `/api/embed` / R4 nomic cap | **Not stolen** |
+| T344-R2 nongit cwd / T344-R3 origin≠folder | **Not stolen** |
+| T348-R2 agy/codex this-project disk | **Not stolen** |
+| T342-R1 UNC / T342-R2 `/mnt/wsl` / T341-R2 / T341-R3 | **Not stolen** |
+| T349-R1–R5 glance leftovers | **Not stolen** |
+| T347-R1–R4 hotspot edges | **Not stolen** |
+| T336 auto-approve / T340-R4 | **Decline** / workflow |
+| Doctor verbosity / auto bootstrap / adopt-path | **Decline** (T344–T349 standing) |
+| `#278` Cursor leftover | **N/A empty** |
+| clap 5 / 0.1.6 / `cargo install` | **Decline** |
+
 ### T344–T349 placeholders (2026-09-02) — OrcaSlicer-ZR dogfood
 
 Minted after PATH `0.1.5` dogfood from `C:\dev\Orca\OrcaSlicer-ZR`. Skill `.claude/skills/ai-brains/SKILL.md` rewritten this pass (session start = `preflight --summary`, not `context --show`). last-PR `#272` Cursor = usage-limit only.
@@ -62,7 +88,7 @@ Minted after PATH `0.1.5` dogfood from `C:\dev\Orca\OrcaSlicer-ZR`. Skill `.clau
 | T343-R1 long-doc | **Not stolen** |
 | T344–T345 / T347–T349 | **Not stolen** |
 | `#272` Cursor | **N/A** |
-| Soft | T346-R1 Porter; T346-R2 `--semantic`+embed-down; T346-R3 this-repo dumps; T346-R4 cold SQLCipher |
+| Soft | T346-R1 Porter; ~~T346-R2 `--semantic`+embed-down~~ **T350**; T346-R3 this-repo dumps; ~~T346-R4 cold SQLCipher~~ **T350** |
 | DOCS TX | `e7dff301-d478-49c1-99be-b808e798cf1d` |
 
 ### T347 full plan (2026-09-02) — hotspot allow/deny
@@ -134,9 +160,9 @@ Minted after PATH `0.1.5` dogfood from `C:\dev\Orca\OrcaSlicer-ZR`. Skill `.clau
 
 | Item | Disposition |
 |------|-------------|
-| T348-R1 preflight `--summary` coverage line | **Residual** — T345 F5 stay |
+| T348-R1 preflight `--summary` coverage line | **Promoted T353** |
 | T348-R2 agy/codex this-project disk | **Residual** — no JSONL peek |
-| T348-R3 twin alias slug-collide | **Residual** — T342-R3 adjacent |
+| T348-R3 twin alias slug-collide | **Promoted T355** |
 | T341-R3 numeric Cursor dirs on `--global` | **Residual** — filtered from default |
 | FEATURE TX | `af71b438-0967-406d-bba5-b579dd5b4e98` |
 
@@ -155,14 +181,14 @@ Minted after PATH `0.1.5` dogfood from `C:\dev\Orca\OrcaSlicer-ZR`. Skill `.clau
 | Item | Disposition |
 |------|-------------|
 | T345-R1 coverage line | **Absorbed T348** — CLI this-project vs `--global`; no `--summary` line |
-| T345-R2 last_decision from Index SQL | **Residual** — budget scan is DoD |
+| T345-R2 last_decision from Index SQL | **Promoted T354** |
 | FEATURE TX | `442c7c04-e00c-4401-9b02-a483efb9e0fa` |
 
 ### T344 implement (2026-09-02) — residuals remain
 
 | Item | Disposition |
 |------|-------------|
-| T344-R1 preflight auto-bind | **Residual** — CQRS declined; T345 next-line names `context` |
+| T344-R1 preflight auto-bind | **Promoted T352** |
 | T344-R2 nongit cwd bind | **Residual** — owner said repos only |
 | T344-R3 origin slug ≠ folder name | **Residual** — exact-unique may skip; operator `set-alias` |
 | FEATURE TX | `a0230aa9-62da-417f-90c6-14779ccccd70` |
@@ -171,7 +197,7 @@ Minted after PATH `0.1.5` dogfood from `C:\dev\Orca\OrcaSlicer-ZR`. Skill `.clau
 
 | Item | Disposition |
 |------|-------------|
-| T343-R1 Chunk + mean-pool (OpenAI cookbook `average`) | **Residual** — better long-doc recall; extra HTTP |
+| T343-R1 Chunk + mean-pool (OpenAI cookbook `average`) | **Promoted T351** |
 | T343-R2 Pack with `tokenize()` | **Residual** — exact vs char estimate; extra RTT; F12 froze char count |
 | T343-R3 Ollama `/api/embed` native batch | **Residual** — live crate still `/api/embeddings` |
 | T343-R4 nomic tokenizer vs char cap | **Residual** — Codex P1; char cap may still miss token-dense CJK vs `--ubatch-size` |
@@ -222,7 +248,7 @@ Minted after PATH `0.1.5` dogfood from `C:\dev\Orca\OrcaSlicer-ZR`. Skill `.clau
 |------|-------------|
 | T342-R1 `\\wsl$\Distro\…` / `\\wsl.localhost\…` folder identity | **Residual** — different UNC encoder; no live folders |
 | T342-R2 `/mnt/wsl` / `/mnt/wslg` mounts | **Residual** — `wsl_to_windows` rejects non-single-letter |
-| T342-R3 Two stored aliases (Windows + `/mnt/c`) for the same repo | **Residual** — F9 first-wins |
+| T342-R3 Two stored aliases (Windows + `/mnt/c`) for the same repo | **Promoted T355** |
 | BUGFIX TX | `6d6c7b95-f197-4cb1-9c85-5c8804af10b3` |
 
 ### T342 full plan (2026-09-01) — WSL/Windows Cursor slug twins
