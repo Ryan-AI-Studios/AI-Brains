@@ -1434,10 +1434,16 @@ mod tests {
         };
         match *cli.command {
             super::Commands::Safety {
-                command: super::SafetyCommands::Sync { dry_run, limit },
+                command:
+                    super::SafetyCommands::Sync {
+                        dry_run,
+                        limit,
+                        include_zero,
+                    },
             } => {
                 assert!(!dry_run, "AC2: default dry_run false");
                 assert_eq!(limit, 5, "AC10: --limit default 5");
+                assert!(!include_zero, "T347 AC8: default include_zero false");
             }
             _ => panic!("expected Commands::Safety::Sync"),
         }
@@ -1450,6 +1456,24 @@ mod tests {
                 command: super::SafetyCommands::Sync { dry_run, .. },
             } => {
                 assert!(dry_run, "AC2: --dry-run sets true");
+            }
+            _ => panic!("expected Commands::Safety::Sync"),
+        }
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn safety_sync_clap__include_zero__parses() {
+        let cli =
+            match super::Cli::try_parse_from(["ai-brains", "safety", "sync", "--include-zero"]) {
+                Ok(c) => c,
+                Err(e) => panic!("expected --include-zero to parse: {e}"),
+            };
+        match *cli.command {
+            super::Commands::Safety {
+                command: super::SafetyCommands::Sync { include_zero, .. },
+            } => {
+                assert!(include_zero, "AC8: --include-zero sets true");
             }
             _ => panic!("expected Commands::Safety::Sync"),
         }
@@ -4267,6 +4291,9 @@ preflight already live-injects hotspot paths into Safety without pinning."
         /// Preview what would be pinned without writing to the vault
         #[arg(long)]
         dry_run: bool,
+        /// Keep score <= 0 rows (path deny still applies)
+        #[arg(long)]
+        include_zero: bool,
     },
 }
 
@@ -6032,9 +6059,11 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
             }
         },
         Commands::Safety { command } => match command {
-            SafetyCommands::Sync { limit, dry_run } => {
-                commands::safety::run(&ctx, *limit, *dry_run)
-            }
+            SafetyCommands::Sync {
+                limit,
+                dry_run,
+                include_zero,
+            } => commands::safety::run(&ctx, *limit, *dry_run, *include_zero),
         },
         Commands::Sync { command } => match command {
             SyncCommands::Pull {
