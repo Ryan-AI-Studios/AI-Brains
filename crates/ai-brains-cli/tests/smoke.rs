@@ -2791,9 +2791,23 @@ fn preflight__local_env_project_context_overrides_inherited_shell_ids() {
         stdout.contains("Scope: project=") && stdout.contains(local_project_id),
         "preflight should scope to local .env project via Scope: project=; got: {stdout}"
     );
+    let scope_line = stdout
+        .lines()
+        .find(|l| l.starts_with("Scope:"))
+        .unwrap_or("");
     assert!(
-        !stdout.contains(inherited_project_id),
+        scope_line.contains(local_project_id),
+        "Scope must use local .env project; got: {scope_line}"
+    );
+    assert!(
+        !scope_line.contains(inherited_project_id),
         "preflight must not silently scope to inherited project; got: {stdout}"
+    );
+    assert!(
+        stdout.contains(&format!(
+            "shell leftover PROJECT_ID: {inherited_project_id} (.env overrides)"
+        )),
+        "T345 leftover must name inherited shell id; got: {stdout}"
     );
     let stderr = String::from_utf8_lossy(&output.stderr);
     // T223: one collapsed Warning line (PROJECT then SESSION); never legacy dual template.

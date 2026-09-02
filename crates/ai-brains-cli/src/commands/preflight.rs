@@ -1,8 +1,13 @@
+use crate::commands::context::{file_project_id_from_env_text, leftover_shell_vs_file};
+use crate::commands::display_text::strip_role_prefix;
 use crate::commands::governed_common::{
     DISCOVERY_CAP_LABELS, LIST_RECALL_QUERY, POLICY_BOOTSTRAP_SOOT_SHORT, discovery_active_count,
     resolve_principal,
 };
 use crate::commands::harness::{PromptDecision, interpret_consent_answer, should_prompt_install};
+use crate::commands::project::{
+    GitIdentity, collect_git_identity, resolve_path_alias_for_location, shell_project_id_captured,
+};
 use crate::context::AppContext;
 use crate::harness::prefs::HarnessHookPrefs;
 use crate::harness::{
@@ -11,11 +16,13 @@ use crate::harness::{
 };
 use ai_brains_control_plane::{StorePorts, parse_scope_key, scope_identity_key};
 use ai_brains_core::ids::ProjectId;
+use ai_brains_path::normalize_for_location_compare;
 use ai_brains_retrieval::build_preflight;
 use ai_brains_store::QueryStore;
 use ai_brains_store::SqliteEventStore;
 use serde::Serialize;
 use std::io::IsTerminal;
+use std::path::Path;
 use std::str::FromStr;
 
 pub struct PreflightRunOptions {
@@ -56,10 +63,19 @@ pub(crate) struct PreflightSummaryJson {
     /// T241 F3: present when project-scoped discovery grants incomplete (`active_count < 3`).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub grants_status: Option<String>,
-    /// Optional remediator: T241 bootstrap when discovery grants incomplete, else T315
-    /// empty-decisions SOOT when `in_context_decisions == 0`. Omit when neither applies.
+    /// Optional remediator: T345 F7 ladder (unowned location → `context`, else T241
+    /// bootstrap, else T315 empty-decisions). Omit when no rung matches.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub next_step: Option<String>,
+    /// T345 F2: project-scoped always; `None` omits (global/none), `Some(None)` is JSON null.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub path: Option<Option<String>>,
+    /// T345 F3: shell PROJECT_ID when it differs from cwd `.env`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub shell_leftover_project_id: Option<String>,
+    /// T345 F4: first budget-window line containing `DECISION:` (marker stripped).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub last_decision: Option<String>,
     /// T264 F8: distinct non-unknown projects in the emitted global body. Global only.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub in_context_project_span: Option<u32>,
@@ -101,7 +117,122 @@ pub(crate) fn build_preflight_summary_json(
         word_count,
         grants_status: None,
         next_step: None,
+        path: None,
+        shell_leftover_project_id: None,
+        last_decision: None,
         in_context_project_span: None,
+    }
+}
+
+const LAST_DECISION_MAX_BYTES: usize = 100;
+pub(crate) const SUMMARY_NEXT_CONTEXT: &str = "next: ai-brains context";
+
+fn truncate_utf8_bytes(s: &str, max_bytes: usize) -> String {
+    let end = s.floor_char_boundary(max_bytes.min(s.len()));
+    s[..end].to_string()
+}
+
+fn strip_leading_decision_marker(line: &str) -> &str {
+    let trimmed = line.trim_start();
+    trimmed
+        .strip_prefix("DECISION:")
+        .map(str::trim_start)
+        .unwrap_or(trimmed)
+}
+
+/// First budget-window line containing `DECISION:` (T345 F4). Remainder is marker-stripped
+/// and truncated to 100 UTF-8 bytes at a char boundary.
+pub(crate) fn extract_last_decision(budget_text: &str) -> Option<String> {
+    for line in budget_text.lines() {
+        if !line.contains("DECISION:") {
+            continue;
+        }
+        let remainder = strip_leading_decision_marker(strip_role_prefix(line));
+        if remainder.is_empty() {
+            continue;
+        }
+        return Some(truncate_utf8_bytes(remainder, LAST_DECISION_MAX_BYTES));
+    }
+    None
+}
+
+pub(crate) fn format_summary_path_line(bound_compare_path: Option<&str>) -> String {
+    match bound_compare_path {
+        Some(p) => format!("path={p}"),
+        None => "path=—".to_string(),
+    }
+}
+
+/// T345 F7: first match wins. `location_unowned_for_this_pid` is true when the
+/// git toplevel (else cwd) is unbound or owned by another project.
+pub(crate) fn select_summary_next_step(
+    location_unowned_for_this_pid: bool,
+    grants_incomplete: bool,
+    decision_count: usize,
+) -> Option<String> {
+    if location_unowned_for_this_pid {
+        return Some(SUMMARY_NEXT_CONTEXT.to_string());
+    }
+    if grants_incomplete {
+        return Some(POLICY_BOOTSTRAP_SOOT_SHORT.to_string());
+    }
+    format_summary_empty_decisions_next(decision_count)
+}
+
+pub(crate) fn location_unowned_for_pid(
+    owner: Option<&str>,
+    project_id: Option<&ProjectId>,
+) -> bool {
+    let Some(pid) = project_id else {
+        return false;
+    };
+    let pid_s = pid.to_string();
+    match owner {
+        Some(o) => o != pid_s,
+        None => true,
+    }
+}
+
+fn location_display_path(cwd: &Path, git: &GitIdentity) -> String {
+    let raw = git
+        .toplevel
+        .as_ref()
+        .map(|p| p.to_string_lossy().into_owned())
+        .unwrap_or_else(|| cwd.to_string_lossy().into_owned());
+    normalize_for_location_compare(&raw)
+}
+
+/// Scope → path= → leftover (project-scoped). Budget → last_decision → one next.
+pub(crate) fn apply_session_card_lines(
+    lines: &mut Vec<String>,
+    project_scoped: bool,
+    path_bound_display: Option<&str>,
+    leftover_line: Option<String>,
+    last_decision: Option<&str>,
+    next_step: Option<String>,
+) {
+    if project_scoped {
+        let path_line = format_summary_path_line(path_bound_display);
+        if let Some(idx) = lines.iter().position(|l| l.starts_with("Scope:")) {
+            lines.insert(idx + 1, path_line);
+        } else {
+            lines.push(path_line);
+        }
+        if let Some(leftover) = leftover_line
+            && let Some(idx) = lines.iter().position(|l| l.starts_with("path="))
+        {
+            lines.insert(idx + 1, leftover);
+        }
+    }
+    if let Some(dec) = last_decision {
+        insert_after_budget_window_line(lines, format!("last_decision: {dec}"));
+    }
+    if let Some(next) = next_step {
+        if let Some(idx) = lines.iter().position(|l| l.starts_with("last_decision:")) {
+            lines.insert(idx + 1, next);
+        } else {
+            insert_after_budget_window_line(lines, next);
+        }
     }
 }
 
@@ -142,6 +273,9 @@ pub(crate) fn insert_after_budget_window_line(lines: &mut Vec<String>, line: Str
 /// Format a post-hoc discovery-grants summary line (T241 F3 / AC9).
 ///
 /// Returns `None` when complete (`active_count == 3`) so callers omit OK density.
+/// T345 F7 does **not** append this on the human session card (one `next:` ladder);
+/// the helper remains the SOOT lock for unit tests.
+#[allow(dead_code)]
 pub(crate) fn format_grants_incomplete_line(active_count: usize) -> Option<String> {
     if active_count >= 3 {
         return None;
@@ -949,6 +1083,31 @@ fn print_summary(
     // T241 F3: post-hoc discovery grants line (does not change 9-arg formatters).
     let grants_count = probe_discovery_active_count(ctx, global, project_id.as_ref());
 
+    let cwd = std::env::current_dir()?;
+    let git = collect_git_identity(&cwd).unwrap_or_default();
+    let owner = resolve_path_alias_for_location(ctx.conn.as_ref(), &cwd, &git)
+        .ok()
+        .flatten();
+    let project_scoped = !global && project_id.is_some();
+    let unowned = location_unowned_for_pid(owner.as_deref(), project_id.as_ref());
+    let bound_display = if project_scoped && !unowned {
+        Some(location_display_path(&cwd, &git))
+    } else {
+        None
+    };
+    let env_text = std::fs::read_to_string(cwd.join(".env")).ok();
+    let file_id = env_text.as_deref().and_then(file_project_id_from_env_text);
+    let captured = shell_project_id_captured();
+    let leftover_human = leftover_shell_vs_file(captured.as_deref(), file_id);
+    let leftover_id = leftover_human.as_ref().and_then(|_| captured.clone());
+    let last_decision = extract_last_decision(text);
+    let grants_incomplete = grants_count.is_some_and(|n| n < 3);
+    let next_step = if project_scoped {
+        select_summary_next_step(unowned, grants_incomplete, decision_count)
+    } else {
+        select_summary_next_step(false, grants_incomplete, decision_count)
+    };
+
     if gate.json_mode {
         let mut envelope = build_preflight_summary_json(
             global,
@@ -964,18 +1123,15 @@ fn print_summary(
         if global {
             envelope.in_context_project_span = context.in_context_project_span;
         }
+        if project_scoped {
+            envelope.path = Some(bound_display.clone());
+        }
+        envelope.shell_leftover_project_id = leftover_id;
+        envelope.last_decision = last_decision.clone();
         if let Some(n) = grants_count {
             envelope.grants_status = format_grants_status(n);
-            if envelope.grants_status.is_some() {
-                envelope.next_step = Some(POLICY_BOOTSTRAP_SOOT_SHORT.to_string());
-            }
         }
-        // T315 F5: fill empty-decisions next_step only when T241 left it None.
-        if envelope.next_step.is_none()
-            && let Some(soot) = format_summary_empty_decisions_next(decision_count)
-        {
-            envelope.next_step = Some(soot);
-        }
+        envelope.next_step = next_step;
         // Pretty summary JSON (memory-list family); T180 full path stays compact.
         crate::commands::identity_warn::print_json_stdout(&envelope)?;
         // M1: still run install side effects; never pollute stdout.
@@ -1007,15 +1163,14 @@ fn print_summary(
             lines.push(span_line);
         }
     }
-    // T315 F8: empty-decisions next-step after budget-window line (even if grants incomplete).
-    if let Some(soot) = format_summary_empty_decisions_next(decision_count) {
-        insert_after_budget_window_line(&mut lines, soot);
-    }
-    if let Some(n) = grants_count
-        && let Some(line) = format_grants_incomplete_line(n)
-    {
-        lines.push(line);
-    }
+    apply_session_card_lines(
+        &mut lines,
+        project_scoped,
+        bound_display.as_deref(),
+        leftover_human,
+        last_decision.as_deref(),
+        next_step,
+    );
     for line in lines {
         println!("{}", line);
     }
@@ -1562,24 +1717,154 @@ mod tests {
         );
     }
 
-    /// T315 AC8: T241 bootstrap wins JSON next_step when grants_status is set.
+    /// T315 AC8 / T345 F7: T241 bootstrap wins JSON next_step when grants incomplete
+    /// **and** the location is owned by this project (rung 1 does not fire).
     #[test]
     fn empty_decisions_next_step__grants_incomplete__bootstrap_wins() {
         let mut env = build_preflight_summary_json(false, None, None, 0, 0, 0, 0, 0, 0);
         env.grants_status = format_grants_status(0);
         assert!(env.grants_status.is_some());
-        env.next_step = Some(POLICY_BOOTSTRAP_SOOT_SHORT.to_string());
-        // T315 fill only when next_step is None (mirrors print_summary F5).
-        if env.next_step.is_none()
-            && let Some(soot) = format_summary_empty_decisions_next(0)
-        {
-            env.next_step = Some(soot);
-        }
+        env.next_step = select_summary_next_step(false, true, 0);
         assert_eq!(
             env.next_step.as_deref(),
             Some(POLICY_BOOTSTRAP_SOOT_SHORT),
-            "AC8: T241 bootstrap must not be overwritten"
+            "AC8: T241 bootstrap must not be overwritten by T315"
         );
+        assert_eq!(
+            select_summary_next_step(true, true, 0).as_deref(),
+            Some(SUMMARY_NEXT_CONTEXT),
+            "T345 F7: unbound beats grants"
+        );
+    }
+
+    #[test]
+    fn select_summary_next_step__t315_when_healthy_identity() {
+        let soot = select_summary_next_step(false, false, 0).expect("T315");
+        assert_eq!(soot, r#"next: ai-brains recall "what did we decide""#);
+        assert!(select_summary_next_step(false, false, 1).is_none());
+    }
+
+    #[test]
+    fn location_unowned_for_pid__none_and_other_owner() {
+        let mine = ProjectId::from_str("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa").expect("uuid");
+        let other = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb";
+        assert!(location_unowned_for_pid(None, Some(&mine)));
+        assert!(location_unowned_for_pid(Some(other), Some(&mine)));
+        assert!(!location_unowned_for_pid(
+            Some("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"),
+            Some(&mine)
+        ));
+        assert!(!location_unowned_for_pid(None, None));
+        assert!(!location_unowned_for_pid(Some(other), None));
+    }
+
+    #[test]
+    fn extract_last_decision__strips_marker_and_truncates_bytes() {
+        assert_eq!(
+            extract_last_decision("HOTSPOT: x\nDECISION: Foo bar\nCONSTRAINT: y"),
+            Some("Foo bar".to_string())
+        );
+        assert_eq!(
+            extract_last_decision("ASSISTANT: DECISION: Foo bar unique"),
+            Some("Foo bar unique".to_string())
+        );
+        let over = format!("DECISION: {}", "a".repeat(120));
+        let got = extract_last_decision(&over).expect("truncated");
+        assert_eq!(got.len(), 100);
+        assert!(got.is_char_boundary(got.len()));
+        assert!(!got.starts_with("DECISION:"));
+        let cjk = format!("DECISION: {}你", "b".repeat(99));
+        let remainder = extract_last_decision(&cjk).expect("cjk");
+        assert_eq!(remainder.len(), 99);
+        assert!(!remainder.contains('你'));
+        assert!(remainder.is_char_boundary(remainder.len()));
+    }
+
+    #[test]
+    fn apply_session_card_lines__last_decision_before_next() {
+        let mut lines =
+            format_preflight_summary_lines("Scope: project=aaa", false, None, 0, 0, 0, 0, 0, 0);
+        apply_session_card_lines(
+            &mut lines,
+            true,
+            Some("bound"),
+            None,
+            Some("Foo"),
+            select_summary_next_step(false, false, 0),
+        );
+        let joined = lines.join("\n");
+        let dec_idx = lines
+            .iter()
+            .position(|l| l == "last_decision: Foo")
+            .expect("last_decision");
+        let next_idx = lines
+            .iter()
+            .position(|l| l.starts_with("next:"))
+            .expect("next");
+        assert!(dec_idx < next_idx, "order; got:\n{joined}");
+        assert!(!joined.contains("last_decision: DECISION:"));
+    }
+
+    #[test]
+    fn apply_session_card_lines__grants_win_exactly_one_next() {
+        let mut lines =
+            format_preflight_summary_lines("Scope: project=aaa", false, None, 0, 0, 0, 0, 0, 0);
+        apply_session_card_lines(
+            &mut lines,
+            true,
+            Some(r"C:\dev\bound"),
+            None,
+            None,
+            select_summary_next_step(false, true, 0),
+        );
+        let nexts: Vec<_> = lines.iter().filter(|l| l.starts_with("next:")).collect();
+        assert_eq!(
+            nexts.len(),
+            1,
+            "exactly one next:; got:\n{}",
+            lines.join("\n")
+        );
+        assert_eq!(nexts[0].as_str(), POLICY_BOOTSTRAP_SOOT_SHORT);
+        assert!(
+            !lines.iter().any(|l| l.contains("discovery grants")),
+            "F7: stop format_grants_incomplete_line on human card; got:\n{}",
+            lines.join("\n")
+        );
+        assert!(
+            lines.iter().any(
+                |l| l.starts_with("path=C:\\dev\\bound") || l.starts_with(r"path=C:\dev\bound")
+            )
+        );
+    }
+
+    #[test]
+    fn apply_session_card_lines__unbound__path_dash_next_context() {
+        let mut lines =
+            format_preflight_summary_lines("Scope: project=aaa", false, None, 0, 0, 0, 0, 0, 0);
+        apply_session_card_lines(
+            &mut lines,
+            true,
+            None,
+            None,
+            None,
+            select_summary_next_step(true, true, 0),
+        );
+        assert!(lines.iter().any(|l| l == "path=—"));
+        let nexts: Vec<_> = lines.iter().filter(|l| l.starts_with("next:")).collect();
+        assert_eq!(nexts.len(), 1);
+        assert_eq!(nexts[0].as_str(), SUMMARY_NEXT_CONTEXT);
+    }
+
+    #[test]
+    fn preflight_summary_json__path_e1_null_vs_omit() {
+        let mut env = build_preflight_summary_json(false, None, None, 0, 0, 0, 0, 0, 0);
+        env.path = Some(None);
+        let v: serde_json::Value = serde_json::to_value(&env).expect("json");
+        assert!(v.get("path").is_some());
+        assert!(v["path"].is_null());
+        env.path = None;
+        let global = serde_json::to_value(&env).expect("omit");
+        assert!(global.get("path").is_none());
     }
 
     /// T241 AC9: post-hoc grants line for incomplete discovery; complete omits.
@@ -1600,21 +1885,27 @@ mod tests {
         );
     }
 
-    /// T241 AC9: 9-arg formatters still compile; post-hoc append does not change arity.
+    /// T241 AC9 / T345 F1: 9-arg formatters still compile; session card is post-hoc.
     #[test]
     fn preflight_summary__post_hoc_grants_append__nine_arg_formatters() {
         let mut lines =
             format_preflight_summary_lines("Scope: project=aaa", false, None, 0, 0, 0, 0, 0, 0);
-        let before = lines.len();
-        if let Some(g) = format_grants_incomplete_line(0) {
-            lines.push(g);
-        }
-        assert_eq!(lines.len(), before + 1);
-        assert!(lines.last().unwrap().contains("policy bootstrap"));
+        apply_session_card_lines(
+            &mut lines,
+            true,
+            Some("bound"),
+            None,
+            None,
+            select_summary_next_step(false, true, 0),
+        );
+        let nexts: Vec<_> = lines.iter().filter(|l| l.starts_with("next:")).collect();
+        assert_eq!(nexts.len(), 1);
+        assert_eq!(nexts[0].as_str(), POLICY_BOOTSTRAP_SOOT_SHORT);
 
         let env = build_preflight_summary_json(false, None, None, 0, 0, 0, 0, 0, 0);
         assert!(env.grants_status.is_none());
         assert!(env.next_step.is_none());
+        assert!(env.path.is_none());
     }
 
     #[test]
