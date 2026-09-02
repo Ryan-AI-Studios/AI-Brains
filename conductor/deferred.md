@@ -2,6 +2,29 @@
 
 Tracks deferred from T142. Append-only; strike through when promoted to a real track.
 
+### T350–T355 fold-in (2026-09-02) — agy + opencode
+
+`/fold-in 350-355`. Specs stay **Planned** / registry **Pending**. last-PR `#278` Cursor usage-limit (0 inline). Fold-in DOCS TX `1245e38c-710b-4e66-ad99-c2fa53a28cd2`. No new placeholders.
+
+| Item | Disposition |
+|------|-------------|
+| T350 AC2 loopback RST / RFC 5737 | **Agree honesty** — AC2 stay-green; decline blackhole AC |
+| T350 `ClientBuilder::timeout` | **Agree** F1 connect-only |
+| T350 Ollama same hole | **Defer** T350-R3 |
+| T350 connect env | **Defer** T350-R4 |
+| T351 B1 T229-first vs 4 chunks | **Agree** F1 chunk raw first |
+| T351 `process_rows` isolated batch | **Agree** AC6b |
+| T351 httpmock in brain crate | **Decline crate** — in-process mock |
+| T352 `--bind` no pid / JSON stdout | **Agree** AC8 / F9 |
+| T352 `run_summary --no-project-context` | **Agree** AC2 spawn rules |
+| T353 insert after Active sessions | **Agree** F5 |
+| T354 AC1 already green / F6 omit false | **Agree** red fixture + global stay-green |
+| T354 governed Index helper | **Agree** F8 legacy-only |
+| T355 AC1 json len==1 / consecutive collapse | **Agree** F4 any-key |
+| T355 `--shared-only` | **Freeze** raw-row JSON (F9) |
+| `#278` Cursor | **N/A empty** — no new placeholder |
+| clap 5 / 0.1.6 / install / doctor 16th / T240 F2 | **Decline** |
+
 ### T350–T355 full plans (2026-09-02) — gold upgrade
 
 `/plan-track 350-355`. Specs **Planned** (F-list/ACs). Registry **Pending**. last-PR `#278` Cursor usage-limit. Gold DOCS TX `0576fb88-f71e-48d7-ae6c-bcf1ae962a61`.
