@@ -17,6 +17,8 @@ Version banners in documentation are maintained manually from the workspace `Car
 
 ### Added
 
+- **T348 Capture coverage this-project:** Default `capture coverage` is this env project (path-alias slug, else cwd/git toplevel) for disk, vault, and unbound Cursor folders. `--global` stays the machine table. Project JSON always has `scope` + `slug` (string or `null`); global omits `slug`. agy/codex project disk is JSON `null`.
+
 - **T347 Safety hotspot allow/deny:** `safety sync` and preflight Safety skip `deps_src/` / `third_party/` / `vendor/` / `.git/` path components and `score <= 0` (NaN/-inf included). Filter-empty prints `No repo-local hotspots above threshold` and names `safety sync --dry-run` without pinning. `--include-zero` keeps zero scores but still path-denies.
 
 - **T346 Retrieval empty-rescue:** When project-scoped FTS + LIKE retain 0, `recall`/`search` fill up to `--limit` Index-authority pins (`DECISION:` / `CONSTRAINT:` / `INVARIANT:`) with honesty `No FTS hits; showing in-scope pins` and JSON `source: "index"` (omit `score`). Pretty hides BM25 `score=`; JSON keeps it. Contentless / `--global` / no pins stay T261/T111. Lexical still does not probe embed.
