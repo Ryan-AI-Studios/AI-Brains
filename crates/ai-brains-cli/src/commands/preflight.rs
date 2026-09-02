@@ -1612,6 +1612,13 @@ mod tests {
         );
     }
 
+    #[test]
+    fn list_recall_query__t315__unchanged() {
+        assert_eq!(LIST_RECALL_QUERY, "what did we decide");
+        let soot = format_summary_empty_decisions_next(0).expect("zero");
+        assert_eq!(soot, r#"next: ai-brains recall "what did we decide""#);
+    }
+
     /// T315 AC4 / F8: insert after budget-window line, before footer.
     #[test]
     fn insert_after_budget_window_line__zero_decisions__after_word_count_before_footer() {

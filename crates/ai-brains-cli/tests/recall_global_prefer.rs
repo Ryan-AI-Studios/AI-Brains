@@ -102,8 +102,12 @@ fn recall__global_pretty__tags_project() {
         .and_then(|rest| rest.split_once(']'))
         .map(|(_, rest)| rest);
     assert!(
-        after_tag.is_some_and(|rest| rest.starts_with(" [score=") || rest.starts_with(" [rank=#")),
-        "AC4: leading project tag, one space, then [score= / [rank=#; owner_line={owner_line:?} stdout={pretty_out}"
+        after_tag.is_some_and(|rest| {
+            rest.starts_with(" [session=")
+                || rest.starts_with(" [score=")
+                || rest.starts_with(" [rank=#")
+        }),
+        "AC4: leading project tag, one space, then [session= / [score= / [rank=#; owner_line={owner_line:?} stdout={pretty_out}"
     );
 }
 
@@ -232,7 +236,11 @@ fn sync_query__global_pretty__tags_project() {
         .and_then(|rest| rest.split_once(']'))
         .map(|(_, rest)| rest);
     assert!(
-        after_tag.is_some_and(|rest| rest.starts_with(" [score=") || rest.starts_with(" [rank=#")),
+        after_tag.is_some_and(|rest| {
+            rest.starts_with(" [session=")
+                || rest.starts_with(" [score=")
+                || rest.starts_with(" [rank=#")
+        }),
         "AC15: sync pretty --global shares print_pretty_hits tags; owner_line={owner_line:?} stdout={pretty_out}"
     );
 }

@@ -62,7 +62,7 @@ Minted after PATH `0.1.5` dogfood from `C:\dev\Orca\OrcaSlicer-ZR`. Skill `.clau
 | T343-R1 long-doc | **Not stolen** |
 | T344–T345 / T347–T349 | **Not stolen** |
 | `#272` Cursor | **N/A** |
-| Soft | T346-R2 `--semantic` + embed-down 69s |
+| Soft | T346-R1 Porter; T346-R2 `--semantic`+embed-down; T346-R3 this-repo dumps; T346-R4 cold SQLCipher |
 | DOCS TX | `e7dff301-d478-49c1-99be-b808e798cf1d` |
 
 ### T347 full plan (2026-09-02) — hotspot allow/deny
