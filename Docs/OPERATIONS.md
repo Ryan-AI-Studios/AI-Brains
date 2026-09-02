@@ -1059,6 +1059,7 @@ If the graph features are missing on Windows, verify that the `graph` feature wa
 |---|---|
 | Initialize Vault | `ai-brains init` (use `--force` to overwrite populated vault) |
 | Show Context | `ai-brains context --show` |
+| Context auto-bind | `ai-brains context` (not `--show`) may bind the git toplevel and a unique slug alias. `--no-auto-bind` / `AI_BRAINS_NO_AUTO_BIND=1` skips. Doctor and preflight never bind. |
 | Sync Safety Signals | `ai-brains safety sync` (use `--dry-run` to preview) |
 | Unified Search | `ai-brains sync query "<topic>"` (searches vault + Ledgerful). Dash needles: `sync query -- --limit` |
 | Get Orientation | `ai-brains preflight` (use `--pretty` for full text, `--summary` for stats) |

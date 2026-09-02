@@ -2398,7 +2398,7 @@ enum Commands {
     /// Initialize or refresh the project context (first-init writes local .env; already-initialized ensures vault)
     #[command(
         display_order = 15,
-        after_help = "First-init (no .env) writes local .env with PROJECT_ID / SESSION_ID / HARNESS_ID.\nAlready-initialized (session present, no --new-project/--new-session) ensures those .env IDs exist in the open vault and does not rewrite .env.\n--show never writes .env or ensures vault."
+        after_help = "First-init (no .env) writes local .env with PROJECT_ID / SESSION_ID / HARNESS_ID.\nAlready-initialized (session present, no --new-project/--new-session) ensures those .env IDs exist in the open vault and does not rewrite .env.\n--show never writes .env or ensures vault.\nAfter vault ensure, `context` (not `--show`) may auto-bind the git toplevel via register-path and set a unique git-slug alias. Skip with --no-auto-bind or AI_BRAINS_NO_AUTO_BIND=1. Never steals a path owned by another project."
     )]
     Context {
         /// Force a fresh project ID even if one is detected
@@ -2413,6 +2413,9 @@ enum Commands {
         /// Optional Ledgerful transaction ID to link this context to
         #[arg(long, env = "LEDGERFUL_TX_ID")]
         tx_id: Option<String>,
+        /// Skip git toplevel path bind and unique-slug alias (T344)
+        #[arg(long)]
+        no_auto_bind: bool,
     },
     /// Pin a high-level decision or constraint directly to the vault
     #[command(display_order = 14)]
@@ -5943,7 +5946,15 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
             new_session,
             show,
             tx_id,
-        } => commands::context::run(&ctx, *new_project, *new_session, *show, tx_id.clone()),
+            no_auto_bind,
+        } => commands::context::run(
+            &ctx,
+            *new_project,
+            *new_session,
+            *show,
+            tx_id.clone(),
+            *no_auto_bind,
+        ),
         Commands::Pin {
             content,
             role,

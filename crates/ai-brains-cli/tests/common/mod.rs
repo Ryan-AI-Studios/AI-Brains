@@ -66,6 +66,8 @@ pub const AMBIENT_DENYLIST: &[&str] = &[
     "AI_BRAINS_SEMANTIC_MIN_SCORE",
     "AI_BRAINS_SEMANTIC_ONLY_MIN_SCORE",
     "AI_BRAINS_RRF_K",
+    // T344 F5: ambient auto-bind disable must not leak into hermetic bind ACs.
+    "AI_BRAINS_NO_AUTO_BIND",
 ];
 
 /// `cargo_bin("ai-brains")` with ambient denylist stripped.
