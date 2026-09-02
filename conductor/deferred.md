@@ -2,6 +2,86 @@
 
 Tracks deferred from T142. Append-only; strike through when promoted to a real track.
 
+### T350 implement (2026-09-02) — connect_timeout 2s
+
+FEATURE TX `754656cc-2401-4f60-aa0b-18be37d33ac5`. Cross-model CLEAN. Full gate + `ledgerful verify --scope full` exit 0.
+
+| Item | Disposition |
+|------|-------------|
+| T346-R2 embed-down RTT | **Absorbed** F1 |
+| T346-R4 SQLCipher pragma | **Not stolen** — T350-R1 |
+| Ollama `Client::new()` | **Not stolen** — T350-R3 |
+| Connect timeout env | **Not stolen** — T350-R4 |
+| `fetch_embedding` extra runtime | **Not stolen** — T350-R2 |
+
+### T350–T355 fold-in (2026-09-02) — agy + opencode
+
+`/fold-in 350-355`. Specs stay **Planned** / registry **Pending**. last-PR `#278` Cursor usage-limit (0 inline). Fold-in DOCS TX `1245e38c-710b-4e66-ad99-c2fa53a28cd2`. No new placeholders.
+
+| Item | Disposition |
+|------|-------------|
+| T350 AC2 loopback RST / RFC 5737 | **Agree honesty** — AC2 stay-green; decline blackhole AC |
+| T350 `ClientBuilder::timeout` | **Agree** F1 connect-only |
+| T350 Ollama same hole | **Defer** T350-R3 |
+| T350 connect env | **Defer** T350-R4 |
+| T351 B1 T229-first vs 4 chunks | **Agree** F1 chunk raw first |
+| T351 `process_rows` isolated batch | **Agree** AC6b |
+| T351 httpmock in brain crate | **Decline crate** — in-process mock |
+| T352 `--bind` no pid / JSON stdout | **Agree** AC8 / F9 |
+| T352 `run_summary --no-project-context` | **Agree** AC2 spawn rules |
+| T353 insert after Active sessions | **Agree** F5 |
+| T354 AC1 already green / F6 omit false | **Agree** red fixture + global stay-green |
+| T354 governed Index helper | **Agree** F8 legacy-only |
+| T355 AC1 json len==1 / consecutive collapse | **Agree** F4 any-key |
+| T355 `--shared-only` | **Freeze** raw-row JSON (F9) |
+| `#278` Cursor | **N/A empty** — no new placeholder |
+| clap 5 / 0.1.6 / install / doctor 16th / T240 F2 | **Decline** |
+
+### T350–T355 full plans (2026-09-02) — gold upgrade
+
+`/plan-track 350-355`. Specs **Planned** (F-list/ACs). Registry **Pending**. last-PR `#278` Cursor usage-limit. Gold DOCS TX `0576fb88-f71e-48d7-ae6c-bcf1ae962a61`.
+
+| Item | Disposition |
+|------|-------------|
+| T350 connect_timeout 2s / request 30s | **Absorb** T350 F1–F5 |
+| T350 SQLCipher pragma | **Decline** — T350-R1 |
+| T351 mean-pool one BLOB max 4 chunks | **Absorb** T351 F1–F5; cookbook heuristic documented |
+| T351 multi-vector / tokenize / Ollama embed | **Not stolen** T351-R2 / T343-R2 / R3 |
+| T352 `--summary --bind` | **Absorb** T344-R1; default summary stays query |
+| T352 doctor bind / default writer | **Decline** F1 |
+| T353 vault SQL capture line | **Absorb** T348-R1; no disk walk |
+| T354 Index Decision last_decision | **Absorb** T345-R2; counts unchanged |
+| T355 live collapse already in path crate | **Absorb** lock + coverage AC + human list-paths |
+| T355 UNC / `/mnt/wsl` | **Not stolen** |
+| `#278` Cursor | **N/A empty** |
+| Dependabot `#250–#256` | **Decline** |
+
+### T350–T355 placeholders (2026-09-02) — highest-benefit residuals after T344–T349
+
+Minted as **Placeholder** (no F-list). `/plan-track TNN` before go. last-PR `#278` Cursor = usage-limit only. Dependabot `#250–#256` **Decline**. DOCS TX `f43bed7c-f352-44f3-8f38-7f3ee0b58c3e`.
+
+| Item | Disposition |
+|------|-------------|
+| T346-R2 `--semantic` + embed-down RTT | **Promoted T350** |
+| T346-R4 cold SQLCipher / first-open stall | **Promoted T350** |
+| T343-R1 chunk + mean-pool | **Promoted T351** |
+| T344-R1 preflight auto-bind | **Promoted T352** |
+| T348-R1 / T345-R1 remainder (`--summary` coverage line) | **Promoted T353** |
+| T345-R2 last_decision from Index SQL | **Promoted T354** |
+| T348-R3 twin alias slug-collide | **Promoted T355** |
+| T342-R3 dual stored Windows + `/mnt/c` aliases | **Promoted T355** |
+| T346-R1 Porter / T346-R3 this-repo dumps | **Not stolen** |
+| T343-R2 tokenize / R3 Ollama `/api/embed` / R4 nomic cap | **Not stolen** |
+| T344-R2 nongit cwd / T344-R3 origin≠folder | **Not stolen** |
+| T348-R2 agy/codex this-project disk | **Not stolen** |
+| T342-R1 UNC / T342-R2 `/mnt/wsl` / T341-R2 / T341-R3 | **Not stolen** |
+| T349-R1–R5 glance leftovers | **Not stolen** |
+| T347-R1–R4 hotspot edges | **Not stolen** |
+| T336 auto-approve / T340-R4 | **Decline** / workflow |
+| Doctor verbosity / auto bootstrap / adopt-path | **Decline** (T344–T349 standing) |
+| `#278` Cursor leftover | **N/A empty** |
+| clap 5 / 0.1.6 / `cargo install` | **Decline** |
+
 ### T344–T349 placeholders (2026-09-02) — OrcaSlicer-ZR dogfood
 
 Minted after PATH `0.1.5` dogfood from `C:\dev\Orca\OrcaSlicer-ZR`. Skill `.claude/skills/ai-brains/SKILL.md` rewritten this pass (session start = `preflight --summary`, not `context --show`). last-PR `#272` Cursor = usage-limit only.
@@ -62,7 +142,7 @@ Minted after PATH `0.1.5` dogfood from `C:\dev\Orca\OrcaSlicer-ZR`. Skill `.clau
 | T343-R1 long-doc | **Not stolen** |
 | T344–T345 / T347–T349 | **Not stolen** |
 | `#272` Cursor | **N/A** |
-| Soft | T346-R1 Porter; T346-R2 `--semantic`+embed-down; T346-R3 this-repo dumps; T346-R4 cold SQLCipher |
+| Soft | T346-R1 Porter; ~~T346-R2 `--semantic`+embed-down~~ **T350**; T346-R3 this-repo dumps; ~~T346-R4 cold SQLCipher~~ **T350** |
 | DOCS TX | `e7dff301-d478-49c1-99be-b808e798cf1d` |
 
 ### T347 full plan (2026-09-02) — hotspot allow/deny
@@ -134,9 +214,9 @@ Minted after PATH `0.1.5` dogfood from `C:\dev\Orca\OrcaSlicer-ZR`. Skill `.clau
 
 | Item | Disposition |
 |------|-------------|
-| T348-R1 preflight `--summary` coverage line | **Residual** — T345 F5 stay |
+| T348-R1 preflight `--summary` coverage line | **Promoted T353** |
 | T348-R2 agy/codex this-project disk | **Residual** — no JSONL peek |
-| T348-R3 twin alias slug-collide | **Residual** — T342-R3 adjacent |
+| T348-R3 twin alias slug-collide | **Promoted T355** |
 | T341-R3 numeric Cursor dirs on `--global` | **Residual** — filtered from default |
 | FEATURE TX | `af71b438-0967-406d-bba5-b579dd5b4e98` |
 
@@ -155,14 +235,14 @@ Minted after PATH `0.1.5` dogfood from `C:\dev\Orca\OrcaSlicer-ZR`. Skill `.clau
 | Item | Disposition |
 |------|-------------|
 | T345-R1 coverage line | **Absorbed T348** — CLI this-project vs `--global`; no `--summary` line |
-| T345-R2 last_decision from Index SQL | **Residual** — budget scan is DoD |
+| T345-R2 last_decision from Index SQL | **Promoted T354** |
 | FEATURE TX | `442c7c04-e00c-4401-9b02-a483efb9e0fa` |
 
 ### T344 implement (2026-09-02) — residuals remain
 
 | Item | Disposition |
 |------|-------------|
-| T344-R1 preflight auto-bind | **Residual** — CQRS declined; T345 next-line names `context` |
+| T344-R1 preflight auto-bind | **Promoted T352** |
 | T344-R2 nongit cwd bind | **Residual** — owner said repos only |
 | T344-R3 origin slug ≠ folder name | **Residual** — exact-unique may skip; operator `set-alias` |
 | FEATURE TX | `a0230aa9-62da-417f-90c6-14779ccccd70` |
@@ -171,7 +251,7 @@ Minted after PATH `0.1.5` dogfood from `C:\dev\Orca\OrcaSlicer-ZR`. Skill `.clau
 
 | Item | Disposition |
 |------|-------------|
-| T343-R1 Chunk + mean-pool (OpenAI cookbook `average`) | **Residual** — better long-doc recall; extra HTTP |
+| T343-R1 Chunk + mean-pool (OpenAI cookbook `average`) | **Promoted T351** |
 | T343-R2 Pack with `tokenize()` | **Residual** — exact vs char estimate; extra RTT; F12 froze char count |
 | T343-R3 Ollama `/api/embed` native batch | **Residual** — live crate still `/api/embeddings` |
 | T343-R4 nomic tokenizer vs char cap | **Residual** — Codex P1; char cap may still miss token-dense CJK vs `--ubatch-size` |
@@ -222,7 +302,7 @@ Minted after PATH `0.1.5` dogfood from `C:\dev\Orca\OrcaSlicer-ZR`. Skill `.clau
 |------|-------------|
 | T342-R1 `\\wsl$\Distro\…` / `\\wsl.localhost\…` folder identity | **Residual** — different UNC encoder; no live folders |
 | T342-R2 `/mnt/wsl` / `/mnt/wslg` mounts | **Residual** — `wsl_to_windows` rejects non-single-letter |
-| T342-R3 Two stored aliases (Windows + `/mnt/c`) for the same repo | **Residual** — F9 first-wins |
+| T342-R3 Two stored aliases (Windows + `/mnt/c`) for the same repo | **Promoted T355** |
 | BUGFIX TX | `6d6c7b95-f197-4cb1-9c85-5c8804af10b3` |
 
 ### T342 full plan (2026-09-01) — WSL/Windows Cursor slug twins
