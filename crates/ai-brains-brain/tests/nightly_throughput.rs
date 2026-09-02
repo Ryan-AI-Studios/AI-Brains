@@ -282,6 +282,76 @@ impl ModelProvider for PhaseOrderProvider {
     }
 }
 
+/// T343 AC1: count `embed_batch` invocations (never `embed_calls`).
+struct CountingBatchProvider {
+    embed_batch_calls: AtomicUsize,
+    embed_calls: AtomicUsize,
+    captured_texts: Mutex<Vec<String>>,
+    batch_lens: Mutex<Vec<usize>>,
+}
+
+impl CountingBatchProvider {
+    fn new() -> Self {
+        Self {
+            embed_batch_calls: AtomicUsize::new(0),
+            embed_calls: AtomicUsize::new(0),
+            captured_texts: Mutex::new(Vec::new()),
+            batch_lens: Mutex::new(Vec::new()),
+        }
+    }
+}
+
+#[async_trait]
+impl ModelProvider for CountingBatchProvider {
+    async fn complete(&self, _request: CompletionRequest) -> ModelResult<CompletionResponse> {
+        Ok(CompletionResponse {
+            text: "NO CONFLICT".to_string(),
+            model: "count-batch".to_string(),
+        })
+    }
+
+    async fn embed(&self, _request: EmbeddingRequest) -> ModelResult<EmbeddingResponse> {
+        self.embed_calls.fetch_add(1, Ordering::SeqCst);
+        Ok(EmbeddingResponse {
+            vector: vec![0.1; 8],
+        })
+    }
+
+    async fn embed_batch(&self, texts: Vec<String>) -> ModelResult<Vec<EmbeddingResponse>> {
+        self.embed_batch_calls.fetch_add(1, Ordering::SeqCst);
+        if let Ok(mut lens) = self.batch_lens.lock() {
+            lens.push(texts.len());
+        }
+        if let Ok(mut cap) = self.captured_texts.lock() {
+            cap.extend(texts.iter().cloned());
+        }
+        Ok(texts
+            .iter()
+            .map(|_| EmbeddingResponse {
+                vector: vec![0.25; 8],
+            })
+            .collect())
+    }
+
+    async fn tokenize(&self, request: TokenizeRequest) -> ModelResult<TokenizeResponse> {
+        let tokens = request
+            .text
+            .split_whitespace()
+            .enumerate()
+            .map(|(i, _)| i as u32)
+            .collect();
+        Ok(TokenizeResponse { tokens })
+    }
+
+    fn name(&self) -> &str {
+        "count-batch"
+    }
+
+    fn is_local(&self) -> bool {
+        true
+    }
+}
+
 #[test]
 fn nightly__deadline_unparseable__defaults_150() {
     assert_eq!(parse_deadline_minutes(Some("abc")), 150);
@@ -503,7 +573,7 @@ async fn backfill_recent__old_pinned_null_embedding__included_when_since_none()
         missed.iter().all(|(mid, _)| mid != &id.to_string()),
         "Some(7) must miss 30-day-old row"
     );
-    let (success, failed) = service.backfill_recent(10, None).await?;
+    let (success, failed, _truncated) = service.backfill_recent(10, None).await?;
     assert_eq!(failed, 0);
     assert!(success >= 1, "since_days=None must embed the old pin");
     Ok(())
@@ -735,5 +805,130 @@ async fn nightly_embed__catchup__runs_before_synthesis() -> Result<(), Box<dyn s
         embed_at < complete_at,
         "embedding catch-up must run before synthesis (spec summarize then embed); order={order:?}"
     );
+    Ok(())
+}
+
+#[tokio::test]
+async fn backfill_catchup__sixteen_memories_batch_eight__two_http()
+-> Result<(), Box<dyn std::error::Error>> {
+    let _lock = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let _batch = TempEnv::set("AI_BRAINS_EMBED_HTTP_BATCH", "8");
+    let (_dir, _vault, event_store, query_store) = open_vault()?;
+    let project_id = ProjectId::new();
+    register_project(event_store.as_ref(), project_id)?;
+    for i in 0..16 {
+        seed_memory(
+            event_store.as_ref(),
+            project_id,
+            Privacy::LocalOnly,
+            &format!("batch mem {i}"),
+        )?;
+    }
+    let provider = Arc::new(CountingBatchProvider::new());
+    let service = EmbeddingService::new(query_store, provider.clone());
+    let (success, failed, truncated) = service
+        .backfill_catchup(&NightlyDeadline::from_minutes(150), 200)
+        .await?;
+    assert_eq!(failed, 0);
+    assert_eq!(truncated, 0);
+    assert_eq!(success, 16);
+    assert_eq!(
+        provider.embed_batch_calls.load(Ordering::SeqCst),
+        2,
+        "16 memories at batch 8 must be two HTTP embed_batch calls"
+    );
+    assert_eq!(
+        provider.embed_calls.load(Ordering::SeqCst),
+        0,
+        "packer must call embed_batch, not embed"
+    );
+    let lens = provider
+        .batch_lens
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    assert_eq!(&*lens, &[8, 8]);
+    Ok(())
+}
+
+#[tokio::test]
+async fn backfill_catchup__ten_memories_batch_eight__flushes_trailing_two()
+-> Result<(), Box<dyn std::error::Error>> {
+    let _lock = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let _batch = TempEnv::set("AI_BRAINS_EMBED_HTTP_BATCH", "8");
+    let (_dir, _vault, event_store, query_store) = open_vault()?;
+    let project_id = ProjectId::new();
+    register_project(event_store.as_ref(), project_id)?;
+    for i in 0..10 {
+        seed_memory(
+            event_store.as_ref(),
+            project_id,
+            Privacy::LocalOnly,
+            &format!("trail mem {i}"),
+        )?;
+    }
+    let provider = Arc::new(CountingBatchProvider::new());
+    let service = EmbeddingService::new(query_store, provider.clone());
+    let (success, failed, _truncated) = service
+        .backfill_catchup(&NightlyDeadline::from_minutes(150), 200)
+        .await?;
+    assert_eq!(failed, 0);
+    assert_eq!(success, 10);
+    assert_eq!(
+        provider.embed_batch_calls.load(Ordering::SeqCst),
+        2,
+        "page of 10 at batch 8 must flush 8 then trailing 2"
+    );
+    let lens = provider
+        .batch_lens
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    assert_eq!(&*lens, &[8, 2]);
+    Ok(())
+}
+
+#[tokio::test]
+async fn backfill_catchup__over_2048_scalar_memory__truncated_counted_and_stored()
+-> Result<(), Box<dyn std::error::Error>> {
+    let _lock = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let _batch = TempEnv::set("AI_BRAINS_EMBED_HTTP_BATCH", "8");
+    let (_dir, vault, event_store, query_store) = open_vault()?;
+    let project_id = ProjectId::new();
+    register_project(event_store.as_ref(), project_id)?;
+    let long = "a".repeat(3000);
+    let id = seed_memory(event_store.as_ref(), project_id, Privacy::LocalOnly, &long)?;
+    let provider = Arc::new(CountingBatchProvider::new());
+    let service = EmbeddingService::new(query_store, provider.clone());
+    let (success, failed, truncated) = service
+        .backfill_catchup(&NightlyDeadline::from_minutes(150), 200)
+        .await?;
+    assert_eq!(failed, 0);
+    assert_eq!(success, 1);
+    assert!(
+        truncated >= 1,
+        "ASCII >2048 scalars must increment truncated, got {truncated}"
+    );
+    {
+        let conn = vault.lock()?;
+        let blob: Option<Vec<u8>> = conn.query_row(
+            "SELECT embedding FROM memory_projection WHERE memory_id = ?",
+            [id.to_string()],
+            |row| row.get(0),
+        )?;
+        assert!(
+            blob.as_ref().is_some_and(|b| !b.is_empty()),
+            "truncated memory must still store a vector"
+        );
+    }
+    let captured = provider
+        .captured_texts
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    assert_eq!(captured.len(), 1);
+    assert!(
+        captured[0].chars().count() <= 2048,
+        "POST body must be <=2048 scalars, got {}",
+        captured[0].chars().count()
+    );
+    assert!(std::str::from_utf8(captured[0].as_bytes()).is_ok());
     Ok(())
 }

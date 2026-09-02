@@ -2,6 +2,16 @@
 
 Tracks deferred from T142. Append-only; strike through when promoted to a real track.
 
+### T343 implement (2026-09-01) — residuals remain
+
+| Item | Disposition |
+|------|-------------|
+| T343-R1 Chunk + mean-pool (OpenAI cookbook `average`) | **Residual** — better long-doc recall; extra HTTP |
+| T343-R2 Pack with `tokenize()` | **Residual** — exact vs char estimate; extra RTT; F12 froze char count |
+| T343-R3 Ollama `/api/embed` native batch | **Residual** — live crate still `/api/embeddings` |
+| T343-R4 nomic tokenizer vs char cap | **Residual** — Codex P1; char cap may still miss token-dense CJK vs `--ubatch-size` |
+| FEATURE TX | `cb463b7f-cd15-41f9-bc4e-1de19de60c6b` |
+
 ### T343 fold-in (2026-09-01) — `agy-review.md` + `opencode-review.md`
 
 | Item | Disposition |

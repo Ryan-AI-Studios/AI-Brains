@@ -11,6 +11,12 @@ pub const DEADLINE_ENV: &str = "AI_BRAINS_NIGHTLY_DEADLINE_MINUTES";
 pub const EMBED_CHUNK_ENV: &str = "AI_BRAINS_EMBED_CHUNK";
 /// Default embed keyset page size when env is unset or invalid.
 pub const DEFAULT_EMBED_CHUNK: usize = 200;
+/// Env key for inner HTTP batch size (T343). Invalid / empty / `0` → [`DEFAULT_EMBED_HTTP_BATCH`].
+pub const EMBED_HTTP_BATCH_ENV: &str = "AI_BRAINS_EMBED_HTTP_BATCH";
+/// Default texts per `/v1/embeddings` POST when env is unset or invalid.
+pub const DEFAULT_EMBED_HTTP_BATCH: usize = 8;
+/// Inclusive max texts per llama.cpp embed POST (FIFO vs recall).
+pub const MAX_EMBED_HTTP_BATCH: usize = 8;
 
 enum DeadlineKind {
     AlreadyExpired,
@@ -136,6 +142,30 @@ pub fn parse_embed_chunk_from_env() -> usize {
     parse_embed_chunk(std::env::var(EMBED_CHUNK_ENV).ok().as_deref())
 }
 
+/// Parse `AI_BRAINS_EMBED_HTTP_BATCH`: invalid / empty / `0` → 8; clamp **1..=8**.
+pub fn parse_embed_http_batch(raw: Option<&str>) -> usize {
+    match raw {
+        None => DEFAULT_EMBED_HTTP_BATCH,
+        Some(s) => {
+            let t = s.trim();
+            if t.is_empty() {
+                DEFAULT_EMBED_HTTP_BATCH
+            } else {
+                match t.parse::<usize>() {
+                    Ok(0) | Err(_) => DEFAULT_EMBED_HTTP_BATCH,
+                    Ok(n) if n > MAX_EMBED_HTTP_BATCH => DEFAULT_EMBED_HTTP_BATCH,
+                    Ok(n) => n,
+                }
+            }
+        }
+    }
+}
+
+/// Read [`EMBED_HTTP_BATCH_ENV`] from the process environment.
+pub fn parse_embed_http_batch_from_env() -> usize {
+    parse_embed_http_batch(std::env::var(EMBED_HTTP_BATCH_ENV).ok().as_deref())
+}
+
 #[cfg(test)]
 #[allow(clippy::disallowed_methods, non_snake_case)]
 mod tests {
@@ -161,6 +191,18 @@ mod tests {
         assert_eq!(parse_embed_chunk(Some("abc")), 200);
         assert_eq!(parse_embed_chunk(Some("50")), 50);
         assert_eq!(parse_embed_chunk(Some("200")), 200);
+    }
+
+    #[test]
+    fn parse_embed_http_batch__invalid_zero_over_eight__clamps_default() {
+        assert_eq!(parse_embed_http_batch(None), 8);
+        assert_eq!(parse_embed_http_batch(Some("")), 8);
+        assert_eq!(parse_embed_http_batch(Some("0")), 8);
+        assert_eq!(parse_embed_http_batch(Some("abc")), 8);
+        assert_eq!(parse_embed_http_batch(Some("4")), 4);
+        assert_eq!(parse_embed_http_batch(Some("99")), 8);
+        assert_eq!(parse_embed_http_batch(Some("1")), 1);
+        assert_eq!(parse_embed_http_batch(Some("8")), 8);
     }
 
     #[test]

@@ -17,6 +17,8 @@ Version banners in documentation are maintained manually from the workspace `Car
 
 ### Added
 
+- **T343 Embed backfill HTTP batch + ubatch guard:** Catch-up POSTs `input: [...]` (default **8**, `AI_BRAINS_EMBED_HTTP_BATCH`, clamp 1..=8) with a trailing 1..=7 flush; 50ms yield once per HTTP. After T229’s 4000-byte truncate, prefix-truncate to **2048** unicode scalars. Persist `last_embed_http_batch` / `last_embedding_truncated`; `nightly --status` additive JSON (`schema_version` still **1**; missing → **null**). SYSTEM wrapper bakes the HTTP-batch env when set. No router / `-b/-ub` change. Port **8083**.
+
 - **T342 WSL/Windows Cursor slug twins:** `cursor_project_slug_candidates` adds a `/mnt/<drive>/` ↔ `X:\` twin so Cursor-on-WSL folders `mnt-c-…` bind to a Windows alias (and the reverse). T341 `cursor_project_slug` is unchanged. Coverage unbound list uses the same candidates.
 
 - **T341 Unix Cursor slug bind:** `cursor_project_slug` drops leading/trailing `/` before mapping separators so `/Users/…` matches Cursor `Users-…` folders. Windows drive paths, drive-root `c-`, and UNC `--server-share` stay-green. Same encoder feeds T337 coverage.
