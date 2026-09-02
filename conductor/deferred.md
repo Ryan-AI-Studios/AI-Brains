@@ -117,6 +117,14 @@ Minted after PATH `0.1.5` dogfood from `C:\dev\Orca\OrcaSlicer-ZR`. Skill `.clau
 | `#272` Cursor | **N/A** usage-limit — no new placeholder |
 | Fold-in DOCS TX | `f5c8b5ca-076a-4593-bbd5-f25f73ee5493` |
 
+### T345 implement (2026-09-02) — residuals remain
+
+| Item | Disposition |
+|------|-------------|
+| T345-R1 coverage line | **Residual** — T348 |
+| T345-R2 last_decision from Index SQL | **Residual** — budget scan is DoD |
+| FEATURE TX | `442c7c04-e00c-4401-9b02-a483efb9e0fa` |
+
 ### T344 implement (2026-09-02) — residuals remain
 
 | Item | Disposition |

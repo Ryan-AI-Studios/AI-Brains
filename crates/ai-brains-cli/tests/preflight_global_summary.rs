@@ -295,15 +295,41 @@ fn preflight_summary__project_scoped_empty_grants__next_bootstrap_line() {
 
     let proj = dir.path().join("proj-grants");
     let id = register_project(&vault, &proj);
+    hermetic()
+        .current_dir(&proj)
+        .arg("--no-project-context")
+        .arg("--vault-path")
+        .arg(&vault)
+        .arg("project")
+        .arg("register-path")
+        .arg(&id)
+        .arg(&proj)
+        .assert()
+        .success();
 
-    // Human: incomplete discovery → grants line with short SOOT.
-    let (code, stdout, stderr) = run_summary(&vault, &[], Some(&id));
-    assert_eq!(code, 0, "project summary exit 0; stderr={stderr}");
+    // Human: path bound + incomplete discovery → one next: bootstrap SOOT (T345 F7).
+    let mut human = hermetic();
+    human
+        .current_dir(&proj)
+        .arg("--no-project-context")
+        .arg("--vault-path")
+        .arg(&vault)
+        .env("AI_BRAINS_PROJECT_ID", &id)
+        .arg("preflight")
+        .arg("--summary");
+    let hout = human.output().expect("project summary");
+    let stdout = String::from_utf8_lossy(&hout.stdout);
+    assert_eq!(
+        hout.status.code(),
+        Some(0),
+        "stderr={}",
+        String::from_utf8_lossy(&hout.stderr)
+    );
+    let nexts: Vec<_> = stdout.lines().filter(|l| l.starts_with("next:")).collect();
+    assert_eq!(nexts.len(), 1, "T345 F7 one next:; got:\n{stdout}");
     assert!(
-        stdout.contains("policy bootstrap")
-            && (stdout.contains("discovery grants empty")
-                || stdout.contains("discovery grants incomplete")),
-        "T241 AC9 human must post-hoc append grants/next line; got:\n{stdout}"
+        nexts[0].contains("policy bootstrap"),
+        "T241/T345 grants rung; got:\n{stdout}"
     );
 
     // Global must not include grants line.
@@ -316,9 +342,26 @@ fn preflight_summary__project_scoped_empty_grants__next_bootstrap_line() {
     );
 
     // JSON summary: additive grants_status / next_step when incomplete.
-    let (jcode, jstdout, jstderr) = run_summary(&vault, &["--format", "json"], Some(&id));
-    assert_eq!(jcode, 0, "json summary exit 0; stderr={jstderr}");
-    let v: serde_json::Value = serde_json::from_str(&jstdout).expect("summary json");
+    let mut json_cmd = hermetic();
+    json_cmd
+        .current_dir(&proj)
+        .arg("--no-project-context")
+        .arg("--vault-path")
+        .arg(&vault)
+        .env("AI_BRAINS_PROJECT_ID", &id)
+        .arg("preflight")
+        .arg("--summary")
+        .arg("--format")
+        .arg("json");
+    let jout = json_cmd.output().expect("json summary");
+    assert_eq!(
+        jout.status.code(),
+        Some(0),
+        "stderr={}",
+        String::from_utf8_lossy(&jout.stderr)
+    );
+    let jstdout = String::from_utf8_lossy(&jout.stdout);
+    let v: serde_json::Value = serde_json::from_str(jstdout.trim()).expect("summary json");
     let status = v["grants_status"].as_str().unwrap_or("");
     assert!(
         status.contains("discovery grants"),
@@ -332,7 +375,8 @@ fn preflight_summary__project_scoped_empty_grants__next_bootstrap_line() {
 
     // CX2: explicit --project-id (no AI_BRAINS_PROJECT_ID) must still probe that project.
     let mut cmd = hermetic();
-    cmd.arg("--no-project-context")
+    cmd.current_dir(&proj)
+        .arg("--no-project-context")
         .arg("--vault-path")
         .arg(&vault)
         .env_remove("AI_BRAINS_PROJECT_ID")
@@ -348,10 +392,17 @@ fn preflight_summary__project_scoped_empty_grants__next_bootstrap_line() {
         String::from_utf8_lossy(&out.stderr)
     );
     let flag_stdout = String::from_utf8_lossy(&out.stdout);
+    let flag_nexts: Vec<_> = flag_stdout
+        .lines()
+        .filter(|l| l.starts_with("next:"))
+        .collect();
+    assert_eq!(
+        flag_nexts.len(),
+        1,
+        "explicit --project-id one next:; got:\n{flag_stdout}"
+    );
     assert!(
-        flag_stdout.contains("policy bootstrap")
-            && (flag_stdout.contains("discovery grants empty")
-                || flag_stdout.contains("discovery grants incomplete")),
+        flag_nexts[0].contains("policy bootstrap"),
         "explicit --project-id must wire grants probe to that scope; got:\n{flag_stdout}"
     );
 }
