@@ -23,7 +23,7 @@ const LABEL_COL_CHARS: usize = 30;
 const PATH_COL_CHARS: usize = 40;
 
 /// T212: list projects label-first (human table or JSON).
-pub fn list(ctx: &AppContext, format: &str) -> Result<(), Box<dyn std::error::Error>> {
+pub fn list(ctx: &AppContext, format: &str, all: bool) -> Result<(), Box<dyn std::error::Error>> {
     let projects = ctx.conn.list_projects_detail()?;
     let active_id = std::env::var("AI_BRAINS_PROJECT_ID")
         .ok()
@@ -53,6 +53,11 @@ pub fn list(ctx: &AppContext, format: &str) -> Result<(), Box<dyn std::error::Er
     };
     let display =
         crate::commands::project_list_order::promote_cwd_owner(&projects, cwd_owner.as_deref());
+    let (display, more) = crate::commands::project_list_order::filter_human_list_rows(
+        &display,
+        cwd_owner.as_deref(),
+        all,
+    );
 
     for row in &display {
         let label = display_label(&row.name, &row.alias, &row.project_id);
@@ -70,6 +75,9 @@ pub fn list(ctx: &AppContext, format: &str) -> Result<(), Box<dyn std::error::Er
             "{:<30} {:<36} {:>8} {:<12} {}",
             label_disp, row.project_id, row.memory_count, activity, path_disp
         );
+    }
+    if more > 0 {
+        println!("+{more} more (ai-brains project list --all)");
     }
 
     // F8: no-alias footer on stderr (data stays on stdout).
@@ -749,6 +757,9 @@ pub fn whoami(ctx: &AppContext, format: &str) -> Result<(), Box<dyn std::error::
     if use_json {
         print_json_stdout(&report)?;
     } else {
+        if let Some(ref warn) = report.slug_miss_warning {
+            eprintln!("{warn}");
+        }
         emit_whoami_human(&report);
     }
     Ok(())
@@ -768,6 +779,9 @@ struct WhoamiReport {
     mismatch: bool,
     identity_collision: bool,
     remediations: Vec<String>,
+    /// Human-only stderr SOOT (T349 F6). Never serialized.
+    #[serde(skip)]
+    slug_miss_warning: Option<String>,
 }
 
 fn build_whoami_report(
@@ -875,6 +889,7 @@ fn build_whoami_report(
         .as_ref()
         .map(|o| o.project.2.as_str())
         .unwrap_or("");
+    let mut slug_miss_warning = None;
     if !identity_collision
         && crate::commands::identity_warn::should_emit_slug_miss_env_fallback(
             &detect_source,
@@ -898,6 +913,7 @@ fn build_whoami_report(
                 &path_display,
             ),
         );
+        slug_miss_warning = env_fallback_warning(slug, env_id, env_name, env_alias);
     }
 
     Ok(WhoamiReport {
@@ -912,6 +928,7 @@ fn build_whoami_report(
         mismatch,
         identity_collision,
         remediations,
+        slug_miss_warning,
     })
 }
 

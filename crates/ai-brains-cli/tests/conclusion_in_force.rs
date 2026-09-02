@@ -380,6 +380,47 @@ fn conclusion_in_force__policy_denied__exit_3_omits_required_scope() {
 }
 
 #[test]
+fn conclusion_in_force__format_human__long_hint_stay_green() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+    let scope = format!("Repository:{PROJECT}");
+
+    let out = common::hermetic_bin()
+        .arg("--no-project-context")
+        .arg("--vault-path")
+        .arg(&vault)
+        .arg("conclusion")
+        .arg("in-force")
+        .arg("workspace_id")
+        .arg("--scope")
+        .arg(&scope)
+        .arg("--format")
+        .arg("human")
+        .arg("--principal-id")
+        .arg(PRINCIPAL)
+        .output()
+        .expect("conclusion human deny");
+
+    assert_eq!(
+        out.status.code(),
+        Some(3),
+        "deny must exit 3; stderr={} stdout={}",
+        String::from_utf8_lossy(&out.stderr),
+        String::from_utf8_lossy(&out.stdout)
+    );
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        stderr.contains("POLICY_DENIED:"),
+        "human deny prefix; stderr={stderr}"
+    );
+    assert!(
+        stderr.contains("omit --scope"),
+        "conclusion human deny stays LONG HINT; stderr={stderr}"
+    );
+}
+
+#[test]
 fn conclusion_in_force__unknown_term__ruling_key_null() {
     let dir = tempdir().unwrap();
     let vault = dir.path().join("vault.db");

@@ -31,6 +31,28 @@ pub(crate) fn promote_cwd_owner(
     out
 }
 
+/// Human table density (T349 F3): keep cwd-owner even at 0 memories; hide other
+/// zeros; cap 20 unless `--all`. JSON callers never use this.
+pub(crate) const HUMAN_LIST_CAP: usize = 20;
+
+pub(crate) fn filter_human_list_rows(
+    display: &[ProjectListDetail],
+    cwd_owner: Option<&str>,
+    all: bool,
+) -> (Vec<ProjectListDetail>, usize) {
+    if all {
+        return (display.to_vec(), 0);
+    }
+    let filtered: Vec<ProjectListDetail> = display
+        .iter()
+        .filter(|row| row.memory_count > 0 || Some(row.project_id.as_str()) == cwd_owner)
+        .cloned()
+        .collect();
+    let more = filtered.len().saturating_sub(HUMAN_LIST_CAP);
+    let shown = filtered.into_iter().take(HUMAN_LIST_CAP).collect();
+    (shown, more)
+}
+
 #[cfg(test)]
 #[allow(clippy::disallowed_methods, non_snake_case)]
 mod tests {
@@ -81,5 +103,31 @@ mod tests {
 
         let empty: Vec<ProjectListDetail> = Vec::new();
         assert_eq!(promote_cwd_owner(&empty, owner), empty);
+    }
+
+    #[test]
+    fn filter_human_list_rows__hides_non_cwd_zeros_keeps_cwd_zero() {
+        let rows = vec![row("cwd", 0), row("other", 0), row("hot", 3)];
+        let (shown, more) = filter_human_list_rows(&rows, Some("cwd"), false);
+        assert_eq!(ids(&shown), ["cwd", "hot"]);
+        assert_eq!(more, 0);
+        let (all, more_all) = filter_human_list_rows(&rows, Some("cwd"), true);
+        assert_eq!(ids(&all), ["cwd", "other", "hot"]);
+        assert_eq!(more_all, 0);
+    }
+
+    #[test]
+    fn filter_human_list_rows__caps_at_20_with_more() {
+        let mut rows = vec![row("cwd", 0)];
+        for i in 0..25 {
+            rows.push(row(&format!("p{i}"), 1));
+        }
+        let (shown, more) = filter_human_list_rows(&rows, Some("cwd"), false);
+        assert_eq!(shown.len(), HUMAN_LIST_CAP);
+        assert_eq!(shown[0].project_id, "cwd");
+        assert_eq!(more, 6);
+        let (all, more_all) = filter_human_list_rows(&rows, Some("cwd"), true);
+        assert_eq!(all.len(), 26);
+        assert_eq!(more_all, 0);
     }
 }

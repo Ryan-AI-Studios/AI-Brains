@@ -311,3 +311,116 @@ fn project_list__human__no_path_owner__memory_desc() {
         "AC6: unregistered cwd must not promote; line={first}"
     );
 }
+
+#[test]
+fn project_list__human_hides_zero_memory_and_caps() {
+    let dir = tempdir().unwrap();
+    let (vault, leftover_id, cwd_dir, cwd_id) = leftover_vs_cwd_fixture(dir.path());
+
+    let extra_dir = dir.path().join("zero-other");
+    let extra_id = register_project(&vault, &extra_dir);
+
+    let out = hermetic()
+        .current_dir(&cwd_dir)
+        .arg("--no-project-context")
+        .arg("--vault-path")
+        .arg(&vault)
+        .arg("project")
+        .arg("list")
+        .output()
+        .expect("project list");
+    assert_eq!(
+        out.status.code(),
+        Some(0),
+        "stderr={}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    let first = stdout.lines().nth(1).expect("first data row");
+    assert!(
+        first.contains(&cwd_id),
+        "cwd-owner with 0 memories stays first; line={first}"
+    );
+    assert!(
+        stdout.contains(&leftover_id),
+        "nonzero leftover stays; {stdout}"
+    );
+    assert!(
+        !stdout.contains(&extra_id),
+        "non-cwd 0-memory row hidden; {stdout}"
+    );
+    let data_rows = stdout
+        .lines()
+        .skip(1)
+        .filter(|l| !l.starts_with('+') && !l.is_empty() && !l.contains("No projects"))
+        .count();
+    assert!(
+        data_rows <= 20,
+        "human data rows cap 20; got {data_rows}; {stdout}"
+    );
+}
+
+#[test]
+fn project_list__json__keeps_zero_memory_rows() {
+    let dir = tempdir().unwrap();
+    let (vault, leftover_id, cwd_dir, cwd_id) = leftover_vs_cwd_fixture(dir.path());
+    let extra_dir = dir.path().join("zero-json");
+    let extra_id = register_project(&vault, &extra_dir);
+
+    let out = hermetic()
+        .current_dir(&cwd_dir)
+        .arg("--no-project-context")
+        .arg("--vault-path")
+        .arg(&vault)
+        .arg("project")
+        .arg("list")
+        .arg("--format")
+        .arg("json")
+        .output()
+        .expect("project list json");
+    assert_eq!(
+        out.status.code(),
+        Some(0),
+        "stderr={}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let v: serde_json::Value =
+        serde_json::from_str(&String::from_utf8_lossy(&out.stdout)).expect("json");
+    let projects = v["projects"].as_array().expect("projects");
+    let ids: Vec<&str> = projects
+        .iter()
+        .filter_map(|p| p["project_id"].as_str())
+        .collect();
+    assert!(ids.contains(&leftover_id.as_str()), "leftover in json; {v}");
+    assert!(ids.contains(&cwd_id.as_str()), "cwd in json; {v}");
+    assert!(ids.contains(&extra_id.as_str()), "zero row in json; {v}");
+}
+
+#[test]
+fn project_list__all__includes_zeros() {
+    let dir = tempdir().unwrap();
+    let (vault, leftover_id, cwd_dir, cwd_id) = leftover_vs_cwd_fixture(dir.path());
+    let extra_dir = dir.path().join("zero-all");
+    let extra_id = register_project(&vault, &extra_dir);
+
+    let out = hermetic()
+        .current_dir(&cwd_dir)
+        .arg("--no-project-context")
+        .arg("--vault-path")
+        .arg(&vault)
+        .arg("project")
+        .arg("list")
+        .arg("--all")
+        .output()
+        .expect("project list --all");
+    assert_eq!(
+        out.status.code(),
+        Some(0),
+        "stderr={}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    assert!(stdout.contains(&leftover_id), "--all leftover; {stdout}");
+    assert!(stdout.contains(&cwd_id), "--all cwd; {stdout}");
+    assert!(stdout.contains(&extra_id), "--all zero row; {stdout}");
+}

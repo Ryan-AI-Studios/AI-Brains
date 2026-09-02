@@ -138,14 +138,10 @@ pub(crate) enum BriefingFormatKind {
 /// (caller maps to `fail_usage` exit 2).
 fn classify_briefing_format(
     explicit: Option<&str>,
-    is_tty: bool,
+    _is_tty: bool,
 ) -> Result<BriefingFormatKind, String> {
     match explicit.map(|s| s.trim().to_ascii_lowercase()).as_deref() {
-        None => Ok(if is_tty {
-            BriefingFormatKind::Markdown
-        } else {
-            BriefingFormatKind::Json
-        }),
+        None => Ok(BriefingFormatKind::Markdown),
         Some("json") => Ok(BriefingFormatKind::Json),
         Some("markdown") | Some("md") | Some("human") | Some("pretty") | Some("text") => {
             Ok(BriefingFormatKind::Markdown)
@@ -352,10 +348,10 @@ mod tests {
     }
 
     #[test]
-    fn classify_briefing_format__no_explicit_not_tty__returns_json() {
+    fn classify_briefing_format__no_explicit_not_tty__returns_markdown() {
         assert_eq!(
             classify_briefing_format(None, false),
-            Ok(BriefingFormatKind::Json)
+            Ok(BriefingFormatKind::Markdown)
         );
     }
 

@@ -196,3 +196,41 @@ fn daemon_status__keep_bound_listener__contrast_when_stopped() {
         panic!("AC8: expected Status Running|Stopped; got: {stdout}");
     }
 }
+
+/// T349 AC11: unset model/embed URLs probe nightly 8081/8083, not 11434/8080.
+#[test]
+fn daemon_status__unset_env__probes_nightly_default_ports() {
+    let mut cmd = common::hermetic_bin_no_key();
+    cmd.env_remove("AI_BRAINS_KEY");
+    cmd.env_remove("AI_BRAINS_ALLOW_ZERO_KEY");
+    cmd.env_remove("AI_BRAINS_MODEL_URL");
+    cmd.env_remove("AI_BRAINS_EMBEDDING_URL");
+    let output = cmd
+        .arg("daemon")
+        .arg("status")
+        .output()
+        .expect("daemon status must run");
+
+    assert!(
+        output.status.success(),
+        "daemon status unset URLs must exit 0; stderr={}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        stdout.contains("127.0.0.1:8081"),
+        "must probe nightly completion :8081; got: {stdout}"
+    );
+    assert!(
+        stdout.contains("127.0.0.1:8083"),
+        "must probe nightly embedding :8083; got: {stdout}"
+    );
+    assert!(
+        !stdout.contains("11434") && !stdout.contains(":8080"),
+        "must not probe 11434/8080; got: {stdout}"
+    );
+    assert!(
+        !stdout.contains("Ollama default :11434") && !stdout.contains("llama.cpp default :8080"),
+        "must not label Ollama/llama.cpp defaults; got: {stdout}"
+    );
+}

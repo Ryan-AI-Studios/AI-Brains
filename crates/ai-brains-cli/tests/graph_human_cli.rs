@@ -265,6 +265,61 @@ fn graph_neighbors__json_and_pretty__frozen_keys_and_dir() {
 
 #[cfg(feature = "graph")]
 #[test]
+fn graph_neighbors__omitted_format_piped__pretty_not_json() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+    let unknown = "00000000-0000-0000-0000-000000000000";
+
+    let omitted = common::hermetic_vault(&vault)
+        .arg("graph")
+        .arg("neighbors")
+        .arg(unknown)
+        .output()
+        .expect("neighbors omitted format");
+    assert!(
+        omitted.status.success(),
+        "omitted neighbors failed: {}",
+        String::from_utf8_lossy(&omitted.stderr)
+    );
+    let stdout = String::from_utf8_lossy(&omitted.stdout);
+    assert!(
+        stdout.contains("No graph node"),
+        "omitted piped neighbors must be pretty; got: {stdout}"
+    );
+    assert!(
+        !stdout.trim_start().starts_with('{'),
+        "omitted must not be compact JSON; got: {stdout}"
+    );
+
+    let auto = common::hermetic_vault(&vault)
+        .arg("graph")
+        .arg("neighbors")
+        .arg(unknown)
+        .arg("--format")
+        .arg("auto")
+        .output()
+        .expect("neighbors --format auto");
+    assert!(
+        auto.status.success(),
+        "auto neighbors failed: {}",
+        String::from_utf8_lossy(&auto.stderr)
+    );
+    let auto_out = String::from_utf8_lossy(&auto.stdout);
+    let parsed: serde_json::Value =
+        serde_json::from_str(auto_out.trim()).expect("auto neighbors json parse");
+    assert!(
+        parsed.get("memory_id").is_some(),
+        "auto json keys; got {parsed}"
+    );
+    assert!(
+        parsed.get("neighbors").is_some(),
+        "auto json keys; got {parsed}"
+    );
+}
+
+#[cfg(feature = "graph")]
+#[test]
 fn graph_neighbors__unknown_id__pretty_no_node_json_empty_exit_0() {
     let dir = tempdir().unwrap();
     let vault = dir.path().join("vault.db");

@@ -1217,6 +1217,61 @@ fn project_whoami__env_fallback_slug_miss__human_names_set_alias() {
 }
 
 #[test]
+fn whoami__path_null_env_fallback__stderr_matches_detect_warning() {
+    let fx = env_fallback_slug_miss_fixture();
+    let human = hermetic()
+        .arg("--vault-path")
+        .arg(&fx.vault)
+        .current_dir(&fx.repo)
+        .env("GIT_TERMINAL_PROMPT", "0")
+        .arg("project")
+        .arg("whoami")
+        .arg("--format")
+        .arg("human")
+        .output()
+        .expect("whoami human");
+    assert_eq!(
+        human.status.code(),
+        Some(0),
+        "human exit 0; stderr={}",
+        String::from_utf8_lossy(&human.stderr)
+    );
+    let stderr = String::from_utf8_lossy(&human.stderr);
+    assert!(
+        stderr.contains("git/env project mismatch"),
+        "human stderr SOOT; stderr={stderr}"
+    );
+
+    let json = hermetic()
+        .arg("--vault-path")
+        .arg(&fx.vault)
+        .current_dir(&fx.repo)
+        .env("GIT_TERMINAL_PROMPT", "0")
+        .arg("project")
+        .arg("whoami")
+        .arg("--format")
+        .arg("json")
+        .output()
+        .expect("whoami json");
+    assert_eq!(json.status.code(), Some(0));
+    let json_err = String::from_utf8_lossy(&json.stderr);
+    assert!(
+        !json_err.contains("git/env project mismatch"),
+        "JSON stderr silent of SOOT; stderr={json_err}"
+    );
+    let v: serde_json::Value = serde_json::from_slice(&json.stdout).expect("whoami json");
+    assert_eq!(
+        v.get("mismatch").and_then(|x| x.as_bool()),
+        Some(false),
+        "mismatch stays path-alias-only; {v}"
+    );
+    assert!(
+        v.get("warning").is_none(),
+        "no whoami JSON warning key; {v}"
+    );
+}
+
+#[test]
 fn project_whoami__env_only__detect_source_env_no_slug_miss_remediations() {
     let dir = tempdir().unwrap();
     let vault = dir.path().join("vault.db");

@@ -194,9 +194,9 @@ fn scope_resolve__format_JSON_and_Pretty__exit_2_no_stdout_json() {
     );
 }
 
-/// AC6: default `--format auto` on a pipe is JSON.
+/// AC6: omitted `--format` on a pipe is human; `--format auto` stays JSON.
 #[test]
-fn scope_resolve__default_auto_pipe__json() {
+fn scope_resolve__omitted_format_pipe__human() {
     let dir = tempdir().expect("tempdir");
     let vault = dir.path().join("vault.db");
     init_vault(&vault);
@@ -209,7 +209,41 @@ fn scope_resolve__default_auto_pipe__json() {
         .arg("resolve")
         .arg("--local")
         .output()
-        .expect("scope resolve --local (auto/pipe)");
+        .expect("scope resolve omitted format");
+    assert_eq!(
+        out.status.code(),
+        Some(0),
+        "omitted pipe must exit 0; stderr={}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    assert!(
+        stdout.contains("scope:"),
+        "omitted must be human; got:\n{stdout}"
+    );
+    assert!(
+        !stdout.trim_start().starts_with('{'),
+        "omitted must not be JSON: {stdout}"
+    );
+}
+
+#[test]
+fn scope_resolve__format_auto_pipe__json() {
+    let dir = tempdir().expect("tempdir");
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+
+    let out = common::hermetic_bin()
+        .arg("--no-project-context")
+        .arg("--vault-path")
+        .arg(&vault)
+        .arg("scope")
+        .arg("resolve")
+        .arg("--local")
+        .arg("--format")
+        .arg("auto")
+        .output()
+        .expect("scope resolve --format auto");
     assert_eq!(
         out.status.code(),
         Some(0),

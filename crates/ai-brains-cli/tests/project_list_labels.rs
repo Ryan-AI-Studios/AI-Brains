@@ -114,6 +114,7 @@ fn project_list__alias_acme__human_label_contains_acme() {
         .arg(&vault)
         .arg("project")
         .arg("list")
+        .arg("--all")
         .output()
         .expect("project list");
 
@@ -154,6 +155,7 @@ fn project_list__no_alias__label_exactly_no_alias() {
         .arg(&vault)
         .arg("project")
         .arg("list")
+        .arg("--all")
         .output()
         .expect("project list");
 
@@ -211,6 +213,7 @@ fn project_list__unaliased__stderr_set_alias_footer() {
         .arg(&vault)
         .arg("project")
         .arg("list")
+        .arg("--all")
         .output()
         .expect("project list");
 
@@ -438,6 +441,7 @@ fn project_list__active_project_id__star_prefix_on_label() {
         .env("AI_BRAINS_PROJECT_ID", &project_id)
         .arg("project")
         .arg("list")
+        .arg("--all")
         .output()
         .expect("project list active");
 

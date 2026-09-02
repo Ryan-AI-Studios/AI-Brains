@@ -13,9 +13,9 @@ const NIGHTLY_PROBE_TIMEOUT: Duration = Duration::from_secs(2);
 const NIGHTLY_STATUS_PROBE_TIMEOUT: Duration = Duration::from_millis(750);
 
 /// Default completion endpoint when env is unset (matches run path).
-const DEFAULT_MODEL_URL: &str = "http://127.0.0.1:8081";
+pub(crate) const DEFAULT_MODEL_URL: &str = "http://127.0.0.1:8081";
 /// Default embedding endpoint when env is unset (matches run path).
-const DEFAULT_EMBEDDING_URL: &str = "http://127.0.0.1:8083";
+pub(crate) const DEFAULT_EMBEDDING_URL: &str = "http://127.0.0.1:8083";
 const DEFAULT_COMPLETION_MODEL: &str = "gemma-4-E4B-it-Q6_K.gguf";
 const DEFAULT_EMBEDDING_MODEL: &str = "nomic-embed-text-v1.5";
 
