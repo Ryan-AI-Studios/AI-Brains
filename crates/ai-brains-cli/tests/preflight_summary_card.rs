@@ -101,6 +101,52 @@ fn pin_memory(vault: &Path, work_dir: &Path, project_id: &str, content: &str) {
         .success();
 }
 
+fn ingest_assistant_turn(vault: &Path, work_dir: &Path, project_id: &str, content: &str) {
+    let env_path = work_dir.join(".env");
+    let env_content = fs::read_to_string(&env_path).expect(".env for ingest");
+    let mut session_id = String::new();
+    for line in env_content.lines() {
+        if let Some(rest) = line.strip_prefix("AI_BRAINS_SESSION_ID=") {
+            session_id = rest.trim().to_string();
+        }
+    }
+    assert!(!session_id.is_empty(), "SESSION_ID missing from .env");
+    let payload = serde_json::json!({
+        "type": "turn",
+        "session_id": session_id,
+        "project_id": project_id,
+        "harness_id": uuid::Uuid::new_v4().to_string(),
+        "turn_id": uuid::Uuid::new_v4().to_string(),
+        "privacy": "LocalOnly",
+        "role": "assistant",
+        "content": content,
+    });
+    hermetic()
+        .current_dir(work_dir)
+        .arg("--no-project-context")
+        .arg("--vault-path")
+        .arg(vault)
+        .env("AI_BRAINS_PROJECT_ID", project_id)
+        .env("AI_BRAINS_SESSION_ID", &session_id)
+        .arg("ingest")
+        .write_stdin(payload.to_string())
+        .assert()
+        .success();
+}
+
+fn bootstrap_discovery(vault: &Path, project_id: &str) {
+    hermetic()
+        .arg("--no-project-context")
+        .arg("--vault-path")
+        .arg(vault)
+        .arg("policy")
+        .arg("bootstrap")
+        .arg("--scope")
+        .arg(format!("Repository:{project_id}"))
+        .assert()
+        .success();
+}
+
 fn count_events(vault_path: &Path, event_type: &str) -> i64 {
     let _allow = ai_brains_core::temp_env::TempEnv::set("AI_BRAINS_ALLOW_ZERO_KEY", "1");
     let key = ai_brains_crypto::SqlCipherKey::from_raw(ZERO_KEY.to_string());
@@ -270,6 +316,168 @@ fn preflight_summary_card__last_decision_truncates() {
         v["last_decision"].as_str(),
         Some("Foo bar unique T345 card"),
         "AC5 json last_decision; got {v}"
+    );
+}
+
+/// T354 AC1 — lowercase `decision:` is Index Decision (`classify_pin_kind`) but
+/// the budget scan stays case-sensitive `DECISION:`, so last_decision is absent
+/// without the Index helper (true-red on HEAD; Index titles still contain
+/// `decision:` but that does not match `DECISION:`).
+#[test]
+fn preflight_summary_card__last_decision_from_index_not_budget() {
+    let dir = tempdir().expect("tempdir");
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+    let proj = dir.path().join("index-dec");
+    let id = register_project(&vault, &proj);
+    register_path(&vault, &proj, &id);
+    pin_memory(&vault, &proj, &id, "decision: FromIndex Unique");
+
+    let (code, stdout, stderr) = run_summary(&vault, &proj, &[], Some(&id), None);
+    assert_eq!(code, 0, "stderr={stderr}");
+    assert!(
+        stdout.contains("last_decision: FromIndex Unique"),
+        "AC1 human last_decision from Index; got:\n{stdout}"
+    );
+    assert!(
+        !stdout.contains("last_decision: decision:"),
+        "AC1 no doubled marker; got:\n{stdout}"
+    );
+
+    let (jcode, jstdout, jstderr) =
+        run_summary(&vault, &proj, &["--format", "json"], Some(&id), None);
+    assert_eq!(jcode, 0, "stderr={jstderr}");
+    let v: Value = serde_json::from_str(jstdout.trim()).expect("json");
+    assert_eq!(
+        v["last_decision"].as_str(),
+        Some("FromIndex Unique"),
+        "AC1 json last_decision from Index; got {v}"
+    );
+}
+
+#[test]
+fn preflight_summary_card__last_decision_omitted_when_empty() {
+    let dir = tempdir().expect("tempdir");
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+    let proj = dir.path().join("empty-dec");
+    let id = register_project(&vault, &proj);
+    register_path(&vault, &proj, &id);
+
+    let (code, stdout, stderr) = run_summary(&vault, &proj, &[], Some(&id), None);
+    assert_eq!(code, 0, "stderr={stderr}");
+    assert!(
+        !stdout.contains("last_decision:"),
+        "AC3 omit last_decision when empty; got:\n{stdout}"
+    );
+
+    let (jcode, jstdout, jstderr) =
+        run_summary(&vault, &proj, &["--format", "json"], Some(&id), None);
+    assert_eq!(jcode, 0, "stderr={jstderr}");
+    let v: Value = serde_json::from_str(jstdout.trim()).expect("json");
+    assert!(
+        v.get("last_decision").is_none(),
+        "AC3 json omit last_decision; got {v}"
+    );
+}
+
+#[test]
+fn preflight_summary_card__constraint_index__not_last_decision() {
+    let dir = tempdir().expect("tempdir");
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+    let proj = dir.path().join("constraint-idx");
+    let id = register_project(&vault, &proj);
+    register_path(&vault, &proj, &id);
+    pin_memory(&vault, &proj, &id, "CONSTRAINT: IndexConstraintUnique");
+    ingest_assistant_turn(&vault, &proj, &id, "DECISION: FromBudgetUnique");
+
+    let (code, stdout, stderr) = run_summary(&vault, &proj, &[], Some(&id), None);
+    assert_eq!(code, 0, "stderr={stderr}");
+    assert!(
+        !stdout.contains("last_decision: IndexConstraintUnique"),
+        "AC4 Constraint Index is not last_decision; got:\n{stdout}"
+    );
+    assert!(
+        stdout.contains("last_decision: FromBudgetUnique"),
+        "AC4 budget Decision fallback; got:\n{stdout}"
+    );
+}
+
+#[test]
+fn preflight_summary_card__t315_next_when_last_decision_from_index() {
+    let dir = tempdir().expect("tempdir");
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+    let proj = dir.path().join("t315-idx");
+    let id = register_project(&vault, &proj);
+    register_path(&vault, &proj, &id);
+    pin_memory(&vault, &proj, &id, "decision: FromIndex Unique");
+    bootstrap_discovery(&vault, &id);
+
+    let (code, stdout, stderr) = run_summary(&vault, &proj, &[], Some(&id), None);
+    assert_eq!(code, 0, "stderr={stderr}");
+    assert!(
+        stdout.contains("last_decision: FromIndex Unique"),
+        "AC5 last_decision from Index; got:\n{stdout}"
+    );
+    assert!(
+        stdout.contains("In context decisions: 0"),
+        "AC5 in_context_decisions stays 0; got:\n{stdout}"
+    );
+    let nexts = next_lines(&stdout);
+    assert_eq!(nexts.len(), 1, "AC5 exactly one next:; got:\n{stdout}");
+    assert_eq!(nexts[0], T315_SOOT, "AC5 T315 when budget decisions 0");
+}
+
+#[test]
+fn preflight_summary_card__governed__no_index_last_decision() {
+    let dir = tempdir().expect("tempdir");
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+    let proj = dir.path().join("governed-idx");
+    let id = register_project(&vault, &proj);
+    register_path(&vault, &proj, &id);
+    pin_memory(&vault, &proj, &id, "decision: FromIndex Unique");
+
+    let mut cmd = hermetic();
+    cmd.current_dir(&proj)
+        .arg("--no-project-context")
+        .arg("--vault-path")
+        .arg(&vault)
+        .env("AI_BRAINS_PROJECT_ID", &id)
+        .env("AI_BRAINS_GOVERNED_BRIEFING", "1")
+        .arg("preflight")
+        .arg("--summary")
+        .arg("--no-hook-prompt");
+    let out = cmd.output().expect("governed summary");
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert_eq!(out.status.code(), Some(0), "stderr={stderr}");
+    assert!(
+        !stdout.contains("last_decision:"),
+        "AC6 governed must not apply Index helper; got:\n{stdout}"
+    );
+}
+
+#[test]
+fn preflight_summary_card__global__last_decision_from_budget() {
+    let dir = tempdir().expect("tempdir");
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+    let proj = dir.path().join("global-dec");
+    let id = register_project(&vault, &proj);
+    pin_memory(&vault, &proj, &id, "DECISION: GlobalBudgetUnique");
+
+    let (code, stdout, stderr) = run_summary(&vault, &proj, &["--global"], None, None);
+    assert_eq!(code, 0, "stderr={stderr}");
+    assert!(
+        stdout.contains("last_decision:"),
+        "AC7 --global still emits last_decision; got:\n{stdout}"
+    );
+    assert!(
+        stdout.contains("GlobalBudgetUnique"),
+        "AC7 --global stay-green budget extract includes pin text; got:\n{stdout}"
     );
 }
 

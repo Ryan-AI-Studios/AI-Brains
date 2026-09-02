@@ -17,7 +17,9 @@ use crate::harness::{
 use ai_brains_control_plane::{StorePorts, parse_scope_key, scope_identity_key};
 use ai_brains_core::ids::ProjectId;
 use ai_brains_path::normalize_for_location_compare;
-use ai_brains_retrieval::build_preflight;
+use ai_brains_retrieval::{
+    build_preflight, first_contentful_line, first_index_decision_content, governed_briefing_enabled,
+};
 use ai_brains_store::QueryStore;
 use ai_brains_store::SqliteEventStore;
 use serde::Serialize;
@@ -73,7 +75,7 @@ pub(crate) struct PreflightSummaryJson {
     /// T345 F3: shell PROJECT_ID when it differs from cwd `.env`.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub shell_leftover_project_id: Option<String>,
-    /// T345 F4: first budget-window line containing `DECISION:` (marker stripped).
+    /// T345 F4 / T354 F2: Index-first Decision remainder (legacy path) or budget fallback.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub last_decision: Option<String>,
     /// T264 F8: distinct non-unknown projects in the emitted global body. Global only.
@@ -134,14 +136,18 @@ fn truncate_utf8_bytes(s: &str, max_bytes: usize) -> String {
 
 fn strip_leading_decision_marker(line: &str) -> &str {
     let trimmed = line.trim_start();
+    const MARKER: &str = "decision:";
+    let Some(prefix) = trimmed.get(..MARKER.len()) else {
+        return trimmed;
+    };
+    if prefix.eq_ignore_ascii_case(MARKER) {
+        return trimmed[MARKER.len()..].trim_start();
+    }
     trimmed
-        .strip_prefix("DECISION:")
-        .map(str::trim_start)
-        .unwrap_or(trimmed)
 }
 
-/// First budget-window line containing `DECISION:` (T345 F4). Remainder is marker-stripped
-/// and truncated to 100 UTF-8 bytes at a char boundary.
+/// First budget-window line containing `DECISION:` (T345 F4; **case-sensitive** find).
+/// Remainder is marker-stripped (T354 F2 case-insensitive) and truncated to 100 UTF-8 bytes.
 pub(crate) fn extract_last_decision(budget_text: &str) -> Option<String> {
     for line in budget_text.lines() {
         if !line.contains("DECISION:") {
@@ -154,6 +160,37 @@ pub(crate) fn extract_last_decision(budget_text: &str) -> Option<String> {
         return Some(truncate_utf8_bytes(remainder, LAST_DECISION_MAX_BYTES));
     }
     None
+}
+
+/// Index-first last_decision on the **legacy** project-scoped path; budget fallback
+/// only when Index has no Decision row (`Ok(None)`). Helper errors omit the line
+/// (do not scrape `context.text`). Governed / `--global` stay budget-only (T354 F6/F8).
+fn compose_last_decision(
+    conn: &ai_brains_store::VaultConnection,
+    global: bool,
+    project_id: Option<&ProjectId>,
+    budget_text: &str,
+) -> Option<String> {
+    if !global && !governed_briefing_enabled() {
+        let pid = project_id.map(ToString::to_string);
+        match first_index_decision_content(conn, pid.as_deref()) {
+            Ok(Some(content)) => {
+                let remainder = strip_leading_decision_marker(strip_role_prefix(
+                    first_contentful_line(&content),
+                ));
+                if !remainder.is_empty() {
+                    return Some(truncate_utf8_bytes(remainder, LAST_DECISION_MAX_BYTES));
+                }
+                if let Some(from_index) = extract_last_decision(&content) {
+                    return Some(from_index);
+                }
+                return None;
+            }
+            Ok(None) => {}
+            Err(_) => return None,
+        }
+    }
+    extract_last_decision(budget_text)
 }
 
 pub(crate) fn format_summary_path_line(bound_compare_path: Option<&str>) -> String {
@@ -1100,7 +1137,7 @@ fn print_summary(
     let captured = shell_project_id_captured();
     let leftover_human = leftover_shell_vs_file(captured.as_deref(), file_id);
     let leftover_id = leftover_human.as_ref().and_then(|_| captured.clone());
-    let last_decision = extract_last_decision(text);
+    let last_decision = compose_last_decision(ctx.conn.as_ref(), global, project_id.as_ref(), text);
     let grants_incomplete = grants_count.is_some_and(|n| n < 3);
     let next_step = if project_scoped {
         select_summary_next_step(unowned, grants_incomplete, decision_count)
@@ -1785,6 +1822,24 @@ mod tests {
         assert_eq!(remainder.len(), 99);
         assert!(!remainder.contains('你'));
         assert!(remainder.is_char_boundary(remainder.len()));
+        assert_eq!(
+            extract_last_decision("HOTSPOT: x\ndecision: FromIndex Unique\nCONSTRAINT: y"),
+            None,
+            "AC1: budget find stays case-sensitive DECISION:"
+        );
+        assert_eq!(
+            strip_leading_decision_marker("decision: FromIndex Unique"),
+            "FromIndex Unique"
+        );
+        assert_eq!(
+            strip_leading_decision_marker("Decision: MixedCase unique"),
+            "MixedCase unique"
+        );
+        assert_eq!(
+            strip_leading_decision_marker("\u{1F600}\u{1F600}你DECISION: x"),
+            "\u{1F600}\u{1F600}你DECISION: x",
+            "AC2: mid-char byte 9 must not panic"
+        );
     }
 
     #[test]

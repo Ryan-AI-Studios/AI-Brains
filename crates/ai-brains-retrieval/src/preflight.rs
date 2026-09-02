@@ -806,6 +806,99 @@ fn drain_index_pass(
     Ok(())
 }
 
+/// First Index-pass **Decision** memory body (legacy briefing drain order).
+///
+/// Project-scoped only (`global=false`). Reuses Index drain + `PinKind::Decision`
+/// and injectable-privacy filtering. Never scrapes `context.text`.
+pub fn first_index_decision_content(
+    conn: &VaultConnection,
+    project_id: Option<&str>,
+) -> Result<Option<String>> {
+    let conn = conn.lock()?;
+    let safety_ids = project_emitted_safety_ids(&conn, project_id)?;
+    let mut collected: Vec<(String, String, Option<String>)> = Vec::new();
+    let mut collected_ids: HashSet<String> = HashSet::new();
+    let pass1_sql = index_select_sql(false, &index_pass1_glob_sql("m.content"));
+    drain_index_pass(
+        &conn,
+        &pass1_sql,
+        false,
+        project_id,
+        &[],
+        &safety_ids,
+        &mut collected,
+        &mut collected_ids,
+        true,
+        None,
+        false,
+    )?;
+    let mut pass2_ids: Vec<String> = collected_ids.iter().cloned().collect();
+    pass2_ids.sort();
+    let pass2_extra = bound_not_in_sql("m.memory_id", pass2_ids.len()).unwrap_or_default();
+    let pass2_sql = index_select_sql(false, &pass2_extra);
+    drain_index_pass(
+        &conn,
+        &pass2_sql,
+        false,
+        project_id,
+        &pass2_ids,
+        &safety_ids,
+        &mut collected,
+        &mut collected_ids,
+        false,
+        None,
+        true,
+    )?;
+    for (content, _, _) in &collected {
+        if classify_pin_kind(content) == PinKind::Decision {
+            return Ok(Some(content.clone()));
+        }
+    }
+    Ok(None)
+}
+
+/// Memory ids that the non-global Safety section would emit (and therefore skip in Index).
+fn project_emitted_safety_ids(
+    conn: &rusqlite::Connection,
+    project_id: Option<&str>,
+) -> Result<HashSet<String>> {
+    let has_cg_intelligence = project_id
+        .map(|pid| query_ledgerful(pid, None).is_some())
+        .unwrap_or(false);
+    let live_hotspots = fetch_live_hotspots();
+    let safety_glob = safety_marker_glob_sql("m.content");
+    let safety_sql = format!(
+        "SELECT m.memory_id, m.content, m.updated_at, COALESCE(m.project_id, s.project_id)
+         FROM memory_projection m
+         LEFT JOIN session_projection s ON m.session_id = s.session_id
+         WHERE m.status = 'pinned'
+         AND (s.project_id = ? OR m.project_id = ?)
+         {safety_glob}
+         ORDER BY m.updated_at DESC LIMIT 10"
+    );
+    let mut safety_stmt = conn.prepare(&safety_sql)?;
+    let mut safety_rows = match project_id {
+        Some(pid) => safety_stmt.query(rusqlite::params![pid, pid])?,
+        None => safety_stmt.query(rusqlite::params![
+            Option::<String>::None,
+            Option::<String>::None
+        ])?,
+    };
+    let mut safety_raw: Vec<(String, String, (Option<String>, String))> = Vec::new();
+    while let Some(row) = safety_rows.next()? {
+        let memory_id: String = row.get(0)?;
+        let content: String = row.get(1)?;
+        let updated_at: String = row.get(2)?;
+        let item_project: Option<String> = row.get(3)?;
+        if suppress_vault_hotspot_row(&content, !live_hotspots.is_empty(), has_cg_intelligence) {
+            continue;
+        }
+        safety_raw.push((strip_ansi(&content), updated_at, (item_project, memory_id)));
+    }
+    let safety_entries = dedup_hotspots_keyed(safety_raw);
+    Ok(safety_entries.into_iter().map(|(_, (_, id))| id).collect())
+}
+
 fn query_ledgerful(_project_id: &str, scope_paths: Option<&Vec<String>>) -> Option<String> {
     // 1. Create a temp file
     let temp_file = tempfile::NamedTempFile::new().ok()?;

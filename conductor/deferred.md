@@ -2,6 +2,16 @@
 
 Tracks deferred from T142. Append-only; strike through when promoted to a real track.
 
+### T354 implement (2026-09-02) — Index last_decision
+
+FEATURE TX `7508e4ed-8e56-49db-9909-69f9cbb5e0af`. AC1 red on HEAD (lowercase `decision:`). Scoped nextest `preflight_summary_card` **17 passed**.
+
+| Item | Disposition |
+|------|-------------|
+| T345-R2 Index last_decision | **Absorbed** F1–F9 |
+| T354-R1 last_constraint line | **Residual** |
+| T336 / T340-R4 in_context_decisions | **Not stolen** |
+
 ### T351 implement (2026-09-02) — chunk + mean-pool
 
 FEATURE TX `71c3c90d-1927-4389-a2f5-0df2b2f29604`. Codex re-review PASS. `dev-check.ps1` nextest **4000** passed (1 skipped). `ledgerful verify --scope fast` (T351 brain lib + nightly_throughput + embedding_cloud_policy) exit 0.
