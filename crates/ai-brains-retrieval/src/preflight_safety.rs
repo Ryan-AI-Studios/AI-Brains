@@ -5,7 +5,8 @@
 use crate::ranking::{PinKind, classify_pin_kind};
 
 /// Honest empty Safety body (F3). Must not contain `HOTSPOT:` (AC14 / F9).
-pub const SAFETY_EMPTY: &str = "No in-context hotspots. next: ai-brains safety sync --dry-run";
+pub const SAFETY_EMPTY: &str =
+    "No repo-local hotspots above threshold. next: ai-brains safety sync --dry-run";
 
 /// F2: same argv limit as CLI `safety sync` default.
 pub const LIVE_HOTSPOT_LIMIT: usize = 5;
@@ -82,6 +83,27 @@ fn parse_hotspot_value_rows(json_str: &str) -> Vec<serde_json::Value> {
     }
 }
 
+/// Frozen deny-list path components (T347 F1). Not filenames (`vendor.rs` stays).
+const DENIED_HOTSPOT_COMPONENTS: &[&str] = &["deps_src", "third_party", "vendor", ".git"];
+
+/// Keep a Ledgerful hotspot if it is repo-local and above the score gate (T347).
+///
+/// Path deny always applies. `include_zero` only disables the `score > 0.0` skip.
+pub fn keep_repo_local_hotspot(path: &str, score: f64, include_zero: bool) -> bool {
+    if path_has_denied_component(path) {
+        return false;
+    }
+    include_zero || score > 0.0
+}
+
+fn path_has_denied_component(path: &str) -> bool {
+    path.replace('\\', "/")
+        .to_ascii_lowercase()
+        .split('/')
+        .filter(|seg| !seg.is_empty() && *seg != ".")
+        .any(|seg| DENIED_HOTSPOT_COMPONENTS.contains(&seg))
+}
+
 /// F7: keep Intelligence substring suppress; live inject drops **leading** vault HOTSPOT only.
 pub fn suppress_vault_hotspot_row(
     content: &str,
@@ -116,7 +138,11 @@ pub fn fetch_live_hotspots_with(
         return Vec::new();
     }
     match spawn() {
-        Ok(stdout) => parse_hotspots_json(&stdout),
+        Ok(stdout) => {
+            let mut rows = parse_hotspots_json(&stdout);
+            rows.retain(|h| keep_repo_local_hotspot(&h.path, h.score, false));
+            rows
+        }
         Err(e) => {
             tracing::warn!(error = %e, "preflight live hotspots skipped");
             Vec::new()
@@ -267,6 +293,134 @@ mod tests {
             SAFETY_EMPTY.contains("safety sync --dry-run"),
             "AC14: names next command; got {SAFETY_EMPTY}"
         );
+        assert!(
+            SAFETY_EMPTY.contains("No repo-local hotspots above threshold"),
+            "AC4: F3 first clause; got {SAFETY_EMPTY}"
+        );
+    }
+
+    #[test]
+    fn safety_empty_const__repo_local_threshold__names_dry_run() {
+        assert!(
+            !SAFETY_EMPTY.contains("HOTSPOT:"),
+            "AC14: empty remediator must not bump hotspot counts; got {SAFETY_EMPTY}"
+        );
+        assert!(
+            SAFETY_EMPTY.contains("No repo-local hotspots above threshold"),
+            "AC4: F3 first clause; got {SAFETY_EMPTY}"
+        );
+        assert!(
+            SAFETY_EMPTY.contains("ai-brains safety sync --dry-run"),
+            "AC4/AC14: names next command; got {SAFETY_EMPTY}"
+        );
+    }
+
+    #[test]
+    fn keep_repo_local_hotspot__deps_src_slash_and_backslash__skipped() {
+        assert!(
+            !keep_repo_local_hotspot("deps_src/libigl/igl/cut_to_disk.cpp", 0.05, false),
+            "AC1: slash deps_src skipped at positive score"
+        );
+        assert!(
+            !keep_repo_local_hotspot(r"deps_src\libigl\igl\active_set.cpp", 0.05, false),
+            "AC1: backslash deps_src skipped at positive score"
+        );
+    }
+
+    #[test]
+    fn keep_repo_local_hotspot__include_zero__path_deny_still_applies() {
+        assert!(
+            !keep_repo_local_hotspot("deps_src/libigl/igl/cut_to_disk.cpp", 0.05, true),
+            "AC1b: include_zero does not disable path deny"
+        );
+    }
+
+    #[test]
+    fn keep_repo_local_hotspot__score_zero__skipped_unless_include_zero() {
+        let path = "scripts/orca_filament_lib.py";
+        assert!(
+            !keep_repo_local_hotspot(path, 0.0, false),
+            "AC2: score 0 skipped"
+        );
+        assert!(
+            keep_repo_local_hotspot(path, 0.0, true),
+            "AC2: include_zero keeps score 0 repo-local"
+        );
+    }
+
+    #[test]
+    fn keep_repo_local_hotspot__nan_negzero_neginf__skipped() {
+        let path = "crates/foo.rs";
+        assert!(
+            !keep_repo_local_hotspot(path, f64::NAN, false),
+            "AC2b: NaN skipped"
+        );
+        assert!(
+            !keep_repo_local_hotspot(path, -0.0, false),
+            "AC2b: -0.0 skipped"
+        );
+        assert!(
+            !keep_repo_local_hotspot(path, f64::NEG_INFINITY, false),
+            "AC2b: -inf skipped"
+        );
+        assert!(
+            keep_repo_local_hotspot(path, f64::NAN, true),
+            "AC2b: include_zero does not extra-reject NaN"
+        );
+    }
+
+    #[test]
+    fn keep_repo_local_hotspot__mixed_orca_fixture__keeps_positive_repo_local() {
+        assert!(!keep_repo_local_hotspot(
+            "deps_src/libigl/igl/cut_to_disk.cpp",
+            0.0,
+            false
+        ));
+        assert!(!keep_repo_local_hotspot(
+            r"deps_src\libigl\igl\active_set.cpp",
+            0.0,
+            false
+        ));
+        assert!(
+            keep_repo_local_hotspot("crates/ai-brains-cli/src/commands/project.rs", 0.037, false),
+            "AC3: positive repo-local kept"
+        );
+    }
+
+    #[test]
+    fn keep_repo_local_hotspot__third_party_vendor_git__skipped() {
+        assert!(!keep_repo_local_hotspot("third_party/foo.c", 0.05, false));
+        assert!(!keep_repo_local_hotspot("Vendor/pkg/a.rs", 0.05, false));
+        assert!(!keep_repo_local_hotspot(".git/config", 0.05, false));
+    }
+
+    #[test]
+    fn keep_repo_local_hotspot__vendor_filename__not_skipped() {
+        assert!(
+            keep_repo_local_hotspot("vendor.rs", 0.05, false),
+            "AC6: filename vendor.rs is not a dir component"
+        );
+    }
+
+    #[test]
+    fn fetch_live_hotspots_with__filters_vendored_and_zero__keeps_repo_local() {
+        let json = r#"{
+  "schemaVersion": 1,
+  "files": [
+    {"path":"deps_src/libigl/igl/cut_to_disk.cpp","score":0.0},
+    {"path":"deps_src/libigl/igl/active_set.cpp","score":0.12},
+    {"path":"scripts/orca_filament_lib.py","score":0.0},
+    {"path":"crates/ai-brains-cli/src/commands/project.rs","score":0.037}
+  ]
+}"#;
+        let got = fetch_live_hotspots_with(|| Ok(json.to_string()));
+        assert_eq!(got.len(), 1, "AC7: only positive repo-local; got {got:?}");
+        assert!(
+            got[0].path.ends_with("project.rs"),
+            "AC7: kept project.rs; got {}",
+            got[0].path
+        );
+        assert!((got[0].score - 0.037).abs() < 1e-9);
     }
 
     #[test]

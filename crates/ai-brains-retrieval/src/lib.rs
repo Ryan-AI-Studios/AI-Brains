@@ -34,6 +34,7 @@ pub use prefer_project::merge_preferred_then_global;
 pub use preflight::{
     PreflightContext, build_preflight, build_preflight_with_options, governed_briefing_enabled,
 };
+pub use preflight_safety::{SAFETY_EMPTY, keep_repo_local_hotspot};
 pub use ranking::{
     LEADING_QUERY_BONUS, PinKind, RELEVANCE_SCALE, SESSION_CHROME_PENALTY, SYMBOL_PENALTY,
     ScoreKind, StalenessClass, classify_pin_kind, classify_staleness, extract_track_tokens,

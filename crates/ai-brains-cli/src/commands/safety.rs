@@ -1,5 +1,7 @@
 use serde::Deserialize;
 
+use ai_brains_retrieval::{SAFETY_EMPTY, keep_repo_local_hotspot};
+
 #[derive(Debug, Deserialize)]
 struct LedgerfulHotspot {
     path: String,
@@ -60,13 +62,16 @@ fn parse_ledgerful_hotspots_json(stdout: &str) -> Result<Vec<LedgerfulHotspot>, 
     }
 }
 
+const LEDGERFUL_EMPTY: &str = "No hotspots identified. Safety layer is healthy.";
+
 pub fn run(
     ctx: &crate::context::AppContext,
     limit: usize,
     dry_run: bool,
+    include_zero: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
     // Try structured JSON output first; fall back to text mode (F4 / F31).
-    let hotspots = match fetch_hotspots_json(limit) {
+    let mut hotspots = match fetch_hotspots_json(limit) {
         Ok(hs) => hs,
         Err(json_err) => {
             tracing::warn!(
@@ -87,8 +92,11 @@ pub fn run(
         }
     };
 
+    let before = hotspots.len();
+    hotspots.retain(|h| keep_repo_local_hotspot(&h.path, h.score, include_zero));
+
     if hotspots.is_empty() {
-        println!("No hotspots identified. Safety layer is healthy.");
+        println!("{}", empty_after_filter_message(before));
         return Ok(());
     }
 
@@ -121,6 +129,14 @@ pub fn run(
     )?;
 
     Ok(())
+}
+
+fn empty_after_filter_message(before: usize) -> &'static str {
+    if before > 0 {
+        SAFETY_EMPTY
+    } else {
+        LEDGERFUL_EMPTY
+    }
 }
 
 fn fetch_hotspots_json(limit: usize) -> Result<Vec<LedgerfulHotspot>, String> {
@@ -201,6 +217,24 @@ fn render_hotspots(hotspots: &[LedgerfulHotspot]) -> String {
 #[allow(clippy::disallowed_methods, non_snake_case)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn safety_run_filter_empty__no_write_banner() {
+        assert_eq!(
+            empty_after_filter_message(3),
+            SAFETY_EMPTY,
+            "AC4: nonempty-then-filtered prints SAFETY_EMPTY"
+        );
+        assert!(
+            !empty_after_filter_message(3).contains("Pinning"),
+            "AC4: no write banner"
+        );
+        assert_eq!(
+            empty_after_filter_message(0),
+            LEDGERFUL_EMPTY,
+            "AC4: true Ledgerful-empty stays T321"
+        );
+    }
 
     #[test]
     fn format_write_banner__names_pinning_and_count() {

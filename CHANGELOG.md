@@ -17,6 +17,8 @@ Version banners in documentation are maintained manually from the workspace `Car
 
 ### Added
 
+- **T347 Safety hotspot allow/deny:** `safety sync` and preflight Safety skip `deps_src/` / `third_party/` / `vendor/` / `.git/` path components and `score <= 0` (NaN/-inf included). Filter-empty prints `No repo-local hotspots above threshold` and names `safety sync --dry-run` without pinning. `--include-zero` keeps zero scores but still path-denies.
+
 - **T346 Retrieval empty-rescue:** When project-scoped FTS + LIKE retain 0, `recall`/`search` fill up to `--limit` Index-authority pins (`DECISION:` / `CONSTRAINT:` / `INVARIANT:`) with honesty `No FTS hits; showing in-scope pins` and JSON `source: "index"` (omit `score`). Pretty hides BM25 `score=`; JSON keeps it. Contentless / `--global` / no pins stay T261/T111. Lexical still does not probe embed.
 
 - **T345 Session-start card:** `preflight --summary` prints `path=` / leftover / `last_decision:` and **one** `next:` ladder (`context` when unbound, else policy bootstrap, else T315 recall). Project JSON `path` is always present (`null` when unbound). `--show` unchanged.

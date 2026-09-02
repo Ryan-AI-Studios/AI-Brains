@@ -74,6 +74,7 @@ Minted after PATH `0.1.5` dogfood from `C:\dev\Orca\OrcaSlicer-ZR`. Skill `.clau
 | Auto-pin / Ledgerful algorithm | **Decline** |
 | T344–T346 / T348–T349 | **Not stolen** |
 | `#272` Cursor | **N/A** |
+| Soft | T347-R1 custom prefixes; T347-R2 refill after `--limit`; T347-R3 forget pinned vendored HOTSPOT; T347-R4 absolute `deps_src` if Ledgerful emits it |
 | DOCS TX | `fdc1b170-c97f-4a41-bb92-0a4afe01d92b` |
 
 ### T348 full plan (2026-09-02) — coverage this-project
@@ -116,6 +117,16 @@ Minted after PATH `0.1.5` dogfood from `C:\dev\Orca\OrcaSlicer-ZR`. Skill `.clau
 | Twin slug aliases | **Residual** T348-R3 |
 | `#272` Cursor | **N/A** usage-limit — no new placeholder |
 | Fold-in DOCS TX | `f5c8b5ca-076a-4593-bbd5-f25f73ee5493` |
+
+### T347 implement (2026-09-02) — residuals remain
+
+| Item | Disposition |
+|------|-------------|
+| T347-R1 custom prefixes (`node_modules/`, `build/`) | **Residual** — frozen four is DoD |
+| T347-R2 over-fetch `--limit` then re-top-N | **Residual** — cap is pre-filter |
+| T347-R3 forget already-pinned vendored HOTSPOT | **Residual** — compensating event not this |
+| T347-R4 absolute `C:\…\deps_src\…` if Ledgerful emits it | **Residual** — component match still hits `deps_src` |
+| FEATURE TX | `b92bffc5-0565-4d3e-a37d-97f401ad8ba1` |
 
 ### T345 implement (2026-09-02) — residuals remain
 
