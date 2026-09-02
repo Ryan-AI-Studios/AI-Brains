@@ -3879,7 +3879,7 @@ pub enum GraphCommands {
 pub enum CaptureCommands {
     /// Compare on-disk harness session files vs vault SessionStarted counts
     #[command(
-        after_help = "Read-only. Does not import, open JSONL turn bodies, or add a doctor check.\nDefault --format is human; pipes stay human unless --format json.\nExit 0 on deficit (honesty warning). Exit 2 on usage.\nExamples:\n  ai-brains capture coverage\n  ai-brains capture coverage --days 2 --format json\n  ai-brains capture coverage --global"
+        after_help = "Read-only. Does not import, open JSONL turn bodies, or add a doctor check.\nDefault is this project (disk, vault, unbound Cursor folders). --global is the machine table.\nDefault --format is human; pipes stay human unless --format json.\nExit 0 on deficit (honesty warning). Exit 2 on usage.\nExamples:\n  ai-brains capture coverage\n  ai-brains capture coverage --days 2 --format json\n  ai-brains capture coverage --global"
     )]
     Coverage {
         /// Mtime window in days (default 30, same as nightly D10)
@@ -5961,6 +5961,7 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                         global: *global,
                         project_id: effective_project_id,
                         home_override: None,
+                        cwd_override: None,
                     },
                 )
             }

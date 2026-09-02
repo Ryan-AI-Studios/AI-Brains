@@ -55,7 +55,7 @@ Empty / whitespace-only / TTY stdin is usage **exit 2** plus a copy-paste exampl
 
 Harness importers and hooks must keep **only** user prompts and final assistant text. Shared SOOT: `ai_brains_adapters::message_only` + `parse_transcript_for_ingest` (step-shaped AGY2 + legacy role/content; prefer `transcript_full.jsonl`). Used by batch import and `agy-hook`. Tool steps (`VIEW_FILE`, `RUN_COMMAND`, tool results), `reasoning`/`thinking`, and system chrome are dropped. The optional `IngestRequest.thinking` DTO field is never populated by adapters.
 
-### Capture coverage (T337)
+### Capture coverage (T337 / T348)
 
 Read-only inventory of on-disk session *files* vs vault `SessionStarted` counts. Does **not** import, open JSONL turn bodies, or add a doctor check.
 
@@ -65,9 +65,12 @@ ai-brains capture coverage --days 2 --format json
 ai-brains capture coverage --global
 ```
 
+- Default (no `--global`): **this project** — disk, vault, and unbound Cursor folders for the env `AI_BRAINS_PROJECT_ID` path-alias slug (else cwd/git toplevel). Other machines’ Cursor folders are **hidden**; pass `--global` for the fleet list. Human adds `Scope: this project`.
+- `--global`: today’s **machine** table (all disk walks, all unbound folders, vault across projects). First line stays `Capture coverage (last N days)` with no this-project suffix.
 - `--days <N>`: file mtime window (default **30**).
 - `--format human|json`: default **human**; pipes stay human unless `--format json`.
-- `--global`: vault counts across all projects; otherwise `AI_BRAINS_PROJECT_ID`.
+- JSON additive: `scope` is `"project"` or `"global"`. Project `slug` is always present (`string` or `null`). `--global` **omits** `slug`. `disk_eligible` is never omitted: OpenCode is `null`; project-scope agy/codex are `null` (`disk_note=project_disk_unscoped`); cursor/grok/claude are numbers including `0`. There is no `disk_this` / `disk_machine`. `null` ≠ `0` ≠ omit.
+- `--global`: vault counts across all projects; otherwise `AI_BRAINS_PROJECT_ID` (exit 2 if missing).
 - Status `deficit` means disk-eligible files exist and vault count is 0 — next step is a copy-paste importer (`cursor-import`, `claude-import`, `codex-import`, `antigravity-import`). Exit **0** (honesty, not a fail).
 - Grok files without a path-explainable `subagent-` / `worktrees` skip and vault 0 → `unverifiable_subagent`; next step is `grok-import --days N --dry-run` (**never** `--force`). Live Grok hooks remain the capture path.
 - OpenCode disk cell is `—` / JSON `null` (`requires_opencode_bin`). Missing binary in `last_multi_import` → `expected_skip` with next step `set AI_BRAINS_OPENCODE_BIN`.

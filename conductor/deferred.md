@@ -118,6 +118,16 @@ Minted after PATH `0.1.5` dogfood from `C:\dev\Orca\OrcaSlicer-ZR`. Skill `.clau
 | `#272` Cursor | **N/A** usage-limit — no new placeholder |
 | Fold-in DOCS TX | `f5c8b5ca-076a-4593-bbd5-f25f73ee5493` |
 
+### T348 implement (2026-09-02) — residuals remain
+
+| Item | Disposition |
+|------|-------------|
+| T348-R1 preflight `--summary` coverage line | **Residual** — T345 F5 stay |
+| T348-R2 agy/codex this-project disk | **Residual** — no JSONL peek |
+| T348-R3 twin alias slug-collide | **Residual** — T342-R3 adjacent |
+| T341-R3 numeric Cursor dirs on `--global` | **Residual** — filtered from default |
+| FEATURE TX | `af71b438-0967-406d-bba5-b579dd5b4e98` |
+
 ### T347 implement (2026-09-02) — residuals remain
 
 | Item | Disposition |
@@ -132,7 +142,7 @@ Minted after PATH `0.1.5` dogfood from `C:\dev\Orca\OrcaSlicer-ZR`. Skill `.clau
 
 | Item | Disposition |
 |------|-------------|
-| T345-R1 coverage line | **Residual** — T348 |
+| T345-R1 coverage line | **Absorbed T348** — CLI this-project vs `--global`; no `--summary` line |
 | T345-R2 last_decision from Index SQL | **Residual** — budget scan is DoD |
 | FEATURE TX | `442c7c04-e00c-4401-9b02-a483efb9e0fa` |
 

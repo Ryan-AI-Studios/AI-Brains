@@ -10,12 +10,14 @@ use crate::commands::multi_import::{
 use crate::context::AppContext;
 use ai_brains_adapters::{
     CLAUDE_HARNESS_UUID, CODEX_HARNESS_UUID, CURSOR_HARNESS_UUID, GROK_HARNESS_UUID,
-    OPENCODE_HARNESS_UUID, cursor_project_slug_candidates, discover_cursor_sessions,
-    discover_sessions_from_home, is_claude_sidechain_path, is_cursor_sidechain_path,
-    is_subagent_session, resolve_claude_home, resolve_codex_home, resolve_cursor_home,
+    OPENCODE_HARNESS_UUID, cursor_project_slug, cursor_project_slug_candidates,
+    decode_claude_project_folder, discover_cursor_sessions, discover_sessions_from_home,
+    is_claude_sidechain_path, is_cursor_sidechain_path, is_subagent_session,
+    percent_encode_path_component, resolve_claude_home, resolve_codex_home, resolve_cursor_home,
     resolve_grok_home,
 };
 use ai_brains_core::ids::ProjectId;
+use ai_brains_path::normalize_for_location_compare;
 use ai_brains_store::QueryStore;
 use serde::Serialize;
 use std::path::{Path, PathBuf};
@@ -36,11 +38,17 @@ pub struct CoverageOptions {
     pub project_id: Option<ProjectId>,
     /// Hermetic tests: user-home root (`.cursor` / `.grok` / … live under this).
     pub home_override: Option<PathBuf>,
+    /// Hermetic tests: pretend cwd (no `#[serial(cwd)]`). Production leaves this `None`.
+    pub cwd_override: Option<PathBuf>,
 }
 
 #[derive(Debug, Clone, Serialize, PartialEq)]
 pub struct CoverageReport {
     pub days: usize,
+    pub scope: String,
+    /// Project: always present (`Some(None)` → JSON `null`). Global: omit.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub slug: Option<Option<String>>,
     pub sources: Vec<SourceCoverage>,
     pub unbound_folders: Vec<String>,
     pub warnings: Vec<String>,
@@ -88,6 +96,26 @@ pub fn build_report(
     let include_wsl_agy = opts.home_override.is_none();
 
     let mut warnings = Vec::new();
+    let aliases = match query_store.list_path_aliases() {
+        Ok(a) => a,
+        Err(e) => {
+            tracing::warn!(error = %e, "list_path_aliases unreadable");
+            push_warn(&mut warnings, "alias_unreadable");
+            Vec::new()
+        }
+    };
+    let disk_scope = resolve_disk_scope(&aliases, opts);
+    let cursor_slugs: Vec<String> = disk_scope
+        .paths
+        .as_ref()
+        .map(|paths| {
+            paths
+                .iter()
+                .flat_map(|p| cursor_project_slug_candidates(p))
+                .collect()
+        })
+        .unwrap_or_default();
+
     let multi_view = load_multi_import_status(query_store)?;
     let multi_import = match &multi_view {
         MultiImportStatusView::Never => None,
@@ -113,11 +141,23 @@ pub fn build_report(
         .as_ref()
         .is_some_and(|r| r.opencode.skipped_missing_binary.unwrap_or(0) > 0);
 
-    let agy_disk = count_agy_disk(dirs_home.as_deref(), cutoff, include_wsl_agy);
-    let grok_disk = count_grok_disk(harness_override, cutoff);
-    let claude_disk = count_claude_disk(harness_override, cutoff);
-    let codex_disk = count_codex_disk(harness_override, cutoff);
-    let cursor_disk = count_cursor_disk(harness_override, cutoff);
+    let agy_disk = if opts.global {
+        count_agy_disk(dirs_home.as_deref(), cutoff, include_wsl_agy)
+    } else {
+        DiskCounts::default()
+    };
+    let grok_disk = count_grok_disk(harness_override, cutoff, disk_scope.paths.as_deref());
+    let claude_disk = count_claude_disk(harness_override, cutoff, disk_scope.paths.as_deref());
+    let codex_disk = if opts.global {
+        count_codex_disk(harness_override, cutoff)
+    } else {
+        DiskCounts::default()
+    };
+    let cursor_disk = count_cursor_disk(
+        harness_override,
+        cutoff,
+        disk_scope.paths.as_ref().map(|_| cursor_slugs.as_slice()),
+    );
 
     let agy_vault = query_store
         .count_sessions_started_by_harness(&[AGY_IMPORT_UUID, AGY_HOOK_UUID], project)?;
@@ -132,16 +172,26 @@ pub fn build_report(
     let cursor_vault =
         query_store.count_sessions_started_by_harness(&[CURSOR_HARNESS_UUID], project)?;
 
-    let agy = classify_source(
-        "agy",
-        "hook+import",
-        Some(agy_disk.eligible),
-        agy_disk.sidechain,
-        agy_vault,
-        opts.days,
-        false,
-        "antigravity-import",
-    );
+    let agy = if opts.global {
+        classify_source(
+            "agy",
+            "hook+import",
+            Some(agy_disk.eligible),
+            agy_disk.sidechain,
+            agy_vault,
+            opts.days,
+            false,
+            "antigravity-import",
+        )
+    } else {
+        classify_project_unscoped_disk(
+            "agy",
+            "hook+import",
+            agy_vault,
+            opts.days,
+            "antigravity-import",
+        )
+    };
     let grok = classify_grok(
         grok_disk.eligible,
         grok_disk.sidechain,
@@ -159,16 +209,26 @@ pub fn build_report(
         false,
         "claude-import",
     );
-    let codex = classify_source(
-        "codex",
-        "hook+import",
-        Some(codex_disk.eligible),
-        codex_disk.sidechain,
-        codex_vault,
-        opts.days,
-        false,
-        "codex-import",
-    );
+    let codex = if opts.global {
+        classify_source(
+            "codex",
+            "hook+import",
+            Some(codex_disk.eligible),
+            codex_disk.sidechain,
+            codex_vault,
+            opts.days,
+            false,
+            "codex-import",
+        )
+    } else {
+        classify_project_unscoped_disk(
+            "codex",
+            "hook+import",
+            codex_vault,
+            opts.days,
+            "codex-import",
+        )
+    };
     let cursor = classify_source(
         "cursor",
         "import_only",
@@ -192,24 +252,20 @@ pub fn build_report(
         push_warn(&mut warnings, "disk_walk_unreadable");
     }
 
-    let unbound_folders = match query_store.list_path_aliases() {
-        Ok(aliases) => {
-            let cursor_home = resolve_cursor_home(harness_override);
-            match cursor_home.as_deref() {
-                Some(h) => {
-                    let (folders, unreadable) = cursor_unbound_folders(h, &aliases);
-                    if unreadable {
-                        push_warn(&mut warnings, "disk_walk_unreadable");
-                    }
-                    folders
+    let unbound_folders = {
+        let cursor_home = resolve_cursor_home(harness_override);
+        match cursor_home.as_deref() {
+            Some(h) => {
+                let (mut folders, unreadable) = cursor_unbound_folders(h, &aliases);
+                if unreadable {
+                    push_warn(&mut warnings, "disk_walk_unreadable");
                 }
-                None => Vec::new(),
+                if disk_scope.paths.is_some() {
+                    folders.retain(|f| cursor_slugs.iter().any(|s| s.eq_ignore_ascii_case(f)));
+                }
+                folders
             }
-        }
-        Err(e) => {
-            tracing::warn!(error = %e, "list_path_aliases unreadable");
-            push_warn(&mut warnings, "alias_unreadable");
-            Vec::new()
+            None => Vec::new(),
         }
     };
 
@@ -226,6 +282,12 @@ pub fn build_report(
 
     Ok(CoverageReport {
         days: opts.days,
+        scope: if opts.global {
+            "global".to_string()
+        } else {
+            "project".to_string()
+        },
+        slug: disk_scope.slug,
         sources,
         unbound_folders,
         warnings,
@@ -238,6 +300,108 @@ struct DiskCounts {
     eligible: u64,
     sidechain: u64,
     unreadable: bool,
+}
+
+/// `paths: None` = `--global` (no folder filter). `Some(vec)` = project filter (may be empty).
+struct DiskScope {
+    paths: Option<Vec<String>>,
+    slug: Option<Option<String>>,
+}
+
+fn fallback_cwd(opts: &CoverageOptions) -> Option<PathBuf> {
+    if let Some(p) = &opts.cwd_override {
+        return Some(p.clone());
+    }
+    if opts.home_override.is_some() {
+        return None;
+    }
+    std::env::current_dir().ok()
+}
+
+fn pick_primary_slug(paths: &[String], opts: &CoverageOptions) -> String {
+    let cwd = fallback_cwd(opts);
+    if let Some(cwd) = cwd.as_ref() {
+        let n = normalize_for_location_compare(&cwd.to_string_lossy());
+        if let Some(p) = paths
+            .iter()
+            .find(|p| normalize_for_location_compare(p) == n)
+        {
+            return cursor_project_slug(p);
+        }
+        if let Ok(g) = super::project::collect_git_identity(cwd)
+            && let Some(top) = g.toplevel
+        {
+            let tn = normalize_for_location_compare(&top.to_string_lossy());
+            if let Some(p) = paths
+                .iter()
+                .find(|p| normalize_for_location_compare(p) == tn)
+            {
+                return cursor_project_slug(p);
+            }
+        }
+    }
+    cursor_project_slug(paths.first().map_or("", |s| s.as_str()))
+}
+
+fn resolve_disk_scope(aliases: &[(ProjectId, String)], opts: &CoverageOptions) -> DiskScope {
+    if opts.global {
+        return DiskScope {
+            paths: None,
+            slug: None,
+        };
+    }
+    let mut mine: Vec<String> = aliases
+        .iter()
+        .filter(|(id, _)| opts.project_id.as_ref() == Some(id))
+        .map(|(_, p)| p.clone())
+        .collect();
+    if mine.is_empty()
+        && let Some(raw) = fallback_cwd(opts)
+    {
+        let use_path = super::project::collect_git_identity(&raw)
+            .ok()
+            .and_then(|g| g.toplevel)
+            .unwrap_or(raw);
+        mine.push(normalize_for_location_compare(&use_path.to_string_lossy()));
+    }
+    let slug = if mine.is_empty() {
+        Some(None)
+    } else {
+        Some(Some(pick_primary_slug(&mine, opts)))
+    };
+    DiskScope {
+        paths: Some(mine),
+        slug,
+    }
+}
+
+fn grok_first_level_matches(folder: &str, paths: &[String]) -> bool {
+    paths
+        .iter()
+        .any(|p| percent_encode_path_component(p).eq_ignore_ascii_case(folder))
+}
+
+fn claude_folder_matches(folder: &str, paths: &[String]) -> bool {
+    paths.iter().any(|p| {
+        if percent_encode_path_component(p).eq_ignore_ascii_case(folder) {
+            return true;
+        }
+        decode_claude_project_folder(folder).is_some_and(|decoded| {
+            normalize_for_location_compare(&decoded) == normalize_for_location_compare(p)
+        })
+    })
+}
+
+fn classify_project_unscoped_disk(
+    name: &str,
+    mode: &str,
+    vault_sessions: u64,
+    days: usize,
+    import_cmd: &str,
+) -> SourceCoverage {
+    let mut row = classify_source(name, mode, None, 0, vault_sessions, days, false, import_cmd);
+    row.disk_note = Some("project_disk_unscoped".to_string());
+    row
 }
 
 fn push_warn(warnings: &mut Vec<String>, code: &str) {
@@ -421,17 +585,27 @@ fn count_agy_disk(home: Option<&Path>, cutoff: SystemTime, include_wsl: bool) ->
     }
 }
 
-fn count_grok_disk(home: Option<&Path>, cutoff: SystemTime) -> DiskCounts {
+fn count_grok_disk(
+    home: Option<&Path>,
+    cutoff: SystemTime,
+    project_paths: Option<&[String]>,
+) -> DiskCounts {
     let Some(grok_home) = resolve_grok_home(home) else {
         return DiskCounts::default();
     };
     let sessions = grok_home.join("sessions");
     let mut counts = DiskCounts::default();
-    walk_grok_chat_history(&sessions, cutoff, &mut counts);
+    walk_grok_chat_history(&sessions, cutoff, &mut counts, project_paths, true);
     counts
 }
 
-fn walk_grok_chat_history(dir: &Path, cutoff: SystemTime, counts: &mut DiskCounts) {
+fn walk_grok_chat_history(
+    dir: &Path,
+    cutoff: SystemTime,
+    counts: &mut DiskCounts,
+    project_paths: Option<&[String]>,
+    at_sessions_root: bool,
+) {
     let Some(rd) = read_existing_dir(dir, counts) else {
         return;
     };
@@ -450,7 +624,16 @@ fn walk_grok_chat_history(dir: &Path, cutoff: SystemTime, counts: &mut DiskCount
             continue;
         }
         if dirent_is_dir(&entry, counts) {
-            walk_grok_chat_history(&path, cutoff, counts);
+            if at_sessions_root
+                && let Some(paths) = project_paths
+                && !grok_first_level_matches(&name, paths)
+            {
+                continue;
+            }
+            walk_grok_chat_history(&path, cutoff, counts, project_paths, false);
+            continue;
+        }
+        if at_sessions_root && project_paths.is_some() {
             continue;
         }
         if !name.eq_ignore_ascii_case("chat_history.jsonl") {
@@ -467,17 +650,27 @@ fn walk_grok_chat_history(dir: &Path, cutoff: SystemTime, counts: &mut DiskCount
     }
 }
 
-fn count_claude_disk(home: Option<&Path>, cutoff: SystemTime) -> DiskCounts {
+fn count_claude_disk(
+    home: Option<&Path>,
+    cutoff: SystemTime,
+    project_paths: Option<&[String]>,
+) -> DiskCounts {
     let Some(claude_home) = resolve_claude_home(home) else {
         return DiskCounts::default();
     };
     let projects = claude_home.join("projects");
     let mut counts = DiskCounts::default();
-    walk_claude_jsonl(&projects, cutoff, &mut counts);
+    walk_claude_jsonl(&projects, cutoff, &mut counts, project_paths, true);
     counts
 }
 
-fn walk_claude_jsonl(dir: &Path, cutoff: SystemTime, counts: &mut DiskCounts) {
+fn walk_claude_jsonl(
+    dir: &Path,
+    cutoff: SystemTime,
+    counts: &mut DiskCounts,
+    project_paths: Option<&[String]>,
+    at_projects_root: bool,
+) {
     let Some(rd) = read_existing_dir(dir, counts) else {
         return;
     };
@@ -493,7 +686,16 @@ fn walk_claude_jsonl(dir: &Path, cutoff: SystemTime, counts: &mut DiskCounts) {
         let path = entry.path();
         let name = entry.file_name().to_string_lossy().to_string();
         if dirent_is_dir(&entry, counts) {
-            walk_claude_jsonl(&path, cutoff, counts);
+            if at_projects_root
+                && let Some(paths) = project_paths
+                && !claude_folder_matches(&name, paths)
+            {
+                continue;
+            }
+            walk_claude_jsonl(&path, cutoff, counts, project_paths, false);
+            continue;
+        }
+        if at_projects_root && project_paths.is_some() {
             continue;
         }
         if !name.to_ascii_lowercase().ends_with(".jsonl") {
@@ -551,7 +753,11 @@ fn walk_codex_rollouts(dir: &Path, cutoff: SystemTime, counts: &mut DiskCounts) 
     }
 }
 
-fn count_cursor_disk(home: Option<&Path>, cutoff: SystemTime) -> DiskCounts {
+fn count_cursor_disk(
+    home: Option<&Path>,
+    cutoff: SystemTime,
+    folder_allow: Option<&[String]>,
+) -> DiskCounts {
     let Some(cursor_home) = resolve_cursor_home(home) else {
         return DiskCounts::default();
     };
@@ -568,6 +774,13 @@ fn count_cursor_disk(home: Option<&Path>, cutoff: SystemTime) -> DiskCounts {
     };
     let mut counts = DiskCounts::default();
     for src in sources {
+        if let Some(allow) = folder_allow
+            && !allow
+                .iter()
+                .any(|s| s.eq_ignore_ascii_case(&src.project_folder))
+        {
+            continue;
+        }
         if !mtime_in_window(&src.path, cutoff, &mut counts) {
             continue;
         }
@@ -628,8 +841,16 @@ fn cursor_unbound_folders(
     (unbound, counts.unreadable)
 }
 
+fn human_intro(days: usize, scope: &str) -> String {
+    let mut out = format!("Capture coverage (last {days} days)\n");
+    if scope == "project" {
+        out.push_str("Scope: this project\n");
+    }
+    out
+}
+
 fn print_human(report: &CoverageReport) {
-    println!("Capture coverage (last {} days)", report.days);
+    print!("{}", human_intro(report.days, &report.scope));
     println!(
         "{:<10} {:<12} {:>6} {:>10} {:>6} {:<24} Next step",
         "Source", "Mode", "Disk", "Sidechain", "Vault", "Status"
@@ -784,6 +1005,18 @@ mod tests {
             global: false,
             project_id: Some(project_id),
             home_override: Some(home.to_path_buf()),
+            cwd_override: None,
+        }
+    }
+
+    fn coverage_opts_global(home: &Path, project_id: ProjectId, days: usize) -> CoverageOptions {
+        CoverageOptions {
+            days,
+            format: "json".to_string(),
+            global: true,
+            project_id: Some(project_id),
+            home_override: Some(home.to_path_buf()),
+            cwd_override: None,
         }
     }
 
@@ -810,6 +1043,7 @@ mod tests {
         let (_vdir, store) = open_store();
         let project_id = ProjectId::new();
         register_project(&store, project_id);
+        add_path_alias(&store, project_id, r"C:\dev\x");
         write_file(&cursor_parent_jsonl(home.path(), "c-dev-x"), "{}\n");
 
         let report = build_report(
@@ -835,6 +1069,7 @@ mod tests {
         let (_vdir, store) = open_store();
         let project_id = ProjectId::new();
         register_project(&store, project_id);
+        add_path_alias(&store, project_id, r"C:\dev\x");
         let side = home
             .path()
             .join(".cursor")
@@ -880,7 +1115,7 @@ mod tests {
 
         let report = build_report(
             store.connection(),
-            &coverage_opts(home.path(), project_id, 30),
+            &coverage_opts_global(home.path(), project_id, 30),
         )
         .expect("report");
         let grok = source(&report, "grok");
@@ -913,7 +1148,7 @@ mod tests {
 
         let report = build_report(
             store.connection(),
-            &coverage_opts(home.path(), project_id, 30),
+            &coverage_opts_global(home.path(), project_id, 30),
         )
         .expect("report");
         let grok = source(&report, "grok");
@@ -946,6 +1181,7 @@ mod tests {
         let (_vdir, store) = open_store();
         let project_id = ProjectId::new();
         register_project(&store, project_id);
+        add_path_alias(&store, project_id, r"C:\dev\x");
         start_harness_session(&store, project_id, CURSOR_HARNESS_UUID);
         write_file(&cursor_parent_jsonl(home.path(), "c-dev-x"), "{}\n");
 
@@ -1036,13 +1272,20 @@ mod tests {
             home.path()
                 .join(".cursor")
                 .join("projects")
-                .join("zzz-later"),
+                .join("c-dev-this"),
         )
-        .expect("mkdir");
+        .expect("mkdir this");
+        fs::create_dir_all(
+            home.path()
+                .join(".cursor")
+                .join("projects")
+                .join("1786745694653"),
+        )
+        .expect("mkdir numeric");
 
         let report = build_report(
             store.connection(),
-            &coverage_opts(home.path(), project_id, 30),
+            &coverage_opts_global(home.path(), project_id, 30),
         )
         .expect("report");
         assert!(
@@ -1053,6 +1296,16 @@ mod tests {
         let mut sorted = report.unbound_folders.clone();
         sorted.sort();
         assert_eq!(report.unbound_folders, sorted);
+        assert!(
+            report.unbound_folders.iter().any(|f| f == "1786745694653"),
+            "AC4 numeric; unbound={:?}",
+            report.unbound_folders
+        );
+        assert!(
+            report.unbound_folders.iter().any(|f| f == "c-dev-this"),
+            "AC4 c-dev-this; unbound={:?}",
+            report.unbound_folders
+        );
     }
 
     #[test]
@@ -1175,6 +1428,21 @@ mod tests {
         assert!(json["opencode"].is_null() || json["sources"][2]["disk_eligible"].is_null());
         assert!(json["unbound_folders"].is_array());
         assert!(json["warnings"].is_array());
+        assert_eq!(json["scope"], "project");
+        assert!(json.get("slug").is_some(), "AC6: slug key present");
+        assert!(json["slug"].is_null(), "AC6: no candidates → null");
+        assert!(
+            json["sources"][0]["disk_eligible"].is_null(),
+            "AC7: agy null"
+        );
+        assert!(
+            json["sources"][4]["disk_eligible"].is_null(),
+            "AC7: codex null"
+        );
+        assert!(
+            json.get("disk_this").is_none() && json.get("disk_machine").is_none(),
+            "no disk_this/disk_machine"
+        );
     }
 
     #[test]
@@ -1183,6 +1451,7 @@ mod tests {
         let (_vdir, store) = open_store();
         let project_id = ProjectId::new();
         register_project(&store, project_id);
+        add_path_alias(&store, project_id, r"C:\dev\x");
         let path = cursor_parent_jsonl(home.path(), "c-dev-x");
         write_file(&path, "{}\n");
         set_old_mtime(&path, 10);
@@ -1224,5 +1493,342 @@ mod tests {
         )
         .expect("report");
         assert_eq!(source(&report, "agy").vault_sessions, 2);
+    }
+
+    #[test]
+    fn capture_coverage__project_scope__grok_disk_this_slug_only() {
+        let home = tempfile::tempdir().expect("home");
+        let (_vdir, store) = open_store();
+        let project_id = ProjectId::new();
+        register_project(&store, project_id);
+        let this_path = r"C:\dev\this";
+        let other_path = r"C:\dev\other";
+        add_path_alias(&store, project_id, this_path);
+        let this_enc = percent_encode_path_component(this_path);
+        let other_enc = percent_encode_path_component(other_path);
+        write_file(
+            &home
+                .path()
+                .join(".grok")
+                .join("sessions")
+                .join(&this_enc)
+                .join("sid")
+                .join("chat_history.jsonl"),
+            "{}\n",
+        );
+        write_file(
+            &home
+                .path()
+                .join(".grok")
+                .join("sessions")
+                .join(&other_enc)
+                .join("sid")
+                .join("chat_history.jsonl"),
+            "{}\n",
+        );
+        let project = build_report(
+            store.connection(),
+            &coverage_opts(home.path(), project_id, 30),
+        )
+        .expect("project");
+        assert_eq!(
+            source(&project, "grok").disk_eligible,
+            Some(1),
+            "AC1 project"
+        );
+        let global = build_report(
+            store.connection(),
+            &coverage_opts_global(home.path(), project_id, 30),
+        )
+        .expect("global");
+        assert_eq!(source(&global, "grok").disk_eligible, Some(2), "AC1 global");
+    }
+
+    #[test]
+    fn capture_coverage__project_scope__cursor_disk_this_slug_only() {
+        let home = tempfile::tempdir().expect("home");
+        let (_vdir, store) = open_store();
+        let project_id = ProjectId::new();
+        register_project(&store, project_id);
+        add_path_alias(&store, project_id, r"C:\dev\x");
+        write_file(&cursor_parent_jsonl(home.path(), "c-dev-x"), "{}\n");
+        write_file(&cursor_parent_jsonl(home.path(), "c-dev-other"), "{}\n");
+        let project = build_report(
+            store.connection(),
+            &coverage_opts(home.path(), project_id, 30),
+        )
+        .expect("project");
+        assert_eq!(
+            source(&project, "cursor").disk_eligible,
+            Some(1),
+            "AC2 project"
+        );
+        let global = build_report(
+            store.connection(),
+            &coverage_opts_global(home.path(), project_id, 30),
+        )
+        .expect("global");
+        assert_eq!(
+            source(&global, "cursor").disk_eligible,
+            Some(2),
+            "AC2 global"
+        );
+    }
+
+    #[test]
+    fn capture_coverage__project_scope__unbound_filtered_to_this_slug() {
+        let home = tempfile::tempdir().expect("home");
+        let (_vdir, store) = open_store();
+        let project_id = ProjectId::new();
+        register_project(&store, project_id);
+        for folder in ["c-dev-this", "empty-window", "1786745694653"] {
+            fs::create_dir_all(home.path().join(".cursor").join("projects").join(folder))
+                .expect("mkdir");
+        }
+        let mut opts = coverage_opts(home.path(), project_id, 30);
+        opts.cwd_override = Some(PathBuf::from(r"C:\dev\this"));
+        let report = build_report(store.connection(), &opts).expect("report");
+        assert_eq!(
+            report.unbound_folders,
+            vec!["c-dev-this".to_string()],
+            "AC3 unbound={:?}",
+            report.unbound_folders
+        );
+    }
+
+    #[test]
+    fn capture_coverage__project_scope__bound_alias__unbound_empty() {
+        let home = tempfile::tempdir().expect("home");
+        let (_vdir, store) = open_store();
+        let project_id = ProjectId::new();
+        register_project(&store, project_id);
+        add_path_alias(&store, project_id, r"C:\dev\this");
+        fs::create_dir_all(
+            home.path()
+                .join(".cursor")
+                .join("projects")
+                .join("c-dev-this"),
+        )
+        .expect("mkdir");
+        fs::create_dir_all(
+            home.path()
+                .join(".cursor")
+                .join("projects")
+                .join("empty-window"),
+        )
+        .expect("mkdir");
+        let report = build_report(
+            store.connection(),
+            &coverage_opts(home.path(), project_id, 30),
+        )
+        .expect("report");
+        assert!(
+            report.unbound_folders.is_empty(),
+            "AC3b unbound={:?}",
+            report.unbound_folders
+        );
+    }
+
+    #[test]
+    fn capture_coverage__project_scope__sidechain_this_slug_or_zero() {
+        let home = tempfile::tempdir().expect("home");
+        let (_vdir, store) = open_store();
+        let project_id = ProjectId::new();
+        register_project(&store, project_id);
+        add_path_alias(&store, project_id, r"C:\dev\x");
+        write_file(
+            &home
+                .path()
+                .join(".cursor")
+                .join("projects")
+                .join("c-dev-x")
+                .join("agent-transcripts")
+                .join("subagents")
+                .join("a.jsonl"),
+            "{}\n",
+        );
+        write_file(
+            &home
+                .path()
+                .join(".cursor")
+                .join("projects")
+                .join("c-dev-other")
+                .join("agent-transcripts")
+                .join("subagents")
+                .join("b.jsonl"),
+            "{}\n",
+        );
+        let this_enc = percent_encode_path_component(r"C:\dev\x");
+        let other_enc = percent_encode_path_component(r"C:\dev\other");
+        write_file(
+            &home
+                .path()
+                .join(".grok")
+                .join("sessions")
+                .join(&this_enc)
+                .join("subagent-role")
+                .join("sid")
+                .join("chat_history.jsonl"),
+            "{}\n",
+        );
+        write_file(
+            &home
+                .path()
+                .join(".grok")
+                .join("sessions")
+                .join(&other_enc)
+                .join("subagent-role")
+                .join("sid")
+                .join("chat_history.jsonl"),
+            "{}\n",
+        );
+        let report = build_report(
+            store.connection(),
+            &coverage_opts(home.path(), project_id, 30),
+        )
+        .expect("report");
+        assert_eq!(
+            source(&report, "cursor").disk_skipped_sidechain,
+            1,
+            "AC3c cursor"
+        );
+        assert_eq!(
+            source(&report, "grok").disk_skipped_sidechain,
+            1,
+            "AC3c grok"
+        );
+        assert_eq!(source(&report, "agy").disk_skipped_sidechain, 0, "AC3c agy");
+        assert_eq!(
+            source(&report, "codex").disk_skipped_sidechain,
+            0,
+            "AC3c codex"
+        );
+    }
+
+    #[test]
+    fn capture_coverage__global__json_stay_green_t337_keys() {
+        let home = tempfile::tempdir().expect("home");
+        let (_vdir, store) = open_store();
+        let project_id = ProjectId::new();
+        register_project(&store, project_id);
+        let report = build_report(
+            store.connection(),
+            &coverage_opts_global(home.path(), project_id, 30),
+        )
+        .expect("report");
+        let json = serde_json::to_value(&report).expect("json");
+        for key in [
+            "days",
+            "sources",
+            "unbound_folders",
+            "warnings",
+            "multi_import",
+        ] {
+            assert!(json.get(key).is_some(), "AC5 missing {key}");
+        }
+        assert_eq!(json["sources"].as_array().map(|a| a.len()), Some(6));
+        assert!(
+            json["sources"][2]["disk_eligible"].is_null(),
+            "OpenCode null"
+        );
+        assert_eq!(json["scope"], "global");
+        assert!(json.get("slug").is_none(), "AC5 slug omitted");
+        assert!(json.get("disk_this").is_none());
+        assert!(json.get("disk_machine").is_none());
+        assert!(json["sources"][0]["disk_eligible"].is_number(), "agy Some");
+        assert!(
+            json["sources"][4]["disk_eligible"].is_number(),
+            "codex Some"
+        );
+    }
+
+    #[test]
+    fn capture_coverage__project_json__e1_slug_null_vs_omit() {
+        let home = tempfile::tempdir().expect("home");
+        let (_vdir, store) = open_store();
+        let project_id = ProjectId::new();
+        register_project(&store, project_id);
+        let null_slug = build_report(
+            store.connection(),
+            &coverage_opts(home.path(), project_id, 30),
+        )
+        .expect("null");
+        let jn = serde_json::to_value(&null_slug).expect("json");
+        assert_eq!(jn["scope"], "project");
+        assert!(jn.as_object().expect("obj").contains_key("slug"));
+        assert!(jn["slug"].is_null());
+        add_path_alias(&store, project_id, r"C:\dev\x");
+        let with = build_report(
+            store.connection(),
+            &coverage_opts(home.path(), project_id, 30),
+        )
+        .expect("string");
+        let js = serde_json::to_value(&with).expect("json2");
+        assert!(
+            js["slug"].is_string(),
+            "AC6 slug string; got {}",
+            js["slug"]
+        );
+        assert_eq!(source(&with, "cursor").disk_eligible, Some(0));
+        assert!(js.get("disk_this").is_none());
+    }
+
+    #[test]
+    fn capture_coverage__project_scope__agy_codex_disk_null() {
+        let home = tempfile::tempdir().expect("home");
+        let (_vdir, store) = open_store();
+        let project_id = ProjectId::new();
+        register_project(&store, project_id);
+        let report = build_report(
+            store.connection(),
+            &coverage_opts(home.path(), project_id, 30),
+        )
+        .expect("report");
+        assert_eq!(source(&report, "agy").disk_eligible, None);
+        assert_eq!(source(&report, "codex").disk_eligible, None);
+        assert_eq!(
+            source(&report, "agy").disk_note.as_deref(),
+            Some("project_disk_unscoped")
+        );
+        let json = serde_json::to_value(&report).expect("json");
+        assert!(
+            json["sources"][0]
+                .as_object()
+                .expect("agy")
+                .contains_key("disk_eligible")
+        );
+        assert!(json["sources"][0]["disk_eligible"].is_null());
+    }
+
+    #[test]
+    fn capture_coverage__no_alias_cwd_slug__unbound_this_folder() {
+        let home = tempfile::tempdir().expect("home");
+        let (_vdir, store) = open_store();
+        let project_id = ProjectId::new();
+        register_project(&store, project_id);
+        let folder = cursor_project_slug(r"C:\dev\Orca\OrcaSlicer-ZR");
+        write_file(&cursor_parent_jsonl(home.path(), &folder), "{}\n");
+        fs::create_dir_all(
+            home.path()
+                .join(".cursor")
+                .join("projects")
+                .join("c-dev-other"),
+        )
+        .expect("mkdir");
+        let mut opts = coverage_opts(home.path(), project_id, 30);
+        opts.cwd_override = Some(PathBuf::from(r"C:\dev\Orca\OrcaSlicer-ZR"));
+        let report = build_report(store.connection(), &opts).expect("report");
+        assert_eq!(report.unbound_folders, vec![folder.clone()], "AC8 unbound");
+        assert_eq!(source(&report, "cursor").disk_eligible, Some(1));
+    }
+
+    #[test]
+    fn capture_coverage__human_header__global_unchanged() {
+        let global = human_intro(7, "global");
+        assert_eq!(global, "Capture coverage (last 7 days)\n");
+        assert!(!global.to_lowercase().contains("this project"));
+        let project = human_intro(7, "project");
+        assert!(project.starts_with("Capture coverage (last 7 days)\n"));
+        assert!(project.contains("Scope: this project"));
     }
 }
