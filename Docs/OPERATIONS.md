@@ -642,7 +642,7 @@ This is independent of Task Scheduler **System32** cwd: roots come from vault pa
 | `project rebind-path <path> --to <dest>` | Removed (from) + Added (to) in **one tx** | Confirmable per-path split; memories stay on from |
 | `project scan-roots [path]` / `--root DIR` | Dry-run `.ledgerful` discovery | Unregistered hits suggest `register-path`; registered suggested is empty; never writes |
 
-Putting a path string into `set-alias` does **not** register a path alias. `project list` **path** column shows a registered path alias when present; it is never invented from cwd/git. Labels like `C:\dev\foo` in the label column are **not** path aliases unless you also ran `register-path`.
+Putting a path string into `set-alias` does **not** register a path alias. `project list` **path** column shows a registered path alias when present; it is never invented from cwd/git. Labels like `C:\dev\foo` in the label column are **not** path aliases unless you also ran `register-path`. `ai-brains context` (not `--show`) may auto-bind the git toplevel via the same `register-path` rules and may auto-set a unique slug alias; `--no-auto-bind` / `AI_BRAINS_NO_AUTO_BIND=1` skips. Doctor and preflight never bind.
 
 ```powershell
 # Once per repo root (examples)
@@ -1030,6 +1030,7 @@ If the graph features are missing on Windows, verify that the `graph` feature wa
 | `AI_BRAINS_KEY` | SQLCipher vault key as product form `x'<64 hex>'` (67 chars; T187/T197). Required for vault-backed commands when `--key` omitted. Missing → `VAULT_KEY_MISSING` (not silent zero). CLI gap-fill: shell env > project `.env` > always-merge global `~/.ai-brains/.env` (non-override; still under `--no-project-context`). Never commit. |
 | `AI_BRAINS_ALLOW_ZERO_KEY` | When `1`/`true`/`yes` (case-insensitive), allow all-zero SQLCipher keys (hermetic tests / legacy dogfood only). Production should omit. Explicit zero without this → `VAULT_KEY_ZERO`. |
 | `AI_BRAINS_VAULT_KEY` | **Daemon only** (`ai-brainsd`): vault key env name used by the daemon process (not the CLI resolver). Prefer documenting daemon secrets in a 0600 env file; do not conflate with CLI `AI_BRAINS_KEY` without ensuring both are set when CLI and daemon share a vault. |
+| `AI_BRAINS_NO_AUTO_BIND` | When `1`/`true`/`yes` (case-insensitive), skip T344 `context` auto-bind (path + unique-slug alias). Same as `--no-auto-bind`. Not a clap `env=` flag (presence-as-true). Doctor and preflight never bind. |
 | `AI_BRAINS_PROJECT_ID` | Default `project_id` for capture/recall (set by `ai-brains context`). Local `.env` force-sets this over a different shell value (T80/T223). |
 | `AI_BRAINS_SESSION_ID` | Default `session_id` (set by `ai-brains context`). Local `.env` force-sets this over a different shell value; session-only override is demoted to debug (no stderr). |
 | `AI_BRAINS_QUIET_ENV_WARN` | When `1`/`true`/`yes` (case-insensitive, trim), suppress stderr for local `.env` project-context ID override warnings (collapsed debug only). **Must be in shell env or project `.env`** — global `~/.ai-brains/.env` alone does **not** work (global loads after the warning is emitted). **Quiet wins over** `AI_BRAINS_FORCE_ENV_WARN`. Does not affect T206 `git/env project mismatch` or T240 identity mismatch. |

@@ -117,6 +117,15 @@ Minted after PATH `0.1.5` dogfood from `C:\dev\Orca\OrcaSlicer-ZR`. Skill `.clau
 | `#272` Cursor | **N/A** usage-limit — no new placeholder |
 | Fold-in DOCS TX | `f5c8b5ca-076a-4593-bbd5-f25f73ee5493` |
 
+### T344 implement (2026-09-02) — residuals remain
+
+| Item | Disposition |
+|------|-------------|
+| T344-R1 preflight auto-bind | **Residual** — CQRS declined; T345 next-line names `context` |
+| T344-R2 nongit cwd bind | **Residual** — owner said repos only |
+| T344-R3 origin slug ≠ folder name | **Residual** — exact-unique may skip; operator `set-alias` |
+| FEATURE TX | `a0230aa9-62da-417f-90c6-14779ccccd70` |
+
 ### T343 implement (2026-09-01) — residuals remain
 
 | Item | Disposition |
