@@ -67,12 +67,19 @@ pub(crate) fn map_show_env_line(line: &str) -> Option<String> {
     None
 }
 
+fn warn_auto_bind(result: Result<(), Box<dyn std::error::Error>>) {
+    if let Err(e) = result {
+        tracing::warn!(error = %e, "auto-bind failed");
+    }
+}
+
 pub fn run(
     ctx: &crate::context::AppContext,
     new_project: bool,
     new_session: bool,
     show: bool,
     tx_id: Option<String>,
+    no_auto_bind: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let current_dir = std::env::current_dir()?;
     let project_name = current_dir
@@ -198,6 +205,11 @@ pub fn run(
                         privacy,
                     )?;
                     println!("Vault: project and session present.");
+                    warn_auto_bind(crate::commands::auto_bind::maybe_auto_bind(
+                        ctx,
+                        env_pid,
+                        crate::commands::auto_bind::AutoBindOpts { no_auto_bind },
+                    ));
                 }
                 (Some(_), None, Some(raw_sid)) => {
                     // F14 / AC7: session line present but not a UUID; project parsed.
@@ -284,6 +296,12 @@ pub fn run(
     final_content.push_str(&env_content);
 
     std::fs::write(&env_path, final_content)?;
+
+    warn_auto_bind(crate::commands::auto_bind::maybe_auto_bind(
+        ctx,
+        project_id,
+        crate::commands::auto_bind::AutoBindOpts { no_auto_bind },
+    ));
 
     println!("Context initialized for project: {}", project_name);
     println!("Project ID: {}", project_id);

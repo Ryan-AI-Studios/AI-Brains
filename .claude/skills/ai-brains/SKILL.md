@@ -1,124 +1,101 @@
 ---
 name: ai-brains
-description: "Persistent memory and project context vault. Use this skill whenever the user asks 'what did we decide', mentions past sessions, or when starting work on a repo cold. Trigger when you hear 'remember this', 'don't forget', 'check the vault', or 'what did we decide about'. ALSO trigger on frustration signals like 'I told you last time' or 'we already tried that'. Use even if memory isn't explicitly mentioned if the task involves project history. DO NOT use for generic coding questions, library documentation, or formatting help."
+description: >
+  Persistent memory vault for project decisions, constraints, and session
+  capture. Use when the user asks what we decided, mentions past sessions,
+  starts a repo cold, says remember this / check the vault, or signals
+  frustration ('I told you last time'). Skip generic library questions and
+  one-line formatting.
 ---
 
 # AI-Brains Memory Protocol
 
-Long-term memory vault for project decisions, constraints, and session capture. Prefer vault + preflight over re-deriving architecture from scratch.
+Local-first vault. Prefer **preflight + recall** over re-deriving architecture.
+Never print `AI_BRAINS_KEY` / `AI_BRAINS_VAULT_KEY`. Never pin chain-of-thought,
+tool logs, or model reasoning.
 
 ## When NOT to use
-- Generic “how do I use X in Rust?” knowledge
-- Trivial one-line formatting fixes
-- Answers already in the current conversation
+
+- Generic “how does crate X work?”
+- Trivial formatting already answered in this chat
 
 ## Availability
-1. `ai-brains --version` — if missing, tell the user to install; fall back to README/Cargo.toml.
-2. Vault ops need a **SQLCipher product key** after T187 page encryption (see Key & path below).
 
-## Key & vault path (required for vault commands)
+1. `ai-brains --version` — missing → tell the user to install; fall back to README.
+2. Vault commands need `AI_BRAINS_VAULT_PATH` + `AI_BRAINS_KEY` (usually `%USERPROFILE%\.ai-brains\.env`, quoted). CLI has **no** silent home vault. Wrong key → `Vault locked`.
 
-| Item | Where |
-|------|--------|
-| **Product key** | `AI_BRAINS_KEY` = `x'<64 hex chars>'` (32 random bytes). Never commit. |
-| **Daemon key** | `AI_BRAINS_VAULT_KEY` (service / `daemon.env`; same product form). |
-| **User-global dotenv** | `%USERPROFILE%\.ai-brains\.env` — CLI merges this for **gaps** (does not override shell or project `.env`), including with `--no-project-context`. Preferred place for `AI_BRAINS_VAULT_PATH` + `AI_BRAINS_KEY`. **Quote values** (e.g. `AI_BRAINS_KEY="x'…'"` and forward-slash path) so dotenvy parses correctly. |
-| **Project `.env`** | Prefer **IDs only** via `ai-brains context` (`AI_BRAINS_PROJECT_ID` / `SESSION_ID`). CLI still gap-fills **any** unset keys from project dotenv (including KEY) — do **not** commit secrets; put KEY in global dotenv or shell. |
-| **Vault path** | CLI requires `--vault-path` or `AI_BRAINS_VAULT_PATH` (often from global dotenv). **No** silent home default on the CLI. Daemon may fall back to `~/.ai-brains/vault.db`. |
-| **This machine’s live vault** | Often set via global dotenv (e.g. `C:/dev/ai-brains/vault.db`) — not the source tree `C:\dev\AI-Brains`. |
+## Session start (cold repo)
 
-**Encryption layers (F8):** plain SQLite (legacy) → **SQLCipher page encrypt** (`ai-brains vault encrypt`) → Content Envelope (payload DEK) → OS ACLs. Setting a key does **not** encrypt a plain file; use `vault encrypt`.
+Run **this first** — it is the briefing:
 
-**Missing key:** vault commands fail with `VAULT_KEY_MISSING`. **Wrong key:** `Vault locked`. Doctor: missing → skip open; wrong → fail.
-
-## Multi-repo model
-- **One vault + one key** for all repos on a machine.
-- **Per-repo** optional project/session identity via `ai-brains context` (local `.env`).
-- Without project context, pass `--project-id` or use `--global` on recall/preflight when appropriate.
-
-## Infrastructure
-- Daemon may auto-launch; service uses `AI_BRAINS_VAULT_KEY` + path (ProgramData `daemon.env` and/or service Environment).
-- Prefer `ai-brains daemon status` for liveness (vault key not required for status).
-- Errors: dual envelope — governed JSON often on stdout; generic paths on stderr. See `Docs/CLI-EXIT-CODES.md`.
-
-## Workflow phases (non-destructive first)
-
-### Phase 0: Health (do this first on cold start)
 ```powershell
-ai-brains doctor
-ai-brains daemon status
-ai-brains context --show   # confirm project id / vault env warnings
+ai-brains preflight --summary
 ```
-A `shell leftover PROJECT_ID` line names the pre-dotenv shell id the `.env` overrides.
-If `doctor` cannot open the vault: fix `AI_BRAINS_KEY` / global dotenv / path before recall.
 
-### Phase 1: Orient
-1. `ai-brains safety sync --dry-run` — Ledgerful hotspots preview (non-mutating).
-2. `ai-brains preflight --summary` then `--pretty` or `--format json` if needed.
-3. **Verify project:** if warnings say local `.env` overrides shell, trust `context --show` (a `shell leftover PROJECT_ID` line names the pre-dotenv shell id the `.env` overrides). Wrong `AI_BRAINS_PROJECT_ID` → wrong preflight/recall brain.
+Expect pins, in-context DECISION/CONSTRAINT/HOTSPOT counts, harness wiring, and a `next:` line. Use `--pretty --compact` only if you need the Index. **~several seconds is normal.**
 
-### Phase 2: Recall (search before acting)
-
-**Daily “what did we decide?” is `recall` / `search`.** Briefing and `query progressive` read only Approved decisions + Active/Confirmed conclusions. Discovery grants do not turn vault pins into that authority.
-```powershell
-# Prefer explicit project or global when unsure
-ai-brains recall "<topic>" --limit 5 --format pretty
-ai-brains recall "<topic>" --project-id <uuid> --limit 5 --format pretty
-ai-brains recall "<topic>" --global --limit 5 --format pretty
-ai-brains recall "<topic>" --semantic --limit 5 --format pretty   # needs embedding backend
-ai-brains search "<topic>" --limit 5 --format pretty              # visible alias of recall
-ai-brains sync query "<topic>" --quiet   # vault + Ledgerful ledger
-```
-- Empty JSON recall includes a **hint** (`--semantic` / `--global`). Pretty empty can look blank except logs — try `--format json` or `--global`.
-- Ignore stale DECISION text that contradicts current docs (e.g. pre-T187 “SQLCipher not live”); prefer Ledgerful ledger rows + `Docs/COMPATIBILITY.md` F8.
-
-### Phase 3: Record (mutating)
-
-`pin` requires session — run `context` first if `AI_BRAINS_SESSION_ID` is unset.
+Then, only if Scope looks wrong (`(no alias)`, leftover UUID, git slug ≠ label):
 
 ```powershell
+ai-brains project whoami
 ai-brains context --show
+```
+
+- `preflight` = vault content for **this** `AI_BRAINS_PROJECT_ID`.
+- `context --show` = **dotenv dump** (IDs, redacted keys, leftover shell `PROJECT_ID`). It does **not** open the vault. Empty `--show` ≠ empty vault.
+- `project detect` / `whoami` = identity repair. Remediations name `set-alias` and `register-path`. `context` (not `--show`) may auto-bind the git toplevel and a unique slug alias.
+- `briefing project` / `decision in-force` need `policy bootstrap --dry-run` then `policy bootstrap`. **POLICY_DENIED is a grant wall, not an empty vault** — use recall.
+
+## Search (what did we decide?)
+
+```powershell
+ai-brains recall "<topic>" --limit 5 --format pretty
+ai-brains search "<topic>" --limit 5 --format pretty
+ai-brains sync query "<topic>" --quiet
+```
+
+`search` is an alias of vault recall. If FTS returns nothing, **do not conclude the vault is empty** — re-read `preflight --summary` / `--pretty --compact` Index, or retry with concrete terms (`graft`, `SQLCipher`, a track number). `--semantic` needs the embed server; a threshold miss falls back to lexical (extra RTT, often the same list). `--global` only when the user wants other projects.
+
+## Record (mutating — ask unless the owner already said pin)
+
+`pin` needs `AI_BRAINS_SESSION_ID` — `ai-brains context` if unset (`--show` does not write `.env`).
+
+```powershell
 ai-brains pin "DECISION: <what + why>"
 ai-brains pin "CONSTRAINT: <rule>"
 ai-brains pin "INVARIANT: <must-hold>"
 ```
 
-Optional: `--tx-id <uuid>` or `LEDGERFUL_TX_ID` to link a ledger TX. `--tag` is fine (T285 skips the `TAGS:` envelope). `--stdin` for long text.
+First contentful line after optional `TAGS:` must be one of those prefixes (or T336 skips as `Other`). `--tx-id` / `LEDGERFUL_TX_ID` optional. Dense knowledge only.
 
-WHEN: owner-approved architecture / constraint / invariant — not every turn. First contentful line after optional `TAGS:` must be `DECISION:` / `CONSTRAINT:` / `INVARIANT:` (T274/T336). Unprefixed pins classify as `Other` and T336 skips them. `INVARIANT:` maps to Constraint. `HOTSPOT:` classifies as Hotspot; T336 does not graduate it.
+## Forget / coverage / nightly
 
-Dense knowledge only. Never pin CoT, tool logs, or model reasoning.
+- `forget --list-forgotten` is read-only; `--memory-id` / `--match` mutate.
+- `capture coverage --days 7` is **machine-wide** until T348 — do not treat grok-disk vs this-project vault as “capture broken.”
+- `nightly --status --quick` is the operator card. **Do not** run live `nightly` without `--status`.
+- `safety sync --dry-run` before pin. Vendored `deps_src/` + `score=0.00` rows are low-signal (T347).
+- `doctor --summary` is the 4-line health glance. Full `doctor` is ~15 checks, not a dump.
 
-CLI pin is not session-less. T70 symbol pins may still lack RECALLS — `graph neighbors`. `PINNED_IN_PROJECT` is the T335 fallback, not a reason to skip `context`.
+## Identity (do not conflate)
 
-After multi-harness days: `ai-brains capture coverage --days 2` exists in **source** (T337); PATH 0.1.5 may lack `capture` until owner install. Or `ai-brains nightly --status --quick`. Do not assume same-day import. Do not run live `nightly` without `--status`. T334 six-source + T339 `AI_BRAINS_OPENCODE_BIN` are in source.
+| Command | Role |
+|---------|------|
+| `context` | Write/ensure `.env` IDs + vault project/session rows |
+| `context --show` | Print `.env` IDs only |
+| `project set-alias` | Human **label** |
+| `project register-path` | Filesystem **root** (nightly Phase 2, Cursor slug bind) |
+| `project adopt-path` | Print-only Scope fix; `--write-env --yes` to rewrite **only** `PROJECT_ID` |
 
-### Phase 4: Forget (mutating)
-`forget --list-forgotten` (read); `--memory-id` / `--match` + `-f`; `--restore <uuid>`.
+Path strings in `set-alias` do **not** register a path. One path → one project (conflict exit 1).
 
-### Governed discovery (may POLICY_DENIED)
-`scope resolve`, `source list`, `evidence list`, `review list`, `briefing project` need **policy grants** for the principal/scope. Deny + `details.hint` is expected without grants — fall back to preflight/recall. Denied project briefing human is a **grant wall**, not an empty vault: run `policy bootstrap --dry-run` then `policy bootstrap` (omit `--scope` when project context is authoritative); pins remain via `recall` / `search`. Deny `details.hint` matches that omit form. Granted-empty briefing/lists still mean “no Approved/Active authority” — use `recall`, not “seed an Approved decision.” Personal briefing deny is optional continuity, not a required bootstrap. Not a vault-key problem.
+## Key placement
 
-## Command summary (agents)
+| Item | Where |
+|------|--------|
+| KEY + vault path | `%USERPROFILE%\.ai-brains\.env` (gap-fill; does not override shell) |
+| Project/session IDs | cwd `.env` via `ai-brains context` — **no secrets** in repo |
+| Live vault on this machine | Often `C:/dev/ai-brains/vault.db` via global dotenv, not the source tree |
 
-| Goal | Command | Notes |
-|------|---------|--------|
-| Health | `doctor`, `daemon status` | Best non-destructive start |
-| Project identity | `context --show`, `project list`, `project detect` | detect: git slug → vault → env; warns on git/env mismatch. `--show` leftover line names the pre-dotenv shell `PROJECT_ID` the `.env` overrides. Human `project list` leads with the cwd path-owner |
-| Orient | `preflight --summary` / `--pretty` | Scoped by project id. Pretty Safety is live Ledgerful hotspots (project-scoped) or leading CONSTRAINT/INVARIANT/HOTSPOT; empty names `safety sync --dry-run`. |
-| Search | `recall` / `search` (alias), `sync query --quiet` | Scope carefully; `search` is vault-first recall, not ledger or progressive |
-| Harness capture | `harness install --harness all-ready --dry-run` then `--yes` | Five ready (grok → agy → opencode → claude → codex). Codex live fire needs `/hooks` trust. No nightly Claude/Codex. |
-| Hotspots preview | `safety sync --dry-run` | Prefer dry-run until user wants pin |
-| Graph health | `graph update` / `graph neighbors` | Graph-on install. Pretty session PREVIEW is `{n} memories · first line` (human-only; JSON keys unchanged). `graph update` is health, not rebuild. |
-| Pin / forget | `pin`, `forget` | Mutating |
-| Backup | `backup list` (read); `backup create` (write) | Old plain backups may WARN under new key |
+## Docs
 
-## Maintenance (ops; ask before destructive)
-- `nightly`, `backup create`, `recovery export`, `vault encrypt`, `daemon stop` / service control
-- Install CLI graph-on: `cargo install --path crates/ai-brains-cli --locked --features graph`
-
-## Normative docs
-- `Docs/INSTALL.md` — key form, dotenv order, first vault  
-- `Docs/OPERATIONS.md` — daemon/service, env table  
-- `Docs/COMPATIBILITY.md` F8 — encryption honesty  
-- `Docs/CLI-EXIT-CODES.md` — exits and envelopes  
+`Docs/INSTALL.md`, `Docs/OPERATIONS.md`, `Docs/COMPATIBILITY.md` (F8), `Docs/CLI-EXIT-CODES.md`.

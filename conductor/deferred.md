@@ -2,6 +2,130 @@
 
 Tracks deferred from T142. Append-only; strike through when promoted to a real track.
 
+### T344–T349 placeholders (2026-09-02) — OrcaSlicer-ZR dogfood
+
+Minted after PATH `0.1.5` dogfood from `C:\dev\Orca\OrcaSlicer-ZR`. Skill `.claude/skills/ai-brains/SKILL.md` rewritten this pass (session start = `preflight --summary`, not `context --show`). last-PR `#272` Cursor = usage-limit only.
+
+| Item | Disposition |
+|------|-------------|
+| Fail-closed auto `register-path` + unique-slug `set-alias` | **Promoted T344** |
+| Cold this-repo card / `--show` is not a briefing | **Promoted T345** |
+| `search "what did we decide"` empty; first recall 69s; semantic miss; BM25 chrome | **Promoted T346** |
+| Hotspot `deps_src/` + score=0.00 | **Promoted T347** |
+| Coverage machine vs this project; Cursor unbound slug | **Promoted T348** |
+| Piped JSON glance; detect/whoami vocab; daemon vs nightly URLs; deny walls | **Promoted T349** |
+| Doctor verbosity | **Decline** — 17 lines; `--summary` exists |
+| Auto `policy bootstrap` | **Decline** — T345 surfaces 0/3 + dry-run next; no silent grants |
+| Auto `adopt-path` / `.env` PROJECT_ID rewrite | **Decline** — T240 F2; T344 F4 |
+| Forget empty-state / backup list / replicate unused | **Decline** — quality OK or irrelevant |
+| T343-R1–R4 embed residuals | **Not stolen** |
+| T342-R1–R3 WSL UNC / dual alias | **Not stolen** |
+| `#272` Cursor leftover | **N/A empty** |
+| DOCS TX | `57542a68-6364-41c9-9f31-77948640352d` |
+
+### T344 full plan (2026-09-02) — fail-closed auto-bind
+
+| Item | Disposition |
+|------|-------------|
+| Placeholder F1–F6 | **Absorb** F1–F12; hook = `context` after ensure only |
+| CQRS doctor/preflight bind | **Decline** F9 / AC12 — T344-R1 / T345 next: `context` |
+| T240 F2 silent Scope | **Stay-green** F4 |
+| clap env on SetTrue | **Decline** — clap#5591; helper reads `AI_BRAINS_NO_AUTO_BIND` |
+| T345–T349 | **Not stolen** |
+| T343-R1–R4 / T342-R1–R3 | **Not stolen** |
+| `#272` Cursor | **N/A** usage-limit |
+| Dependabot `#250–#256` | **Decline** |
+| Soft | T344-R1 preflight bind; T344-R2 nongit cwd; T344-R3 origin vs folder slug |
+| DOCS TX | `2993af61-eb10-4c21-acdd-182cffe0c025` |
+
+### T345 full plan (2026-09-02) — session-start card
+
+| Item | Disposition |
+|------|-------------|
+| Placeholder F1–F6 | **Absorb** F1–F10; coverage **T348** |
+| T315 F8 dual next | **Supersede** when unbound or grants incomplete |
+| T241 grants JSON | **Absorb** ladder rung 2 |
+| `--show` as briefing | **Decline** F6 |
+| Auto bootstrap | **Decline** F8 |
+| T344 / T346–T349 | **Not stolen** |
+| `#272` Cursor | **N/A** |
+| Soft | T345-R1 coverage line; T345-R2 Index vs budget last_decision |
+| DOCS TX | `28a1ddc2-a59b-49f6-9034-f249f24e0598` |
+
+### T346 full plan (2026-09-02) — retrieval empty-rescue
+
+| Item | Disposition |
+|------|-------------|
+| Placeholder F0–F5 | **Absorb** F0–F7; Index prefer-fill; hide pretty BM25 |
+| T315 query string | **Stay-green** |
+| T325 OR-fill | **Partial** — one-token `decide` skips OR |
+| T343-R1 long-doc | **Not stolen** |
+| T344–T345 / T347–T349 | **Not stolen** |
+| `#272` Cursor | **N/A** |
+| Soft | T346-R2 `--semantic` + embed-down 69s |
+| DOCS TX | `e7dff301-d478-49c1-99be-b808e798cf1d` |
+
+### T347 full plan (2026-09-02) — hotspot allow/deny
+
+| Item | Disposition |
+|------|-------------|
+| Placeholder F1–F5 | **Absorb** F0–F6; helper in retrieval |
+| T321 dry-run default write | **Stay-green** F5 |
+| Auto-pin / Ledgerful algorithm | **Decline** |
+| T344–T346 / T348–T349 | **Not stolen** |
+| `#272` Cursor | **N/A** |
+| DOCS TX | `fdc1b170-c97f-4a41-bb92-0a4afe01d92b` |
+
+### T348 full plan (2026-09-02) — coverage this-project
+
+| Item | Disposition |
+|------|-------------|
+| T345-R1 coverage line | **Absorb** CLI only (not preflight) |
+| T337 machine table | **Stay-green** `--global` |
+| T342-R1 `\\wsl$\` | **Not stolen** F7 |
+| T344 bind | **Not stolen** — T344 is **soft**; unbound may remain until bind |
+| `#272` Cursor | **N/A** |
+| DOCS TX | `4575c4bb-534f-4e98-b53a-e3ffe6b035ff` |
+
+### T349 full plan (2026-09-02) — glance density
+
+| Item | Disposition |
+|------|-------------|
+| T333 omitted=human | **Copy** to status + listed glance cmds |
+| Piped `status` JSON | **BREAKING** — `--format json` for scripts |
+| Doctor condense | **Decline** F7 |
+| Auto bootstrap / T240 F2 | **Decline** |
+| T344 / T345 | **Not stolen** |
+| `conclusion in-force` deny | **Residual** T349-R5 |
+| `#272` Cursor | **N/A** |
+| DOCS TX | `604c5adb-d406-4a0e-8978-c9f4c17c4e17` |
+
+### T344–T349 fold-in (2026-09-02) — agy + opencode
+
+| Item | Disposition |
+|------|-------------|
+| T344 nested cwd / split-brain alias / `env_pid` / `.env`-then-bind / `cross_repo_bridge_smoke` | **Folded** AC1b, F2 skip other-owner, AC13, first-init after write, `--no-project-context` |
+| T345 path E1 / leftover AC / human single-next / 100 **bytes** | **Folded** `Option<Option<String>>`, AC2b/AC10/AC3/AC11 |
+| T346 Phase 2c vs `blended` empty | **Folded** F1 Phase 2c; `score_kind="bm25"` omit `score`; **no** 10k skip (AC11 bridge) |
+| T347 `--include-zero` × path deny | **Folded** AC1b; NaN AC2b; `SAFETY_EMPTY` SSOT |
+| T348 slug E1 / bound unbound / sidechain / T344 soft | **Folded** AC3b/AC3c; OPERATIONS hidden-unbound sentence |
+| T349 `--all` wire / AC11 HOME isolate / `emit_error` blast | **Folded** three-site `--all`; `hermetic_bin_no_key`; decision-local SHORT; T349-R5 conclusion |
+| Global `emit_error` SHORT | **Decline** (T349) — workspace blast |
+| New JSON `unbound_folders_hidden` key | **Decline** (T348) — OPERATIONS sentence |
+| `conclusion in-force` deny wall | **Residual** T349-R5 |
+| Twin slug aliases | **Residual** T348-R3 |
+| `#272` Cursor | **N/A** usage-limit — no new placeholder |
+| Fold-in DOCS TX | `f5c8b5ca-076a-4593-bbd5-f25f73ee5493` |
+
+### T344 implement (2026-09-02) — residuals remain
+
+| Item | Disposition |
+|------|-------------|
+| T344-R1 preflight auto-bind | **Residual** — CQRS declined; T345 next-line names `context` |
+| T344-R2 nongit cwd bind | **Residual** — owner said repos only |
+| T344-R3 origin slug ≠ folder name | **Residual** — exact-unique may skip; operator `set-alias` |
+| FEATURE TX | `a0230aa9-62da-417f-90c6-14779ccccd70` |
+
 ### T343 implement (2026-09-01) — residuals remain
 
 | Item | Disposition |

@@ -248,6 +248,7 @@ fn test_cross_repo_e2e_integration_with_ledgerful() -> Result<(), Box<dyn std::e
     // 3. Initialize context in the workspace (which auto-triggers sync pull)
     let mut context_cmd = common::hermetic_bin();
     let output = context_cmd
+        .arg("--no-project-context")
         .arg("--vault-path")
         .arg(&vault_path)
         .arg("context")

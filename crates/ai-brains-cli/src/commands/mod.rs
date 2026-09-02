@@ -1,5 +1,6 @@
 pub mod agy_hook;
 pub mod antigravity_import;
+pub mod auto_bind;
 pub mod backup;
 pub mod briefing;
 pub mod capture_coverage;

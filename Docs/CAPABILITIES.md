@@ -202,6 +202,7 @@ Most users never need an explicit start: the CLI auto-launches. A Windows servic
 | Capability | Command / detail |
 |------------|------------------|
 | Init project context | `context` — first-init writes local `.env` (`PROJECT_ID`, `SESSION_ID`, `HARNESS_ID`); already-initialized ensures those IDs in the open vault and does **not** rewrite `.env` |
+| Auto-bind (T344) | After vault ensure, `context` (not `--show`) may `register-path` the **git toplevel** for this `.env` project and `set-alias` the sanitized git slug when that string is exact-unique. Nested cwd still binds toplevel. Skip: `--no-auto-bind`, `AI_BRAINS_NO_AUTO_BIND=1`/`true`/`yes`, `--no-project-context`, no git, path owned by another project, alias already set, slug empty/taken. Fail-open: helper errors do not fail `context`. Never rewrites `PROJECT_ID`. |
 | Show only | `context --show` — when pre-dotenv shell `PROJECT_ID` differs from the file, the next line is `shell leftover PROJECT_ID: <uuid> (.env overrides)`; `AI_BRAINS_KEY` / `VAULT_KEY` file lines print `(redacted)` |
 | Rotate project / session | `--new-project` · `--new-session` |
 | Ledger linkage | `--tx-id` / `LEDGERFUL_TX_ID` (legacy `CHANGEGUARD_TX_ID` fallback) |
