@@ -2,6 +2,18 @@
 
 Tracks deferred from T142. Append-only; strike through when promoted to a real track.
 
+### T350 implement (2026-09-02) — connect_timeout 2s
+
+FEATURE TX `754656cc-2401-4f60-aa0b-18be37d33ac5`. Cross-model CLEAN. Full gate + `ledgerful verify --scope full` exit 0.
+
+| Item | Disposition |
+|------|-------------|
+| T346-R2 embed-down RTT | **Absorbed** F1 |
+| T346-R4 SQLCipher pragma | **Not stolen** — T350-R1 |
+| Ollama `Client::new()` | **Not stolen** — T350-R3 |
+| Connect timeout env | **Not stolen** — T350-R4 |
+| `fetch_embedding` extra runtime | **Not stolen** — T350-R2 |
+
 ### T350–T355 fold-in (2026-09-02) — agy + opencode
 
 `/fold-in 350-355`. Specs stay **Planned** / registry **Pending**. last-PR `#278` Cursor usage-limit (0 inline). Fold-in DOCS TX `1245e38c-710b-4e66-ad99-c2fa53a28cd2`. No new placeholders.
