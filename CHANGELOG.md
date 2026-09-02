@@ -21,6 +21,8 @@ Version banners in documentation are maintained manually from the workspace `Car
 
 ### Added
 
+- **T350 Semantic embed-down stall:** Shared llama.cpp HTTP client sets `connect_timeout` **2s** (handshake only; `ClientBuilder::timeout` is not set so `complete` keeps 120s). Connected slow embed still uses the 30s per-request timeout. `--semantic` against a refused loopback stays exit **0** / `embedding.status=unreachable`.
+
 - **T348 Capture coverage this-project:** Default `capture coverage` is this env project (path-alias slug, else cwd/git toplevel) for disk, vault, and unbound Cursor folders. `--global` stays the machine table. Project JSON always has `scope` + `slug` (string or `null`); global omits `slug`. agy/codex project disk is JSON `null`.
 
 - **T347 Safety hotspot allow/deny:** `safety sync` and preflight Safety skip `deps_src/` / `third_party/` / `vendor/` / `.git/` path components and `score <= 0` (NaN/-inf included). Filter-empty prints `No repo-local hotspots above threshold` and names `safety sync --dry-run` without pinning. `--include-zero` keeps zero scores but still path-denies.

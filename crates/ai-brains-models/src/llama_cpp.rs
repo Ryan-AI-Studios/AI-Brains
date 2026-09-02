@@ -74,6 +74,18 @@ pub struct LlamaCppProvider {
     tokenize_timeout: Duration,
 }
 
+/// Connect budget for the shared llama.cpp HTTP client (T350 F1).
+/// Handshake only — never set [`reqwest::ClientBuilder::timeout`] on this builder
+/// (that would cap `complete` at the embedding request budget).
+pub(crate) const EMBED_CONNECT: Duration = Duration::from_secs(2);
+
+fn build_http_client(connect: Duration) -> reqwest::Client {
+    reqwest::Client::builder()
+        .connect_timeout(connect)
+        .build()
+        .unwrap_or_else(|_| reqwest::Client::new())
+}
+
 impl LlamaCppProvider {
     pub fn new(endpoint: String, model: String) -> Self {
         let completion_timeout = Duration::from_secs(
@@ -117,7 +129,7 @@ impl LlamaCppProvider {
             model,
             endpoint_class,
             is_local,
-            client: reqwest::Client::new(),
+            client: build_http_client(EMBED_CONNECT),
             completion_timeout,
             embedding_timeout,
             tokenize_timeout,
@@ -500,6 +512,31 @@ mod tests {
         assert_eq!(
             classify_probe_transport_signals(false, false, "invalid certificate"),
             ProbeHttpOutcome::Error
+        );
+    }
+
+    /// T350 AC1: `EMBED_CONNECT` is 2s and the shared client is built with
+    /// `connect_timeout` only (never `ClientBuilder::timeout`).
+    #[test]
+    fn llama_cpp_embed_client__connect_timeout_constant_two_secs() {
+        assert_eq!(EMBED_CONNECT, Duration::from_secs(2));
+        let src = include_str!("llama_cpp.rs");
+        assert!(
+            src.contains("client: build_http_client(EMBED_CONNECT)"),
+            "shared client must use build_http_client(EMBED_CONNECT)"
+        );
+        let helper = src
+            .split("fn build_http_client")
+            .nth(1)
+            .expect("build_http_client helper");
+        let helper_fn = helper.split("impl ").next().unwrap_or(helper);
+        assert!(
+            helper_fn.contains(".connect_timeout(connect)"),
+            "builder must set connect_timeout"
+        );
+        assert!(
+            !helper_fn.contains(".timeout("),
+            "F1: ClientBuilder must not set timeout (would cap complete at embed budget)"
         );
     }
 }

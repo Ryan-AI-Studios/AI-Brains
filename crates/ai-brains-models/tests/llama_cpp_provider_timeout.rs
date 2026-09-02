@@ -1,4 +1,5 @@
 #![allow(clippy::disallowed_methods)]
+#![allow(non_snake_case)]
 
 use ai_brains_models::llama_cpp::LlamaCppProvider;
 use ai_brains_models::{CompletionRequest, ModelError, ModelProvider};
@@ -86,4 +87,47 @@ async fn llama_cpp_provider_refused_connection_returns_error_quickly() {
         "Expected Timeout or Network error, got {:?}",
         result
     );
+}
+
+#[tokio::test]
+async fn llama_cpp_embed__connected_slow__uses_request_timeout() {
+    let mock_server = MockServer::start().await;
+
+    Mock::given(method("POST"))
+        .respond_with(
+            ResponseTemplate::new(200)
+                .set_delay(Duration::from_millis(2500))
+                .set_body_json(serde_json::json!({
+                    "data": [{"index": 0, "embedding": [0.1, 0.2]}]
+                })),
+        )
+        .mount(&mock_server)
+        .await;
+
+    let provider = LlamaCppProvider::with_timeouts(
+        mock_server.uri(),
+        "test-model".to_string(),
+        Duration::from_secs(120),
+        Duration::from_secs(10),
+        Duration::from_secs(10),
+    );
+
+    let start = std::time::Instant::now();
+    let result = provider
+        .embed(ai_brains_models::EmbeddingRequest {
+            text: "slow-but-up".to_string(),
+        })
+        .await;
+    let elapsed = start.elapsed();
+
+    assert!(
+        elapsed >= Duration::from_millis(2400),
+        "connected delay must wait on request timeout, not connect_timeout; took {elapsed:?}"
+    );
+    assert!(
+        elapsed < Duration::from_secs(8),
+        "must not stall near the 10s request budget; took {elapsed:?}"
+    );
+    let out = result.expect("connected slow embed should succeed after delay");
+    assert_eq!(out.vector, vec![0.1_f32, 0.2_f32]);
 }
