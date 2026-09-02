@@ -161,6 +161,33 @@ fn status__format_auto_piped__json_envelope() {
     assert!(v.get("daemon").is_some());
 }
 
+/// T349 AC1: omitted `--format` on a pipe is human, not JSON.
+#[test]
+fn status__omitted_format_piped__human_not_json() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+
+    let out = hermetic_with_key(&vault, ZERO_KEY)
+        .arg("status")
+        .output()
+        .expect("status omitted format");
+    assert!(
+        out.status.success(),
+        "status omitted must exit 0; out={}",
+        combined_output(&out)
+    );
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    assert!(
+        stdout.contains("daemon: Running") || stdout.contains("daemon: Stopped"),
+        "omitted piped status must be human; got:\n{stdout}"
+    );
+    assert!(
+        !stdout.trim_start().starts_with('{'),
+        "omitted piped status must not be JSON; got:\n{stdout}"
+    );
+}
+
 /// Stay-green: unknown `--format` is clap exit 2.
 #[test]
 fn status__format_xml__clap_exit_2() {

@@ -99,7 +99,19 @@ Minted after PATH `0.1.5` dogfood from `C:\dev\Orca\OrcaSlicer-ZR`. Skill `.clau
 | T344 / T345 | **Not stolen** |
 | `conclusion in-force` deny | **Residual** T349-R5 |
 | `#272` Cursor | **N/A** |
+| Soft | T349-R1 scan-roots auto; T349-R2 whoami auto; T349-R3 retention apply / graph update JSON; T349-R4 `--cwd` on list declined; T349-R5 conclusion in-force JSON + LONG hint |
 | DOCS TX | `604c5adb-d406-4a0e-8978-c9f4c17c4e17` |
+
+### T349 implement residuals (2026-09-02) — glance density honesty
+
+| Item | Disposition |
+|------|-------------|
+| `project scan-roots` still Family A `auto` | **T349-R1** |
+| `project whoami` `--format` default still `auto` | **T349-R2** |
+| `retention apply` / `graph update` still JSON-default | **T349-R3** |
+| `--cwd` on `project list` | **T349-R4** declined |
+| `conclusion in-force` JSON-default + LONG `emit_error` hint | **T349-R5** |
+| FEATURE TX | `7c5d8026-8407-45bf-87ac-3f0714ef39f4` |
 
 ### T344–T349 fold-in (2026-09-02) — agy + opencode
 

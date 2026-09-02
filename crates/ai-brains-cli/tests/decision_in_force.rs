@@ -376,6 +376,56 @@ fn decision_in_force__policy_denied__exit_3_omits_required_scope() {
 }
 
 #[test]
+fn decision_in_force__omitted_format__human_short_deny() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+    let scope = format!("Repository:{PROJECT}");
+
+    let out = common::hermetic_bin()
+        .arg("--no-project-context")
+        .arg("--vault-path")
+        .arg(&vault)
+        .arg("decision")
+        .arg("in-force")
+        .arg("workspace_id")
+        .arg("--scope")
+        .arg(&scope)
+        .arg("--principal-id")
+        .arg(PRINCIPAL)
+        .output()
+        .expect("omit format deny");
+
+    assert_eq!(
+        out.status.code(),
+        Some(3),
+        "deny must exit 3; stderr={} stdout={}",
+        String::from_utf8_lossy(&out.stderr),
+        String::from_utf8_lossy(&out.stdout)
+    );
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    assert!(
+        !stdout.trim_start().starts_with('{'),
+        "omitted deny must not be JSON; stdout={stdout}"
+    );
+    assert!(
+        stderr.contains("POLICY_DENIED:"),
+        "human deny prefix; stderr={stderr}"
+    );
+    assert!(
+        stderr.contains(
+            "next: run `ai-brains policy bootstrap --dry-run` then `ai-brains policy bootstrap`"
+        ),
+        "SHORT next; stderr={stderr}"
+    );
+    assert!(
+        !stderr.contains("omit --scope"),
+        "human SHORT must not be LONG HINT; stderr={stderr}"
+    );
+}
+
+#[test]
 fn decision_in_force__unknown_term__ruling_key_null() {
     let dir = tempdir().unwrap();
     let vault = dir.path().join("vault.db");

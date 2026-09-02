@@ -156,6 +156,38 @@ fn retention_plan__format_xml__exit_2_no_stdout_json() {
 }
 
 #[test]
+fn retention_plan__omitted_format_piped__human() {
+    let _env = isolate_retention_env();
+    let dir = tempdir().expect("tempdir");
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+
+    let out = common::hermetic_bin()
+        .arg("--no-project-context")
+        .arg("--vault-path")
+        .arg(&vault)
+        .arg("retention")
+        .arg("plan")
+        .output()
+        .expect("retention plan omitted format");
+    assert_eq!(
+        out.status.code(),
+        Some(0),
+        "omitted plan must exit 0; stderr={}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    assert!(
+        stdout.contains("Retention plan (dry-run)"),
+        "omitted piped plan must be human; got:\n{stdout}"
+    );
+    assert!(
+        !stdout.contains("\"api_version\""),
+        "omitted must not be JSON; got:\n{stdout}"
+    );
+}
+
+#[test]
 fn retention_plan__pinned_memory__human_held_inventory_nothing_to_dispose() {
     let _env = isolate_retention_env();
     let dir = tempdir().expect("tempdir");

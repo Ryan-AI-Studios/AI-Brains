@@ -759,14 +759,14 @@ pub async fn run_status(opts: StatusOptions) -> Result<(), Box<dyn std::error::E
     let (model_host, model_port, model_desc) = resolve_backend(
         "AI_BRAINS_MODEL_URL",
         "127.0.0.1",
-        11434,
-        "Ollama default :11434",
+        8081,
+        "completion default :8081",
     );
     let (embed_host, embed_port, embed_desc) = resolve_backend(
         "AI_BRAINS_EMBEDDING_URL",
         "127.0.0.1",
-        8080,
-        "llama.cpp default :8080",
+        8083,
+        "embedding default :8083",
     );
 
     let mut llm_open = false;
@@ -1172,6 +1172,39 @@ mod tests {
     fn parse_host_port_no_port_returns_none() {
         assert!(parse_host_port("http://localhost/").is_none());
         assert!(parse_host_port("localhost").is_none());
+    }
+
+    /// T349 AC11: unset env uses nightly 8081/8083 labels, not Ollama/llama.cpp.
+    #[test]
+    fn resolve_backend__unset_env__nightly_default_ports() {
+        let _m = ai_brains_core::temp_env::TempEnv::remove("AI_BRAINS_MODEL_URL");
+        let _e = ai_brains_core::temp_env::TempEnv::remove("AI_BRAINS_EMBEDDING_URL");
+        let (host, port, desc) = resolve_backend(
+            "AI_BRAINS_MODEL_URL",
+            "127.0.0.1",
+            8081,
+            "completion default :8081",
+        );
+        assert_eq!(host, "127.0.0.1");
+        assert_eq!(port, 8081);
+        assert!(desc.contains("completion default :8081"), "desc={desc}");
+        assert!(
+            !desc.contains("Ollama") && !desc.contains("11434"),
+            "desc={desc}"
+        );
+        let (ehost, eport, edesc) = resolve_backend(
+            "AI_BRAINS_EMBEDDING_URL",
+            "127.0.0.1",
+            8083,
+            "embedding default :8083",
+        );
+        assert_eq!(ehost, "127.0.0.1");
+        assert_eq!(eport, 8083);
+        assert!(edesc.contains("embedding default :8083"), "edesc={edesc}");
+        assert!(
+            !edesc.contains("llama.cpp") && !edesc.contains(":8080"),
+            "edesc={edesc}"
+        );
     }
 
     #[test]

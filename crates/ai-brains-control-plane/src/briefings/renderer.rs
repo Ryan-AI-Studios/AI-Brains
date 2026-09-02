@@ -105,9 +105,10 @@ pub fn render_project_markdown_with_vault_pins(
         // F10/F29: next-step immediately after Denied so preflight word budget keeps it.
         lines.push(String::new());
         lines.push(BRIEFING_DENIED_NEXT_STEP.to_string());
-        // T275 F1/F2: grant-wall after bootstrap next, before Decisions.
+        // T349 F4: grant-wall one-liner, then stop — no ## Decisions / hidden dump.
         lines.push(String::new());
         lines.push(BRIEFING_DENIED_GRANT_WALL.to_string());
+        return lines.join("\n");
     }
     if !packet.scope.warnings.is_empty() {
         lines.push(String::new());
@@ -745,8 +746,12 @@ mod tests {
             "bootstrap stays primary next-step: {md}"
         );
         assert!(
-            md.contains(BRIEFING_DENIED_HIDDEN),
-            "denied empty sections use hidden placeholder: {md}"
+            !md.contains("## Decisions"),
+            "denied project must not dump empty Decisions: {md}"
+        );
+        assert!(
+            !md.contains(BRIEFING_DENIED_HIDDEN),
+            "denied project must not dump hidden placeholders: {md}"
         );
     }
 
@@ -763,16 +768,13 @@ mod tests {
         let md = render_project_markdown(&empty_project(true));
         let next_pos = md.find(BRIEFING_DENIED_NEXT_STEP).expect("next-step pos");
         let wall_pos = md.find(BRIEFING_DENIED_GRANT_WALL).expect("grant-wall pos");
-        let decisions_pos = md
-            .find("## Decisions (current authority)")
-            .expect("decisions pos");
         assert!(
             next_pos < wall_pos,
             "grant-wall must follow bootstrap next: {md}"
         );
         assert!(
-            wall_pos < decisions_pos,
-            "grant-wall must precede ## Decisions: {md}"
+            !md.contains("## Decisions"),
+            "T349 denied markdown has no Decisions wall: {md}"
         );
     }
 
@@ -833,17 +835,14 @@ mod tests {
         let denied_pos = md.find("> **Denied:**").expect("denied pos");
         let next_pos = md.find(BRIEFING_DENIED_NEXT_STEP).expect("next-step pos");
         let wall_pos = md.find(BRIEFING_DENIED_GRANT_WALL).expect("grant-wall pos");
-        let decisions_pos = md
-            .find("## Decisions (current authority)")
-            .expect("decisions pos");
         assert!(denied_pos < next_pos, "Denied must precede next-step: {md}");
         assert!(
             next_pos < wall_pos,
             "next-step must precede grant-wall: {md}"
         );
         assert!(
-            wall_pos < decisions_pos,
-            "grant-wall must precede ## Decisions: {md}"
+            !md.contains("## Decisions"),
+            "T349 denied markdown has no Decisions wall: {md}"
         );
         assert!(
             md.contains(BRIEFING_DENIED_GRANT_WALL),
@@ -872,14 +871,9 @@ mod tests {
             !md.contains(BRIEFING_EMPTY_AUTHORITY_NEXT_STEP),
             "denied must not emit empty_authority next-step: {md}"
         );
-        // Next-step appears before Decisions so word budget keeps it (F29).
-        let deny_pos = md.find(BRIEFING_DENIED_NEXT_STEP).expect("next-step pos");
-        let decisions_pos = md
-            .find("## Decisions (current authority)")
-            .expect("decisions pos");
         assert!(
-            deny_pos < decisions_pos,
-            "deny next-step must precede decisions for budget survival"
+            !md.contains("## Decisions"),
+            "T349 denied markdown has no Decisions wall: {md}"
         );
     }
 

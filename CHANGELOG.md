@@ -15,6 +15,10 @@ Version banners in documentation are maintained manually from the workspace `Car
 
 ## [Unreleased]
 
+### Changed
+
+- **T349 BREAKING (0.x):** Omitted `--format` on `status`, `graph neighbors`/`hierarchy`/`session`, `scope resolve`, `retention plan`, `project list-paths`, `briefing`, and `decision in-force` stays **human even when piped**. Scripts: `--format json`. `--format auto` still means TTY human / pipe JSON (resolver frozen). Human `project list` hides non-cwd 0-memory rows and caps at 20 (`--all` / JSON keep all). `daemon status` unset URLs probe nightly `:8081`/`:8083` (not Ollama `:11434` / llama.cpp `:8080`). Denied project briefing human stops after Denied + SHORT (no empty `## Decisions` wall). Whoami path-null env fallback prints the same `git/env project mismatch` stderr as detect (JSON silent; `mismatch` still env vs path-alias).
+
 ### Added
 
 - **T348 Capture coverage this-project:** Default `capture coverage` is this env project (path-alias slug, else cwd/git toplevel) for disk, vault, and unbound Cursor folders. `--global` stays the machine table. Project JSON always has `scope` + `slug` (string or `null`); global omits `slug`. agy/codex project disk is JSON `null`.

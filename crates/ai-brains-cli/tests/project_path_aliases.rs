@@ -416,6 +416,34 @@ fn list_paths__format_human__table_not_json() {
 }
 
 #[test]
+fn list_paths__omitted_format_piped__human_table() {
+    let dir = tempdir().unwrap();
+    let vault = two_alias_vault(dir.path());
+    let out = hermetic()
+        .arg("--no-project-context")
+        .arg("--vault-path")
+        .arg(&vault)
+        .arg("project")
+        .arg("list-paths")
+        .output()
+        .expect("list-paths omitted format");
+    assert!(
+        out.status.success(),
+        "omitted list-paths must exit 0; stderr={}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    assert!(
+        stdout.contains("path") && stdout.contains("project_id"),
+        "omitted piped list-paths must be table header; got: {stdout}"
+    );
+    assert!(
+        !stdout.contains("api_version"),
+        "omitted must not be JSON; got: {stdout}"
+    );
+}
+
+#[test]
 fn list_paths__format_pretty__table_not_json() {
     let dir = tempdir().unwrap();
     let vault = two_alias_vault(dir.path());

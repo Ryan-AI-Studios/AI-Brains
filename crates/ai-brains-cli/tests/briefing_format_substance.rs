@@ -348,6 +348,61 @@ fn briefing_project__no_grants__soft_deny_exit_0() {
     }
 }
 
+/// T349 AC9: omitted briefing format on a pipe is short markdown, not JSON.
+#[test]
+fn briefing_project__denied_omitted_pipe__short_human() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+
+    let out = briefing_project(&vault)
+        .output()
+        .expect("briefing omitted deny");
+    assert_eq!(
+        out.status.code(),
+        Some(0),
+        "soft deny must stay exit 0; stderr={} stdout={}",
+        String::from_utf8_lossy(&out.stderr),
+        String::from_utf8_lossy(&out.stdout)
+    );
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    assert!(
+        stdout.contains("**Denied:**") || stdout.contains("> **Denied:**"),
+        "denied reason; got: {stdout}"
+    );
+    assert!(
+        stdout.contains("policy bootstrap"),
+        "SHORT bootstrap; got: {stdout}"
+    );
+    assert!(
+        !stdout.contains("## Decisions"),
+        "no empty Decisions wall; got: {stdout}"
+    );
+    let lines = stdout.lines().filter(|l| !l.is_empty()).count();
+    assert!(
+        lines <= 12,
+        "denied human ≤12 nonempty lines; got {lines}: {stdout}"
+    );
+}
+
+#[test]
+fn briefing_project__denied_json__keeps_empty_arrays() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+
+    let out = briefing_project(&vault)
+        .arg("--format")
+        .arg("json")
+        .output()
+        .expect("briefing json deny");
+    assert_eq!(out.status.code(), Some(0));
+    let v: Value = serde_json::from_slice(&out.stdout).expect("json");
+    assert_eq!(v["denied"], true, "packet={v}");
+    assert!(v.get("decisions").is_some(), "decisions key stays; {v}");
+    assert!(v.get("conclusions").is_some(), "conclusions key stays; {v}");
+}
+
 /// T289 AC2 — denied Personal human omits `_None_` (not empty preferences).
 #[test]
 fn briefing_personal__no_grants__human_omits_none() {

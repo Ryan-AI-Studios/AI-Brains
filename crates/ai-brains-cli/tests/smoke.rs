@@ -3858,6 +3858,7 @@ fn test_project_list_friendly_default_name() {
         .arg(&vault_path)
         .arg("project")
         .arg("list")
+        .arg("--all")
         .output()
         .expect("project list must run");
 

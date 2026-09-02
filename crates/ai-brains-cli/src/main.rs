@@ -894,7 +894,7 @@ mod tests {
             Err(e) => panic!("expected top-level status to parse: {e}"),
         };
         match *status.command {
-            super::Commands::Status { format } => assert_eq!(format, "auto"),
+            super::Commands::Status { format } => assert_eq!(format, "human"),
             _ => panic!("expected Commands::Status"),
         }
     }
@@ -1109,10 +1109,10 @@ mod tests {
         }
     }
 
-    /// T249 F1: omitted `--format` must default to `auto` (not the pre-T249 `json`).
+    /// T349 F2: omitted `--format` defaults to `human` (not Family A `auto`).
     #[test]
     #[allow(non_snake_case)]
-    fn scope_resolve__default_format__auto() {
+    fn scope_resolve__default_format__human() {
         use clap::Parser;
         let cli = match super::Cli::try_parse_from(["ai-brains", "scope", "resolve"]) {
             Ok(c) => c,
@@ -1122,9 +1122,50 @@ mod tests {
             super::Commands::Scope {
                 command: super::ScopeCommands::Resolve { format, .. },
             } => {
-                assert_eq!(format, "auto");
+                assert_eq!(format, "human");
             }
             _ => panic!("expected Scope::Resolve"),
+        }
+    }
+
+    /// T349 AC10: omitted `decision in-force --format` defaults to `human`.
+    #[test]
+    #[allow(non_snake_case)]
+    fn decision_in_force__default_format__human() {
+        use clap::Parser;
+        let cli =
+            match super::Cli::try_parse_from(["ai-brains", "decision", "in-force", "workspace_id"])
+            {
+                Ok(c) => c,
+                Err(e) => panic!("expected decision in-force with no --format to parse: {e}"),
+            };
+        match *cli.command {
+            super::Commands::Decision {
+                command: super::DecisionCommands::InForce { format, .. },
+            } => {
+                assert_eq!(format, "human");
+            }
+            _ => panic!("expected Decision::InForce"),
+        }
+    }
+
+    /// T349 F3: `project list --all` parses.
+    #[test]
+    #[allow(non_snake_case)]
+    fn project_list__all__parses() {
+        use clap::Parser;
+        let cli = match super::Cli::try_parse_from(["ai-brains", "project", "list", "--all"]) {
+            Ok(c) => c,
+            Err(e) => panic!("expected project list --all to parse: {e}"),
+        };
+        match *cli.command {
+            super::Commands::Project {
+                command: super::ProjectCommands::List { format, all },
+            } => {
+                assert_eq!(format, "human");
+                assert!(all);
+            }
+            _ => panic!("expected ProjectCommands::List"),
         }
     }
 
@@ -2350,13 +2391,13 @@ enum Commands {
     /// Unified vault glance (daemon + doctor attention + graph density + nightly last-run)
     #[command(
         display_order = 12,
-        after_help = "In-process compose of four probes. Does not replace `doctor` / `nightly --status` / `daemon status` / `graph update`.\nNever starts the daemon; never rebuilds the graph; no HTTP probes; no daemon TCP retries.\nFail-open per section; exit 0 for degraded / Stopped / sparse / never.\nExamples:\n  ai-brains status\n  ai-brains status --format json"
+        after_help = "In-process compose of four probes. Does not replace `doctor` / `nightly --status` / `daemon status` / `graph update`.\nNever starts the daemon; never rebuilds the graph; no HTTP probes; no daemon TCP retries.\nFail-open per section; exit 0 for degraded / Stopped / sparse / never.\nOmitted --format stays human even when piped. Scripts: `--format json`. `--format auto` still means TTY human / pipe JSON.\nExamples:\n  ai-brains status\n  ai-brains status --format json"
     )]
     Status {
-        /// Output format: auto (TTY human / pipe json) or explicit human|json aliases
+        /// Output format: human even when piped; json opt-in; auto = TTY human / pipe json
         #[arg(
             long,
-            default_value = "auto",
+            default_value = "human",
             value_parser = ["auto", "pretty", "human", "text", "json", "markdown", "md"]
         )]
         format: String,
@@ -2720,7 +2761,7 @@ enum Commands {
     /// Always surfaces authoritative, confidence, warnings, and alternatives.
     #[command(
         display_order = 30,
-        after_help = "Examples:\n  ai-brains scope resolve\n  ai-brains scope resolve --format json"
+        after_help = "Omitted --format stays human even when piped. Scripts: `--format json`. `--format auto` still means TTY human / pipe JSON.\nExamples:\n  ai-brains scope resolve\n  ai-brains scope resolve --format json"
     )]
     Scope {
         #[command(subcommand)]
@@ -2978,7 +3019,7 @@ enum ReplicateCommands {
 enum BriefingCommands {
     /// Build a Project Briefing packet (policy → lifecycle → authority)
     #[command(
-        after_help = "Human granted-empty prefer-fills a Vault pins (not Approved) stanza; CLI JSON adds vault_pin_count / vault_pin_previews; authority arrays stay empty.\nExamples:\n  ai-brains briefing project --format human --max-words 1500 --project-id <uuid>\n  ai-brains briefing project --format json --project-id <uuid>\n  ai-brains briefing project --dry-run --project-id <uuid>\n  ai-brains briefing project --dry-run false --project-id <uuid>\n  # or set AI_BRAINS_PROJECT_ID"
+        after_help = "Omitted --format stays markdown even when piped. Scripts: `--format json`.\nHuman granted-empty prefer-fills a Vault pins (not Approved) stanza; CLI JSON adds vault_pin_count / vault_pin_previews; authority arrays stay empty.\nExamples:\n  ai-brains briefing project --format human --max-words 1500 --project-id <uuid>\n  ai-brains briefing project --format json --project-id <uuid>\n  ai-brains briefing project --dry-run --project-id <uuid>\n  ai-brains briefing project --dry-run false --project-id <uuid>\n  # or set AI_BRAINS_PROJECT_ID"
     )]
     Project {
         #[arg(long, env = "AI_BRAINS_PROJECT_ID")]
@@ -3088,18 +3129,18 @@ enum GovernedQueryCommands {
 
 #[derive(Subcommand, Clone)]
 #[command(
-    after_help = "Examples:\n  ai-brains scope resolve\n  ai-brains scope resolve --format json"
+    after_help = "Omitted --format stays human even when piped. Scripts: `--format json`. `--format auto` still means TTY human / pipe JSON.\nExamples:\n  ai-brains scope resolve\n  ai-brains scope resolve --format json"
 )]
 enum ScopeCommands {
     /// Resolve the active governed scope for the working context
     #[command(
-        after_help = "Examples:\n  ai-brains scope resolve\n  ai-brains scope resolve --format json"
+        after_help = "Omitted --format stays human even when piped. Scripts: `--format json`. `--format auto` still means TTY human / pipe JSON.\nExamples:\n  ai-brains scope resolve\n  ai-brains scope resolve --format json"
     )]
     Resolve {
         /// Output format: auto (TTY human / pipe json), pretty/human/text/markdown/md, or json
         #[arg(
             long,
-            default_value = "auto",
+            default_value = "human",
             value_parser = ["auto", "pretty", "human", "text", "json", "markdown", "md"]
         )]
         format: String,
@@ -3365,7 +3406,7 @@ enum DecisionCommands {
     },
     /// Resolve the in-force Approved decision for a term (local projection)
     #[command(
-        after_help = "Examples:\n  ai-brains decision in-force workspace_id\n  ai-brains decision in-force workspace_id --format json\n  ai-brains decision in-force workspace_id --as-of 2026-01-15T00:00:00Z\n  ai-brains decision in-force --term= (empty term → usage exit 2)\n  ai-brains decision in-force --term workspace_id"
+        after_help = "Omitted --format stays human even when piped. Scripts: `--format json`.\nExamples:\n  ai-brains decision in-force workspace_id\n  ai-brains decision in-force workspace_id --format json\n  ai-brains decision in-force workspace_id --as-of 2026-01-15T00:00:00Z\n  ai-brains decision in-force --term= (empty term → usage exit 2)\n  ai-brains decision in-force --term workspace_id"
     )]
     InForce {
         /// Term to resolve (e.g. workspace_id)
@@ -3386,7 +3427,7 @@ enum DecisionCommands {
         scope: Option<String>,
         #[arg(
             long,
-            default_value = "json",
+            default_value = "human",
             value_parser = ["auto", "pretty", "human", "text", "json", "markdown", "md"]
         )]
         format: String,
@@ -3594,13 +3635,13 @@ enum ErasureCommands {
 enum RetentionCommands {
     /// Dry-run class matrix report (no disposal)
     #[command(
-        after_help = "Examples:\n  ai-brains retention plan\n  ai-brains retention plan --format json\nmemory_legacy is inventory (none_auto); pins held; plan does not forget.\nWork lists dispose identities even when the class's dominant mechanism is held."
+        after_help = "Omitted --format stays human even when piped. Scripts: `--format json`. `--format auto` still means TTY matrix / pipe JSON.\nExamples:\n  ai-brains retention plan\n  ai-brains retention plan --format json\nmemory_legacy is inventory (none_auto); pins held; plan does not forget.\nWork lists dispose identities even when the class's dominant mechanism is held."
     )]
     Plan {
         /// Output format: auto (TTY human / pipe json), pretty/human/text/markdown/md, or json
         #[arg(
             long,
-            default_value = "auto",
+            default_value = "human",
             value_parser = ["auto", "pretty", "human", "text", "json", "markdown", "md"]
         )]
         format: String,
@@ -3821,7 +3862,7 @@ enum MigrateCommands {
 
 #[derive(Subcommand, Clone)]
 #[command(
-    after_help = "Examples:\n  ai-brains graph neighbors <memory-id>\n  ai-brains graph neighbors <memory-id> --format json\nTTY/auto prints a table; --format json is compact (keys unchanged).\nSession PREVIEW is {n} memories · first line.\nHuman prefer-fills authority 1-hop (DECISION/CONSTRAINT/INVARIANT/HOTSPOT); JSON order unchanged (direction→label→id).\nHuman table caps RECALLS at 3 and prints +N more RECALLS; JSON lists all 1-hop. Hierarchy leaf pretty may add next: ai-brains nightly --status."
+    after_help = "Omitted --format stays human even when piped. Scripts: `--format json`. `--format auto` still means TTY table / pipe JSON.\nExamples:\n  ai-brains graph neighbors <memory-id>\n  ai-brains graph neighbors <memory-id> --format json\nTTY/auto prints a table; --format json is compact (keys unchanged).\nSession PREVIEW is {n} memories · first line.\nHuman prefer-fills authority 1-hop (DECISION/CONSTRAINT/INVARIANT/HOTSPOT); JSON order unchanged (direction→label→id).\nHuman table caps RECALLS at 3 and prints +N more RECALLS; JSON lists all 1-hop. Hierarchy leaf pretty may add next: ai-brains nightly --status."
 )]
 pub enum GraphCommands {
     /// Rebuild graph from all events
@@ -3840,7 +3881,7 @@ pub enum GraphCommands {
     Neighbors {
         memory_id: String,
         /// Output format: auto (TTY pretty / pipe json), pretty/human/text, or json
-        #[arg(long, default_value = "auto", value_parser = ["auto", "pretty", "human", "text", "json"])]
+        #[arg(long, default_value = "human", value_parser = ["auto", "pretty", "human", "text", "json"])]
         format: String,
         /// Max rows (pretty default 50, max 200; JSON unlimited unless set)
         #[arg(short = 'l', long)]
@@ -3850,7 +3891,7 @@ pub enum GraphCommands {
     Hierarchy {
         memory_id: String,
         /// Output format: auto (TTY pretty / pipe json), pretty/human/text, or json
-        #[arg(long, default_value = "auto", value_parser = ["auto", "pretty", "human", "text", "json"])]
+        #[arg(long, default_value = "human", value_parser = ["auto", "pretty", "human", "text", "json"])]
         format: String,
         /// Max rows (pretty default 50, max 200; JSON unlimited unless set)
         #[arg(short = 'l', long)]
@@ -3860,7 +3901,7 @@ pub enum GraphCommands {
     Session {
         session_id: String,
         /// Output format: auto (TTY pretty / pipe json), pretty/human/text, or json
-        #[arg(long, default_value = "auto", value_parser = ["auto", "pretty", "human", "text", "json"])]
+        #[arg(long, default_value = "human", value_parser = ["auto", "pretty", "human", "text", "json"])]
         format: String,
         /// Max rows (pretty default 50, max 200; JSON unlimited unless set)
         #[arg(short = 'l', long)]
@@ -3933,12 +3974,15 @@ pub enum MemoryCommands {
 pub enum ProjectCommands {
     /// List all projects in the vault (label-first; set-alias nudge on stderr)
     #[command(
-        after_help = "Examples:\n  ai-brains project list\n  ai-brains project list --format json\n  ai-brains project set-alias <uuid> my-project\nColumns (human): label | project_id | memories | last_activity | path\nlast_activity = last memory-projection mutation (pin/forget/ingest), not chat-only.\npath is a registered repo path alias when present; never invented (— / null).\nUnaliased projects: a set-alias example is printed on stderr (not stdout).\nThe example prefers the cwd path-owner; the cwd git slug is used only for that owner.\nhuman table puts the cwd path-owner first; JSON order unchanged"
+        after_help = "Examples:\n  ai-brains project list\n  ai-brains project list --format json\n  ai-brains project list --all\n  ai-brains project set-alias <uuid> my-project\nColumns (human): label | project_id | memories | last_activity | path\nlast_activity = last memory-projection mutation (pin/forget/ingest), not chat-only.\npath is a registered repo path alias when present; never invented (— / null).\nUnaliased projects: a set-alias example is printed on stderr (not stdout).\nThe example prefers the cwd path-owner; the cwd git slug is used only for that owner.\nhuman table puts the cwd path-owner first; hides other 0-memory rows; caps at 20 (`--all` full). JSON order unchanged, all rows."
     )]
     List {
         /// Output format: human (default table) or json
         #[arg(long, default_value = "human", value_parser = ["human", "json"])]
         format: String,
+        /// Include 0-memory rows and skip the 20-row cap (human only)
+        #[arg(long)]
+        all: bool,
     },
     /// Resolve an alias to a project ID
     Resolve {
@@ -4010,7 +4054,7 @@ pub enum ProjectCommands {
     },
     /// List every registered filesystem path alias (all roots, not just project-list first path)
     #[command(
-        after_help = "Default --format auto = TTY table / pipe JSON. Agents that want a table pass --format human. Scripts pass --format json.\nExamples:\n  ai-brains project list-paths\n  ai-brains project list-paths --format human\n  ai-brains project list-paths --format json\n  ai-brains project list-paths --project <id|alias>\n  ai-brains project list-paths --shared-only\nproject list still shows only the first path per project. This command lists all roots.\n--shared-only keeps owners that appear on two or more roots. Combined with --project is an intersection.\nEmpty filter prints 'No path aliases match.' (exit 0)."
+        after_help = "Omitted --format stays human even when piped. Scripts: `--format json`. `--format auto` still means TTY table / pipe JSON.\nExamples:\n  ai-brains project list-paths\n  ai-brains project list-paths --format human\n  ai-brains project list-paths --format json\n  ai-brains project list-paths --project <id|alias>\n  ai-brains project list-paths --shared-only\nproject list still shows only the first path per project. This command lists all roots.\n--shared-only keeps owners that appear on two or more roots. Combined with --project is an intersection.\nEmpty filter prints 'No path aliases match.' (exit 0)."
     )]
     ListPaths {
         /// Filter to one project UUID or alias
@@ -4019,8 +4063,8 @@ pub enum ProjectCommands {
         /// Keep only owners that appear on two or more registered paths
         #[arg(long)]
         shared_only: bool,
-        /// Output format: auto (TTY=human / pipe=JSON), pretty|human|text|markdown|md (human), or json
-        #[arg(long, default_value = "auto", value_parser = ["auto", "pretty", "human", "text", "json", "markdown", "md"])]
+        /// Output format: human even when piped; json opt-in; auto = TTY table / pipe JSON
+        #[arg(long, default_value = "human", value_parser = ["auto", "pretty", "human", "text", "json", "markdown", "md"])]
         format: String,
     },
     /// Move one path alias to another existing project (print-only by default)
@@ -6214,7 +6258,7 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
             DaemonCommands::Update => commands::daemon::run_update(&ctx).await,
         },
         Commands::Project { command } => match command {
-            ProjectCommands::List { format } => commands::project::list(&ctx, format),
+            ProjectCommands::List { format, all } => commands::project::list(&ctx, format, *all),
             ProjectCommands::Resolve {
                 alias_positional,
                 alias,

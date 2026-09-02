@@ -1,9 +1,10 @@
 //! `ai-brains decision propose` / `decision in-force` (T160 / T311).
 
 use crate::commands::governed_common::{
-    self, OutputFormat, PathDecision, PathFlags, emit_human, emit_json, ensure_command_id,
-    expect_daemon_ok, fail_api, fail_cp, fail_path, fail_usage, format_authorized_empty_next,
-    policy_denied_hint_details, principal_id_wire, resolve_principal, resolve_scope_key_for_cli,
+    self, EXIT_POLICY_DENIED, GovernedCliError, OutputFormat, POLICY_BOOTSTRAP_SOOT_SHORT,
+    PathDecision, PathFlags, emit_human, emit_json, ensure_command_id, expect_daemon_ok, fail_api,
+    fail_cp, fail_path, fail_usage, format_authorized_empty_next, policy_denied_hint_details,
+    principal_id_wire, resolve_principal, resolve_scope_key_for_cli,
 };
 use crate::context::AppContext;
 use crate::daemon_client::DaemonClient;
@@ -277,14 +278,27 @@ pub fn run_in_force(
     ) {
         Ok(true) => {}
         Ok(false) => {
-            return fail_api(
-                format,
-                ApiError::new(
-                    "POLICY_DENIED",
-                    "ReadDecisions denied for decision in-force",
-                )
-                .with_details(policy_denied_hint_details()),
-            );
+            // T349 F4: human SHORT is decision-local — do not route LONG hint via emit_error.
+            match format {
+                OutputFormat::Human | OutputFormat::Markdown => {
+                    eprintln!("POLICY_DENIED: ReadDecisions denied for decision in-force");
+                    eprintln!("{POLICY_BOOTSTRAP_SOOT_SHORT}");
+                    return Err(Box::new(GovernedCliError::emitted(
+                        EXIT_POLICY_DENIED,
+                        "POLICY_DENIED: ReadDecisions denied for decision in-force",
+                    )));
+                }
+                OutputFormat::Json => {
+                    return fail_api(
+                        format,
+                        ApiError::new(
+                            "POLICY_DENIED",
+                            "ReadDecisions denied for decision in-force",
+                        )
+                        .with_details(policy_denied_hint_details()),
+                    );
+                }
+            }
         }
         Err(e) => return fail_cp(format, e),
     }
