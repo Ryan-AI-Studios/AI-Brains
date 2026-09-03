@@ -29,10 +29,10 @@ tool logs, or model reasoning.
 Run **this first** — it is the briefing:
 
 ```powershell
-ai-brains preflight --summary
+ai-brains preflight --summary --bind
 ```
 
-Expect pins, in-context DECISION/CONSTRAINT/HOTSPOT counts, harness wiring, and a `next:` line. Use `--pretty --compact` only if you need the Index. **~several seconds is normal.**
+Expect pins, in-context DECISION/CONSTRAINT/HOTSPOT counts, harness wiring, and a `next:` line. `--bind` registers an unowned git toplevel (same helper as `context`). Default `--summary` without `--bind` stays query-only. Use `--pretty --compact` only if you need the Index. **~several seconds is normal.**
 
 Then, only if Scope looks wrong (`(no alias)`, leftover UUID, git slug ≠ label):
 

@@ -359,6 +359,7 @@ ai-brains review list --format json   # soft-default scope (authoritative) or fa
 ### Preflight (session-start briefing)
 ```powershell
 ai-brains preflight --summary
+ai-brains preflight --summary --bind
 ai-brains preflight --summary --format json
 ai-brains preflight --global --summary --format json
 ai-brains preflight --pretty -m 1500
@@ -392,7 +393,7 @@ Synthesizes repo safety/hotspots, session turns, memory index, recent dense memo
 | **Summary JSON (T220 / T345 / T354 / T353)** | `--summary --format json` (case-insensitive) emits a **pretty** machine object on stdout (no human banner). Keys: `api_version` (`"1"`), `scope` (`"global"` \| `"project"` \| `"none"`), `project_id` (uuid string or `null`), `projects` (**only when `scope=="global"`**; omitted under project/none — never `null`), `pinned`, `active_sessions`, `in_context_hotspots` / `in_context_decisions` / `in_context_constraints`, `word_count`. T264 additive: optional `in_context_project_span` (**only when `scope=="global"`**; omitted under project/none). T345 project-scoped `path` is always present (`string` or `null`; omit under global/none). Optional `last_decision` / `shell_leftover_project_id` (omit when absent; legacy project-scoped `last_decision` is Index-first then budget). T353 project-scoped `capture_vault_sessions` is always present as a number (**including 0**); omit under global/none. T241/T315/T345 `grants_status` / `next_step` (omit when absent): F7 ladder — unowned location → `next: ai-brains context`; else T241 bootstrap when discovery grants incomplete; else T315 empty-decisions when `in_context_decisions == 0`. |
 | **Summary `scope` three-valued** | `--global` → `"global"` (`project_id: null`, include `projects`); resolved project → `"project"`; unresolved (no global, no project id) → `"none"` (`project_id: null`, omit `projects`). Under `"none"`, vault SQL counts are vault-wide (same as human `Scope: project=(none)` honesty). |
 | **Summary `word_count`** | Full preflight **budget-window** text size (`context.word_count`), **not** the byte/size of the summary JSON payload (parity with human `Budget window words:`). |
-| **Summary session card (T345 / T354 / T353)** | After `Scope:`, project-scoped human prints `path=<compare>` or `path=—` (other-owner is unbound). Leftover T282 line when shell PROJECT_ID ≠ cwd `.env`. Immediately after `Active sessions:`, `capture: this-project vault sessions=N` (vault SQL only; not disk). `last_decision:` is the first Index **Decision** remainder (case-insensitive marker strip, 100 UTF-8 bytes) on the legacy briefing path, then the budget-window `decision:` scan. Governed `--summary` (`AI_BRAINS_GOVERNED_BRIEFING=1`) and `--global` stay budget-only. **Exactly one** `next:` line: unowned location → `ai-brains context`; else incomplete discovery grants → bootstrap SOOT; else T315 empty-decisions. `--show` is unchanged. Query-only (no bind). |
+| **Summary session card (T345 / T354 / T353 / T352)** | After `Scope:`, project-scoped human prints `path=<compare>` or `path=—` (other-owner is unbound). Leftover T282 line when shell PROJECT_ID ≠ cwd `.env`. Immediately after `Active sessions:`, `capture: this-project vault sessions=N` (vault SQL only; not disk). `last_decision:` is the first Index **Decision** remainder (case-insensitive marker strip, 100 UTF-8 bytes) on the legacy briefing path, then the budget-window `decision:` scan. Governed `--summary` (`AI_BRAINS_GOVERNED_BRIEFING=1`) and `--global` stay budget-only. **Exactly one** `next:` line: unowned location → `ai-brains context`; else incomplete discovery grants → bootstrap SOOT; else T315 empty-decisions. Default `--summary` is query-only; `preflight --summary --bind` runs T344 `maybe_auto_bind` then the card. `--show` is unchanged. |
 | **Summary `in_context_*`** | Case-sensitive marker scan of rendered budget text (`HOTSPOT:` / `DECISION:` / `CONSTRAINT:`). Under governed rendering those markers may be absent → counts can be **0** (orientation only; not governed claim authority). |
 | **Summary + install-hooks** | `--install-hooks` still runs side effects on the JSON path; install status lines go to **stderr** so stdout stays one pure JSON document. No interactive install prompt on the JSON path. |
 
@@ -607,7 +608,7 @@ CLI gap-fill order (after optional elevation handoff override on elevated child 
 
 | Intent | Command |
 |--------|---------|
-| Session start | `preflight --summary` / `--pretty` |
+| Session start | `preflight --summary --bind` / `--pretty` |
 | “What did we decide?” | `recall "…" --semantic` |
 | Persist a decision | `pin "DECISION: …"` |
 | Correct a memory | `forget` / `restore` |
