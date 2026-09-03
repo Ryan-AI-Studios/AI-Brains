@@ -2,6 +2,16 @@
 
 Tracks deferred from T142. Append-only; strike through when promoted to a real track.
 
+### T355 implement (2026-09-02) — twin Win+WSL path aliases
+
+BUGFIX TX `5113e6fd-de19-4242-97de-670a9eca73da`. AC1 already green at register (recapture). Human collapse is defense in depth.
+
+| Item | Disposition |
+|------|-------------|
+| T348-R3 / T342-R3 | **Absorbed** F2–F4 |
+| T355-R1 JSON list-paths location-dedupe | **Residual** (needs api_version) |
+| T355-R2 UNC twins | **Residual** |
+
 ### T352 implement (2026-09-02) — session-start `--bind`
 
 FEATURE TX `427ac249-6641-4d55-9b9a-f2c40090eada`. AC2 red on HEAD (no `--bind`). Scoped nextest bind+card+context_auto_bind **43 passed**.

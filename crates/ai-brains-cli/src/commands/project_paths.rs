@@ -7,7 +7,7 @@ use crate::commands::project::display_label;
 use crate::context::AppContext;
 use ai_brains_store::QueryStore;
 use serde::Serialize;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::io::IsTerminal;
 use std::path::{Path, PathBuf};
 
@@ -82,6 +82,21 @@ struct ListPathRow {
     exists: bool,
 }
 
+/// T355 F4: human list-paths collapses location-equal strings for one project.
+/// First SQL-ASC row wins (`exists` included). JSON callers must not use this.
+fn collapse_human_list_path_rows(rows: Vec<ListPathRow>) -> Vec<ListPathRow> {
+    let mut seen = HashSet::new();
+    let mut out = Vec::with_capacity(rows.len());
+    for row in rows {
+        let compare = ai_brains_path::normalize_for_location_compare(&row.normalized_path);
+        if !seen.insert((row.project_id.clone(), compare)) {
+            continue;
+        }
+        out.push(row);
+    }
+    out
+}
+
 /// List every registered filesystem path alias (all roots, not first-path-only).
 ///
 /// `--project` and `--shared-only` filter which rows appear; unfiltered JSON
@@ -150,6 +165,8 @@ pub fn list_paths(
         crate::commands::identity_warn::print_json_stdout(&envelope)?;
         return Ok(());
     }
+
+    let rows = collapse_human_list_path_rows(rows);
 
     if rows.is_empty() {
         if filter_applied {
@@ -529,6 +546,47 @@ mod tests {
             is_dir,
             has_ledgerful,
         }
+    }
+
+    fn path_row(pid: &str, stored: &str, exists: bool) -> ListPathRow {
+        ListPathRow {
+            project_id: pid.to_string(),
+            label: "lab".to_string(),
+            alias: String::new(),
+            normalized_path: stored.to_string(),
+            exists,
+        }
+    }
+
+    #[test]
+    fn collapse_human_list_path_rows__nonadjacent_twins__one_line() {
+        let pid = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee";
+        let twin_wsl = "/mnt/c/dev/zzz";
+        let middle = r"C:\dev\mmm";
+        let twin_win = r"C:\dev\zzz";
+        assert_eq!(
+            ai_brains_path::normalize_for_location_compare(twin_wsl),
+            ai_brains_path::normalize_for_location_compare(twin_win),
+            "AC3 fixture: WSL and Windows forms must compare-equal"
+        );
+        assert!(
+            twin_wsl < middle && middle < twin_win,
+            "AC3 fixture: stored strings must be non-adjacent in ASCII order"
+        );
+
+        let out = collapse_human_list_path_rows(vec![
+            path_row(pid, twin_wsl, false),
+            path_row(pid, middle, true),
+            path_row(pid, twin_win, true),
+        ]);
+        assert_eq!(out.len(), 2, "location twins collapse to one human line");
+        assert_eq!(out[0].normalized_path, twin_wsl);
+        assert!(
+            !out[0].exists,
+            "first ASC row exists wins (false), not the later twin"
+        );
+        assert_eq!(out[1].normalized_path, middle);
+        assert!(out[1].exists);
     }
 
     #[test]
