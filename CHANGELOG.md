@@ -21,6 +21,8 @@ Version banners in documentation are maintained manually from the workspace `Car
 
 ### Added
 
+- **T353 Summary capture vault line:** Project-scoped `preflight --summary` prints `capture: this-project vault sessions=N` immediately after `Active sessions:` (all-time SQL `SessionStarted` for coverage harnesses; not disk). JSON `capture_vault_sessions` is present including **0**; omitted on `--global` and scope `none`.
+
 - **T354 Index last_decision:** Project-scoped `preflight --summary` `last_decision:` prefers the first Index **Decision** memory (same drain as the legacy briefing Index; case-insensitive marker strip, 100 UTF-8 bytes) and falls back to the budget-window scan. `in_context_decisions` and the T315 next ladder stay budget-count based. Governed briefing and `--global` keep the budget-only extract.
 
 - **T351 Chunk + mean-pool long embeddings:** Memories longer than 2048 unicode scalars are split into up to **4** non-overlapping windows, each 4000-byte-capped, `embed_batch`’d, then uniform-mean + L2 into **one** BLOB. `last_embedding_truncated` increments when a 5th window is dropped **or** a per-chunk 4000-byte cap trims a window (3000 ASCII scalars is 2 chunks / truncated 0). Average-of-chunks is a heuristic (not reconstruction). Short memories still one `embed()`.

@@ -2,6 +2,17 @@
 
 Tracks deferred from T142. Append-only; strike through when promoted to a real track.
 
+### T353 implement (2026-09-02) — summary capture vault line
+
+FEATURE TX `757f724b-0995-4aeb-bde2-35a7885beacb`. AC1 red on HEAD (no capture line). Scoped nextest `preflight_summary_card` **20 passed**.
+
+| Item | Disposition |
+|------|-------------|
+| T348-R1 / T345-R1 remainder | **Absorbed** F1–F8 |
+| T353-R1 disk this-project one-liner | **Residual** |
+| T353-R2 per-harness breakdown | **Residual** |
+| T348-R2 JSONL peek | **Not stolen** |
+
 ### T354 implement (2026-09-02) — Index last_decision
 
 FEATURE TX `7508e4ed-8e56-49db-9909-69f9cbb5e0af`. AC1 red on HEAD (lowercase `decision:`). Scoped nextest `preflight_summary_card` **17 passed**.

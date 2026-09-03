@@ -4,10 +4,17 @@
 
 mod common;
 
+use ai_brains_adapters::GROK_HARNESS_UUID;
+use ai_brains_core::ids::{HarnessId, ProjectId, SessionId};
+use ai_brains_core::privacy::Privacy;
+use ai_brains_events::constructors::EventBuilder;
+use ai_brains_events::{Actor, AggregateType, Payload, SessionStartedPayload};
 use ai_brains_path::normalize_for_location_compare;
+use ai_brains_store::{EventStore, SqliteEventStore};
 use serde_json::Value;
 use std::fs;
 use std::path::Path;
+use std::str::FromStr;
 use tempfile::tempdir;
 
 const T315_SOOT: &str = r#"next: ai-brains recall "what did we decide""#;
@@ -145,6 +152,36 @@ fn bootstrap_discovery(vault: &Path, project_id: &str) {
         .arg(format!("Repository:{project_id}"))
         .assert()
         .success();
+}
+
+fn start_harness_session(vault: &Path, project_id: &str, harness_uuid: &str) {
+    let _allow = ai_brains_core::temp_env::TempEnv::set("AI_BRAINS_ALLOW_ZERO_KEY", "1");
+    let key = ai_brains_crypto::SqlCipherKey::from_raw(ZERO_KEY.to_string());
+    let conn = ai_brains_store::connection::VaultConnection::open(
+        vault.to_str().expect("utf8 vault"),
+        &key,
+    )
+    .expect("open vault");
+    let store = SqliteEventStore::new(conn);
+    let pid = ProjectId::from_str(project_id).expect("project id");
+    let session_id = SessionId::new();
+    let harness = HarnessId::from_str(harness_uuid).expect("harness");
+    store
+        .append_event(
+            &EventBuilder::new(
+                AggregateType::Session,
+                session_id.as_uuid(),
+                Actor::Harness(harness),
+                Privacy::LocalOnly,
+            )
+            .build(Payload::SessionStarted(SessionStartedPayload {
+                session_id,
+                project_id: pid,
+                tx_id: None,
+            }))
+            .expect("session envelope"),
+        )
+        .expect("append SessionStarted");
 }
 
 fn count_events(vault_path: &Path, event_type: &str) -> i64 {
@@ -638,6 +675,8 @@ fn preflight_summary_card__human__le_16_lines_before_harness() {
     init_vault(&vault);
     let proj = dir.path().join("maxlen");
     let id = register_project(&vault, &proj);
+    pin_memory(&vault, &proj, &id, "DECISION: MaxDensityCaptureLine");
+    start_harness_session(&vault, &id, GROK_HARNESS_UUID);
 
     let mut cmd = hermetic();
     cmd.current_dir(&proj)
@@ -647,13 +686,137 @@ fn preflight_summary_card__human__le_16_lines_before_harness() {
         .env("AI_BRAINS_PROJECT_ID", SHELL_ID)
         .arg("preflight")
         .arg("--summary")
-        .arg("--no-hook-prompt");
+        .arg("--no-hook-prompt")
+        .arg("--project-id")
+        .arg(&id);
     let out = cmd.output().expect("max card");
     assert_eq!(out.status.code(), Some(0));
     let stdout = String::from_utf8_lossy(&out.stdout);
+    assert!(
+        stdout.contains("path="),
+        "AC5 max-density path; got:\n{stdout}"
+    );
+    assert!(
+        stdout.contains("shell leftover PROJECT_ID:"),
+        "AC5 max-density leftover; got:\n{stdout}"
+    );
+    assert!(
+        stdout.contains("last_decision:"),
+        "AC5 max-density last_decision; got:\n{stdout}"
+    );
+    assert!(
+        stdout.contains("next:"),
+        "AC5 max-density next; got:\n{stdout}"
+    );
+    assert!(
+        stdout
+            .lines()
+            .any(|l| l.starts_with("capture: this-project vault sessions=")),
+        "AC5 max-density capture line; got:\n{stdout}"
+    );
     let n = card_line_count_before_harness(&stdout);
     assert!(n <= 16, "AC11 ≤16 lines before harness; got {n}:\n{stdout}");
-    let _ = id;
+}
+
+#[test]
+fn preflight_summary_card__capture_vault_sessions_line() {
+    let dir = tempdir().expect("tempdir");
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+    let proj = dir.path().join("this-proj");
+    let other = dir.path().join("other-proj");
+    let id = register_project(&vault, &proj);
+    let other_id = register_project(&vault, &other);
+    start_harness_session(&vault, &id, GROK_HARNESS_UUID);
+    start_harness_session(&vault, &id, GROK_HARNESS_UUID);
+    start_harness_session(&vault, &other_id, GROK_HARNESS_UUID);
+
+    let (code, stdout, stderr) = run_summary(&vault, &proj, &[], Some(&id), None);
+    assert_eq!(code, 0, "stderr={stderr}");
+    let expected = "capture: this-project vault sessions=2";
+    assert!(
+        stdout.lines().any(|l| l == expected),
+        "AC1 exact capture line; got:\n{stdout}"
+    );
+    let lines: Vec<&str> = stdout.lines().collect();
+    let active = lines
+        .iter()
+        .position(|l| l.starts_with("Active sessions:"))
+        .expect("Active sessions");
+    assert_eq!(
+        lines.get(active + 1).copied(),
+        Some(expected),
+        "AC1 immediately after Active sessions; got:\n{stdout}"
+    );
+    assert!(
+        lines
+            .get(active + 2)
+            .is_some_and(|l| l.starts_with("In context hotspots:")),
+        "AC1 before In context hotspots; got:\n{stdout}"
+    );
+
+    let (jcode, jstdout, jstderr) =
+        run_summary(&vault, &proj, &["--format", "json"], Some(&id), None);
+    assert_eq!(jcode, 0, "stderr={jstderr}");
+    let v: Value = serde_json::from_str(jstdout.trim()).expect("json");
+    assert_eq!(v["capture_vault_sessions"], 2, "AC2 JSON count; got {v}");
+}
+
+#[test]
+fn preflight_summary_card__capture_vault_sessions_empty_json_zero() {
+    let dir = tempdir().expect("tempdir");
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+    let proj = dir.path().join("empty-cap");
+    let id = register_project(&vault, &proj);
+
+    let (code, stdout, stderr) = run_summary(&vault, &proj, &["--format", "json"], Some(&id), None);
+    assert_eq!(code, 0, "stderr={stderr}");
+    let v: Value = serde_json::from_str(stdout.trim()).expect("json");
+    assert!(
+        v.get("capture_vault_sessions").is_some(),
+        "AC2 empty vault key present; got {v}"
+    );
+    assert_eq!(
+        v["capture_vault_sessions"], 0,
+        "AC2 empty vault serializes 0; got {v}"
+    );
+}
+
+#[test]
+fn preflight_summary_card__capture_vault_sessions_omitted_global_and_none() {
+    let dir = tempdir().expect("tempdir");
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+    let proj = dir.path().join("omit-cap");
+    let id = register_project(&vault, &proj);
+    start_harness_session(&vault, &id, GROK_HARNESS_UUID);
+
+    let (gcode, gstdout, gstderr) = run_summary(&vault, &proj, &["--global"], None, None);
+    assert_eq!(gcode, 0, "stderr={gstderr}");
+    assert!(
+        !gstdout.lines().any(|l| l.starts_with("capture:")),
+        "AC3 --global omits capture line; got:\n{gstdout}"
+    );
+
+    let (gjcode, gjstdout, gjstderr) =
+        run_summary(&vault, &proj, &["--global", "--format", "json"], None, None);
+    assert_eq!(gjcode, 0, "stderr={gjstderr}");
+    let gv: Value = serde_json::from_str(gjstdout.trim()).expect("global json");
+    assert!(
+        gv.get("capture_vault_sessions").is_none(),
+        "AC3 --global omits JSON key; got {gv}"
+    );
+
+    let (ncode, nstdout, nstderr) =
+        run_summary(&vault, dir.path(), &["--format", "json"], None, None);
+    assert_eq!(ncode, 0, "stderr={nstderr}");
+    let nv: Value = serde_json::from_str(nstdout.trim()).expect("none json");
+    assert_eq!(nv["scope"], "none");
+    assert!(
+        nv.get("capture_vault_sessions").is_none(),
+        "AC3 scope none omits JSON key; got {nv}"
+    );
 }
 
 #[test]

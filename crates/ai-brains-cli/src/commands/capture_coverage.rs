@@ -31,6 +31,25 @@ const NEXT_STEP_MAX: usize = 140;
 const SCOPE_MISSING_MSG: &str =
     "No project scope. Set AI_BRAINS_PROJECT_ID, run `ai-brains context`, or pass --global.";
 
+/// Harness UUIDs counted by `capture coverage` vault rows — one `IN` query.
+const COVERAGE_HARNESS_IDS: [&str; 7] = [
+    AGY_IMPORT_UUID,
+    AGY_HOOK_UUID,
+    GROK_HARNESS_UUID,
+    OPENCODE_HARNESS_UUID,
+    CLAUDE_HARNESS_UUID,
+    CODEX_HARNESS_UUID,
+    CURSOR_HARNESS_UUID,
+];
+
+/// All-time vault `SessionStarted` total for coverage harnesses (this project when `Some`).
+pub(crate) fn vault_session_total(
+    query: &dyn QueryStore,
+    project: Option<&ProjectId>,
+) -> Result<u64, Box<dyn std::error::Error>> {
+    Ok(query.count_sessions_started_by_harness(&COVERAGE_HARNESS_IDS, project)?)
+}
+
 pub struct CoverageOptions {
     pub days: usize,
     pub format: String,
@@ -1193,6 +1212,23 @@ mod tests {
         let cursor = source(&report, "cursor");
         assert!(cursor.vault_sessions >= 1);
         assert_ne!(cursor.status, "deficit");
+    }
+
+    #[test]
+    fn vault_session_total__sums_harnesses_excludes_foreign_project() {
+        let (_vdir, store) = open_store();
+        let project_id = ProjectId::new();
+        let other = ProjectId::new();
+        register_project(&store, project_id);
+        register_project(&store, other);
+        start_harness_session(&store, project_id, GROK_HARNESS_UUID);
+        start_harness_session(&store, project_id, CLAUDE_HARNESS_UUID);
+        start_harness_session(&store, other, GROK_HARNESS_UUID);
+        let n = vault_session_total(store.connection(), Some(&project_id)).expect("total");
+        assert_eq!(n, 2);
+        let empty =
+            vault_session_total(store.connection(), Some(&ProjectId::new())).expect("empty");
+        assert_eq!(empty, 0);
     }
 
     #[test]
