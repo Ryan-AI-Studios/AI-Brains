@@ -2,6 +2,17 @@
 
 Tracks deferred from T142. Append-only; strike through when promoted to a real track.
 
+### T352 implement (2026-09-02) — session-start `--bind`
+
+FEATURE TX `427ac249-6641-4d55-9b9a-f2c40090eada`. AC2 red on HEAD (no `--bind`). Scoped nextest bind+card+context_auto_bind **43 passed**.
+
+| Item | Disposition |
+|------|-------------|
+| T344-R1 | **Absorbed** F2–F5 |
+| T352-R1 `--bind` on non-summary preflight | **Residual** |
+| T352-R2 `.agents` session-start twin | **Residual** |
+| T352-R3 `--no-project-context` + `--bind` hermetic | **Residual** (helper argv already skips; Codex note) |
+
 ### T353 implement (2026-09-02) — summary capture vault line
 
 FEATURE TX `757f724b-0995-4aeb-bde2-35a7885beacb`. AC1 red on HEAD (no capture line). Scoped nextest `preflight_summary_card` **20 passed**.

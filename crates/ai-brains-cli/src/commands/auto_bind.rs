@@ -1,6 +1,7 @@
 //! T344 — fail-closed `context` auto-bind (git toplevel path + unique-slug alias).
 //!
-//! Queries (doctor / preflight / `--show`) must not call this. Never `process::exit`.
+//! Queries (doctor / default preflight / `--show`) must not call this.
+//! `preflight --summary --bind` is the explicit writer. Never `process::exit`.
 
 use crate::commands::project::{
     collect_git_identity, resolve_path_alias_for_location, sanitize_alias_suggestion,
@@ -15,6 +16,8 @@ use ai_brains_store::{EventStore, QueryStore};
 
 pub struct AutoBindOpts {
     pub no_auto_bind: bool,
+    /// T352 F9: success announcements go to stderr so JSON stdout stays clean.
+    pub json_stdout: bool,
 }
 
 fn env_no_auto_bind_truthy() -> bool {
@@ -35,6 +38,24 @@ fn argv_no_project_context() -> bool {
 
 fn skip(reason: &str) {
     eprintln!("auto-bind skip: {reason}");
+}
+
+pub(crate) fn skip_no_project_id() {
+    skip("no project id");
+}
+
+pub(crate) fn warn_auto_bind(result: Result<(), Box<dyn std::error::Error>>) {
+    if let Err(e) = result {
+        tracing::warn!(error = %e, "auto-bind failed");
+    }
+}
+
+fn announce(msg: String, json_stdout: bool) {
+    if json_stdout {
+        eprintln!("{msg}");
+    } else {
+        println!("{msg}");
+    }
 }
 
 fn exact_slug_hit_other(
@@ -114,7 +135,10 @@ pub fn maybe_auto_bind(
             let event_store = ai_brains_store::SqliteEventStore::new((*ctx.conn).clone());
             let writer = ai_brains_control_plane::StoreEventWriter::new(event_store);
             ai_brains_control_plane::register_path_alias(&writer, &raw, project_id)?;
-            println!("Auto-bound path {normalized} for project {pid_str}");
+            announce(
+                format!("Auto-bound path {normalized} for project {pid_str}"),
+                opts.json_stdout,
+            );
         }
     }
 
@@ -166,6 +190,9 @@ pub fn maybe_auto_bind(
     }))?;
     let event_store = ai_brains_store::SqliteEventStore::new((*ctx.conn).clone());
     event_store.append_event(&event)?;
-    println!("Auto-set alias '{suggestion}' for project {pid_str}");
+    announce(
+        format!("Auto-set alias '{suggestion}' for project {pid_str}"),
+        opts.json_stdout,
+    );
     Ok(())
 }

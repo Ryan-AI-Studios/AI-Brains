@@ -21,6 +21,8 @@ Version banners in documentation are maintained manually from the workspace `Car
 
 ### Added
 
+- **T352 Session-start `--bind`:** `preflight --summary --bind` calls the same `maybe_auto_bind` helper as `context` (fail-open). Default `--summary` stays query-only. `--bind` without `--summary` is clap exit 2. JSON `--format json --summary --bind` keeps Auto-bound lines off stdout. `--global` / no project id skip exit 0.
+
 - **T353 Summary capture vault line:** Project-scoped `preflight --summary` prints `capture: this-project vault sessions=N` immediately after `Active sessions:` (all-time SQL `SessionStarted` for coverage harnesses; not disk). JSON `capture_vault_sessions` is present including **0**; omitted on `--global` and scope `none`.
 
 - **T354 Index last_decision:** Project-scoped `preflight --summary` `last_decision:` prefers the first Index **Decision** memory (same drain as the legacy briefing Index; case-insensitive marker strip, 100 UTF-8 bytes) and falls back to the budget-window scan. `in_context_decisions` and the T315 next ladder stay budget-count based. Governed briefing and `--global` keep the budget-only extract.

@@ -43,6 +43,8 @@ pub struct PreflightRunOptions {
     pub stdin_mode: bool,
     /// Tighter pretty item/line caps (human/pretty only). JSON and `--summary` ignore this.
     pub compact: bool,
+    /// T352: explicit bind after vault open; default summary stays query-only.
+    pub bind: bool,
 }
 
 /// CLI-local summary JSON envelope (T220). Summary DTO stays CLI-local; full JSON
@@ -436,6 +438,21 @@ pub fn run(
             .format
             .as_deref()
             .is_some_and(|f| f.eq_ignore_ascii_case("json"));
+        if options.bind {
+            match options.project_id {
+                Some(pid) if !options.global => {
+                    super::auto_bind::warn_auto_bind(super::auto_bind::maybe_auto_bind(
+                        ctx,
+                        pid,
+                        super::auto_bind::AutoBindOpts {
+                            no_auto_bind: false,
+                            json_stdout: json_mode,
+                        },
+                    ));
+                }
+                _ => super::auto_bind::skip_no_project_id(),
+            }
+        }
         print_summary(
             ctx,
             options.global,

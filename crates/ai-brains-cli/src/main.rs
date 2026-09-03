@@ -1109,6 +1109,21 @@ mod tests {
         }
     }
 
+    #[test]
+    #[allow(non_snake_case)]
+    fn preflight__bind_without_summary__clap_requires_summary() {
+        use clap::Parser;
+        let err = match super::Cli::try_parse_from(["ai-brains", "preflight", "--bind"]) {
+            Ok(_) => panic!("AC4 --bind requires --summary"),
+            Err(e) => e,
+        };
+        let msg = err.to_string();
+        assert!(
+            msg.contains("--summary"),
+            "AC4 stderr must mention --summary; got: {msg}"
+        );
+    }
+
     /// T349 F2: omitted `--format` defaults to `human` (not Family A `auto`).
     #[test]
     #[allow(non_snake_case)]
@@ -2261,6 +2276,9 @@ enum Commands {
         /// Output a concise statistical summary instead of full text
         #[arg(short, long)]
         summary: bool,
+        /// T352: bind git toplevel + unique slug (same helper as `context`). Requires `--summary`.
+        #[arg(long, requires = "summary")]
+        bind: bool,
         /// Aggregate context across ALL projects (ignores project_id filter)
         #[arg(long)]
         global: bool,
@@ -5812,6 +5830,7 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
             compact,
             scope,
             summary,
+            bind,
             global,
             stdin: use_stdin,
             no_hook_prompt,
@@ -5852,6 +5871,7 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                     no_hook_prompt: *no_hook_prompt,
                     install_hooks: *install_hooks,
                     stdin_mode: *use_stdin,
+                    bind: *bind,
                 },
             )
         }
