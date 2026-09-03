@@ -78,6 +78,9 @@ pub(crate) struct PreflightSummaryJson {
     /// T345 F4 / T354 F2: Index-first Decision remainder (legacy path) or budget fallback.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub last_decision: Option<String>,
+    /// T353 F3: project-scoped vault `SessionStarted` total (including 0). Omit global/none.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub capture_vault_sessions: Option<u64>,
     /// T264 F8: distinct non-unknown projects in the emitted global body. Global only.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub in_context_project_span: Option<u32>,
@@ -122,6 +125,7 @@ pub(crate) fn build_preflight_summary_json(
         path: None,
         shell_leftover_project_id: None,
         last_decision: None,
+        capture_vault_sessions: None,
         in_context_project_span: None,
     }
 }
@@ -237,6 +241,16 @@ fn location_display_path(cwd: &Path, git: &GitIdentity) -> String {
         .map(|p| p.to_string_lossy().into_owned())
         .unwrap_or_else(|| cwd.to_string_lossy().into_owned());
     normalize_for_location_compare(&raw)
+}
+
+/// Insert `capture: this-project vault sessions=N` immediately after `Active sessions:`.
+pub(crate) fn insert_capture_vault_sessions_line(lines: &mut Vec<String>, n: u64) {
+    let line = format!("capture: this-project vault sessions={n}");
+    if let Some(idx) = lines.iter().position(|l| l.starts_with("Active sessions:")) {
+        lines.insert(idx + 1, line);
+    } else {
+        lines.push(line);
+    }
 }
 
 /// Scope → path= → leftover (project-scoped). Budget → last_decision → one next.
@@ -1144,6 +1158,14 @@ fn print_summary(
     } else {
         select_summary_next_step(false, grants_incomplete, decision_count)
     };
+    let capture_vault_sessions = if project_scoped {
+        Some(super::capture_coverage::vault_session_total(
+            ctx.conn.as_ref(),
+            project_id.as_ref(),
+        )?)
+    } else {
+        None
+    };
 
     if gate.json_mode {
         let mut envelope = build_preflight_summary_json(
@@ -1165,6 +1187,7 @@ fn print_summary(
         }
         envelope.shell_leftover_project_id = leftover_id;
         envelope.last_decision = last_decision.clone();
+        envelope.capture_vault_sessions = capture_vault_sessions;
         if let Some(n) = grants_count {
             envelope.grants_status = format_grants_status(n);
         }
@@ -1199,6 +1222,9 @@ fn print_summary(
         } else {
             lines.push(span_line);
         }
+    }
+    if let Some(n) = capture_vault_sessions {
+        insert_capture_vault_sessions_line(&mut lines, n);
     }
     apply_session_card_lines(
         &mut lines,
@@ -1631,6 +1657,37 @@ mod tests {
     #[test]
     fn format_preflight_summary_lines__arity_nine_args() {
         let _ = format_preflight_summary_lines("Scope: global", true, Some(0), 0, 0, 0, 0, 0, 0);
+    }
+
+    #[test]
+    fn insert_capture_vault_sessions_line__after_active_before_hotspots() {
+        let mut lines =
+            format_preflight_summary_lines("Scope: project=aaa", false, None, 1, 2, 3, 4, 5, 6);
+        insert_capture_vault_sessions_line(&mut lines, 2);
+        let active = lines
+            .iter()
+            .position(|l| l.starts_with("Active sessions:"))
+            .expect("Active sessions");
+        assert_eq!(lines[active + 1], "capture: this-project vault sessions=2");
+        assert!(
+            lines[active + 2].starts_with("In context hotspots:"),
+            "must precede hotspots; got:\n{}",
+            lines.join("\n")
+        );
+    }
+
+    #[test]
+    fn build_preflight_summary_json__capture_vault_sessions__zero_serializes_omit_none() {
+        let mut env = build_preflight_summary_json(false, None, None, 0, 0, 0, 0, 0, 0);
+        let s = serde_json::to_string(&env).expect("serialize");
+        assert!(
+            !s.contains("capture_vault_sessions"),
+            "none/global omit key; got: {s}"
+        );
+        env.capture_vault_sessions = Some(0);
+        let v: serde_json::Value =
+            serde_json::from_str(&serde_json::to_string(&env).expect("ser")).expect("parse");
+        assert_eq!(v["capture_vault_sessions"], 0);
     }
 
     /// T315 AC1: empty-decisions next-step SOOT.
@@ -2165,6 +2222,7 @@ mod tests {
         assert_eq!(v["scope"], "none");
         assert!(v["project_id"].is_null());
         assert!(v.get("projects").is_none());
+        assert!(v.get("capture_vault_sessions").is_none());
     }
 
     #[test]
