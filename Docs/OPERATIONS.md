@@ -640,7 +640,7 @@ This is independent of Task Scheduler **System32** cwd: roots come from vault pa
 |---------|----------------|---------|
 | `project set-alias <uuid> <label>` | Human **label** only | Display, resolve, detect **git slug** name/alias match |
 | `project register-path <uuid\|alias> <path>` | **Filesystem root** (normalized Win/WSL) | Detect **step 1**, nightly Phase 2 bridge, whoami path, mismatch warn |
-| `project list-paths` | **All** registered roots | Operator inventory (not just `project list` first-path). `--project` / `--shared-only` filter leftover multi-root IDs |
+| `project list-paths` | **All** registered roots | Operator inventory (not just `project list` first-path). `--project` / `--shared-only` filter leftover multi-root IDs. `--shared-only` JSON uses **raw-row** `owner_counts` (an owner with ≥2 projection rows). Location-equal Windows + `/mnt/<drive>/` strings collapse at `register-path` (`normalize_for_location_compare`), so twins should not appear as two projection rows. Human `list-paths` also collapses any leftover location-equal rows; that collapse does **not** change `--shared-only` JSON. |
 | `project unregister-path <path>` | Compensating **Removed** event | Frees the path for another project; symbols stay |
 | `project rebind-path <path> --to <dest>` | Removed (from) + Added (to) in **one tx** | Confirmable per-path split; memories stay on from |
 | `project scan-roots [path]` / `--root DIR` | Dry-run `.ledgerful` discovery | Unregistered hits suggest `register-path`; registered suggested is empty; never writes |

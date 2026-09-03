@@ -19,6 +19,10 @@ Version banners in documentation are maintained manually from the workspace `Car
 
 - **T349 BREAKING (0.x):** Omitted `--format` on `status`, `graph neighbors`/`hierarchy`/`session`, `scope resolve`, `retention plan`, `project list-paths`, `briefing`, and `decision in-force` stays **human even when piped**. Scripts: `--format json`. `--format auto` still means TTY human / pipe JSON (resolver frozen). Human `project list` hides non-cwd 0-memory rows and caps at 20 (`--all` / JSON keep all). `daemon status` unset URLs probe nightly `:8081`/`:8083` (not Ollama `:11434` / llama.cpp `:8080`). Denied project briefing human stops after Denied + SHORT (no empty `## Decisions` wall). Whoami path-null env fallback prints the same `git/env project mismatch` stderr as detect (JSON silent; `mismatch` still env vs path-alias).
 
+### Fixed
+
+- **T355 Twin Win+WSL path aliases:** `register-path` of location-equal Windows and `/mnt/<drive>/` strings still stores **one** `list-paths` JSON row (path-crate collapse). Human `list-paths` also collapses any location-equal rows by `(project_id, normalize_for_location_compare)` (first SQL-ASC `exists` wins). `--shared-only` JSON `owner_counts` stays raw-row.
+
 ### Added
 
 - **T352 Session-start `--bind`:** `preflight --summary --bind` calls the same `maybe_auto_bind` helper as `context` (fail-open). Default `--summary` stays query-only. `--bind` without `--summary` is clap exit 2. JSON `--format json --summary --bind` keeps Auto-bound lines off stdout. `--global` / no project id skip exit 0.

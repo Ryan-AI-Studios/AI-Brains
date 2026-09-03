@@ -243,6 +243,43 @@ fn list_paths__two_aliases__both_asc_json() {
     );
 }
 
+/// T355 AC1: Win+WSL register-path of location-equal strings → one JSON row.
+/// Same-row unregister proof: `unregister_path__win_and_wsl_forms__same_row`.
+#[test]
+fn list_paths__win_and_wsl_register__json_len_1() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+
+    let project_id = register_project(&vault, &dir.path().join("twin-json"));
+    let win = r"C:\dev\T355TwinJson";
+    let wsl = "/mnt/c/dev/T355TwinJson";
+    let win_n = ai_brains_path::normalize_for_location_compare(win);
+    let wsl_n = ai_brains_path::normalize_for_location_compare(wsl);
+    assert_eq!(
+        win_n, wsl_n,
+        "AC1 fixture requires path crate to map WSL to the Windows drive key"
+    );
+    assert!(!win_n.is_empty());
+
+    register_path(&vault, &project_id, win).success();
+    register_path(&vault, &project_id, wsl).success();
+
+    let v = list_paths_json(&vault);
+    let paths = v["paths"].as_array().expect("paths array");
+    assert_eq!(
+        paths.len(),
+        1,
+        "AC1: Win+WSL register must store one projection row; got {paths:?}"
+    );
+    assert_eq!(
+        paths[0]["normalized_path"].as_str(),
+        Some(win_n.as_str()),
+        "stored key is the location-compare form"
+    );
+    assert_eq!(paths[0]["project_id"].as_str(), Some(project_id.as_str()));
+}
+
 #[test]
 fn list_paths__two_aliases_same_project__list_still_first_path_only() {
     let dir = tempdir().unwrap();
