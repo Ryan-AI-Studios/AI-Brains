@@ -78,6 +78,9 @@ pub trait GraphBackend {
     /// Insert or update multiple edges in a single batch.
     fn add_edges(&self, edges: &[GraphEdge]) -> Result<()>;
 
+    /// Delete one directed edge. Missing row is OK.
+    fn remove_edge(&self, source: &str, target: &str, relation: &str) -> Result<()>;
+
     /// Query neighbors of a node, returning (target_id, relation) pairs.
     fn query_neighbors(&self, node_id: &str) -> Result<Vec<(String, String)>>;
 
@@ -409,6 +412,16 @@ impl GraphBackend for CozoProxyBackend {
 
         tracing::debug!(count = edges.len(), "CozoProxyBackend::add_edges");
         self.send_datalog_mutation(&datalog, "datalog_put_edge")
+    }
+
+    fn remove_edge(&self, source: &str, target: &str, relation: &str) -> Result<()> {
+        tracing::warn!(
+            source,
+            target,
+            relation,
+            "CozoProxyBackend::remove_edge is a logged no-op until T356-R2"
+        );
+        Ok(())
     }
 
     fn query_neighbors(&self, node_id: &str) -> Result<Vec<(String, String)>> {

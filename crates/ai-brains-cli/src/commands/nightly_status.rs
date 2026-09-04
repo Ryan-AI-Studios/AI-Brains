@@ -137,6 +137,9 @@ pub(crate) struct NightlyStatusJson {
     /// Last-run T351 truncated count (5th+ window or per-chunk 4000-byte cap). Missing → null.
     #[serde(default)]
     pub last_embedding_truncated: Option<u64>,
+    /// Present when last multi-import has any source `unbound > 0`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reassign_hint: Option<String>,
 }
 
 fn default_deadline_minutes() -> u64 {
@@ -194,6 +197,7 @@ pub(crate) fn build_nightly_status_json(input: NightlyStatusInput) -> NightlySta
     let last_embedding_truncated = parse_u64_count(input.last_embedding_truncated_raw.as_deref());
     let embedding_eta_nights =
         embedding_eta_nights(input.embedding_backlog, embedding_backfill_last);
+    let reassign_hint = reassign_hint_from_import(&input.multi_import);
     NightlyStatusJson {
         schema_version: 1,
         scheduled: input.scheduled,
@@ -232,6 +236,18 @@ pub(crate) fn build_nightly_status_json(input: NightlyStatusInput) -> NightlySta
         embedding_eta_nights,
         embed_http_batch,
         last_embedding_truncated,
+        reassign_hint,
+    }
+}
+
+pub(crate) fn reassign_hint_from_import(
+    view: &crate::commands::multi_import::MultiImportStatusView,
+) -> Option<String> {
+    let n = crate::commands::multi_import::unbound_total(view);
+    if n > 0 {
+        Some("ai-brains session reassign --suggest".to_string())
+    } else {
+        None
     }
 }
 
@@ -1139,6 +1155,7 @@ mod tests {
         assert!(parsed.embedding_eta_nights.is_none());
         assert!(parsed.embed_http_batch.is_none());
         assert!(parsed.last_embedding_truncated.is_none());
+        assert!(parsed.reassign_hint.is_none());
     }
 
     #[test]
@@ -1188,5 +1205,41 @@ mod tests {
         let status = build_nightly_status_json(input);
         assert_eq!(status.embedding_eta_nights, expected);
         assert_eq!(status.schema_version, 1);
+    }
+
+    #[test]
+    fn build_nightly_status_json__unbound_total_positive__emits_reassign_hint() {
+        let mut input = fixture_input();
+        input.multi_import = MultiImportStatusView::Report(Box::new(MultiImportReport {
+            v: 1,
+            at: "2026-09-04T00:00:00Z".to_string(),
+            agy: source_ok(),
+            grok: source_ok(),
+            opencode: source_ok(),
+            claude: source_ok(),
+            codex: source_ok(),
+            cursor: SourceImportReport {
+                unbound: 3,
+                ..source_ok()
+            },
+        }));
+        let status = build_nightly_status_json(input);
+        assert_eq!(
+            status.reassign_hint.as_deref(),
+            Some("ai-brains session reassign --suggest")
+        );
+        let value = to_value(&status);
+        assert_eq!(
+            value["reassign_hint"],
+            "ai-brains session reassign --suggest"
+        );
+        assert_eq!(value["schema_version"], 1);
+    }
+
+    #[test]
+    fn build_nightly_status_json__unbound_total_zero__omits_reassign_hint_key() {
+        let input = fixture_input();
+        let value = to_value(&build_nightly_status_json(input));
+        assert!(value.get("reassign_hint").is_none());
     }
 }

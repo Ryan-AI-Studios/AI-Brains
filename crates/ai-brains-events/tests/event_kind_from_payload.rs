@@ -47,6 +47,18 @@ fn event_kind_from_payload__several_known_variants__match() {
             EventKind::SessionStarted,
         ),
         (
+            Payload::SessionReassigned(ai_brains_events::payload::SessionReassignedPayload {
+                session_id: SessionId::new(),
+                from_project_id: ProjectId::new(),
+                to_project_id: ProjectId::new(),
+                assigned_by: "human".into(),
+                suspicious: false,
+                confidence: None,
+                model_provenance: None,
+            }),
+            EventKind::SessionReassigned,
+        ),
+        (
             Payload::MemoryPinned(MemoryPinnedPayload {
                 memory_id: MemoryId::new(),
                 content: "x".into(),

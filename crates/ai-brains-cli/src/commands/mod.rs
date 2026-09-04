@@ -59,6 +59,7 @@ pub mod retention;
 pub mod review;
 pub mod safety;
 pub mod scope;
+pub mod session_reassign;
 pub mod shadow;
 pub mod source;
 pub mod status;

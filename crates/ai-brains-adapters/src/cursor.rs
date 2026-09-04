@@ -410,11 +410,13 @@ fn source_from_cursor_jsonl(jsonl: &Path, project_folder: &str) -> Option<Cursor
 }
 
 /// Resolve Cursor project folder to a project id via slug match on `list_path_aliases`.
+/// After an exact miss, T356 F9 may bind a unique child named in `turn_text`.
 pub fn resolve_cursor_project(
     project_folder: &str,
     query_store: &dyn ai_brains_store::QueryStore,
     allow_default_project: bool,
     default_project_id: ProjectId,
+    turn_text: &str,
 ) -> Result<(ProjectId, String, CursorBindKind, bool)> {
     let folder = project_folder.trim();
     if folder.is_empty() {
@@ -423,13 +425,16 @@ pub fn resolve_cursor_project(
 
     match query_store.list_path_aliases() {
         Ok(aliases) => {
-            for (pid, path) in aliases {
-                if cursor_project_slug_candidates(&path)
+            for (pid, path) in &aliases {
+                if cursor_project_slug_candidates(path)
                     .iter()
                     .any(|s| s.eq_ignore_ascii_case(folder))
                 {
-                    return Ok((pid, path, CursorBindKind::Path, false));
+                    return Ok((*pid, path.clone(), CursorBindKind::Path, false));
                 }
+            }
+            if let Some((pid, path)) = unique_child_from_turns(folder, &aliases, turn_text) {
+                return Ok((pid, path, CursorBindKind::Path, false));
             }
         }
         Err(e) => {
@@ -440,6 +445,113 @@ pub fn resolve_cursor_project(
     }
 
     unbound_cursor_project(query_store, allow_default_project, default_project_id)
+}
+
+/// Folder slug is a proper prefix (`folder-…`) of ≥1 alias slug; unique turn-text hit wins.
+fn unique_child_from_turns(
+    folder: &str,
+    aliases: &[(ProjectId, String)],
+    turn_text: &str,
+) -> Option<(ProjectId, String)> {
+    let folder_l = folder.to_ascii_lowercase();
+    let children: Vec<(ProjectId, String, Vec<String>, String)> = aliases
+        .iter()
+        .filter_map(|(pid, path)| {
+            let slugs = cursor_project_slug_candidates(path);
+            let is_child = slugs.iter().any(|s| {
+                let s_l = s.to_ascii_lowercase();
+                s_l.len() > folder_l.len()
+                    && s_l.starts_with(&folder_l)
+                    && s_l.as_bytes().get(folder_l.len()) == Some(&b'-')
+            });
+            if !is_child {
+                return None;
+            }
+            let last = path_last_component(path);
+            Some((*pid, path.clone(), slugs, last))
+        })
+        .collect();
+    if children.is_empty() {
+        return None;
+    }
+    let mut hits: Vec<(ProjectId, String)> = Vec::new();
+    for (pid, path, slugs, last) in &children {
+        let slug_hit = slugs.iter().any(|s| child_token_mentioned(s, turn_text));
+        let last_hit = child_token_mentioned(last, turn_text);
+        let path_hit = path_token_mentioned(path, turn_text);
+        if (slug_hit || last_hit || path_hit) && !hits.iter().any(|(p, _)| p == pid) {
+            hits.push((*pid, path.clone()));
+        }
+    }
+    if hits.len() == 1 {
+        return hits.pop();
+    }
+    None
+}
+
+fn path_last_component(path: &str) -> String {
+    path.replace('\\', "/")
+        .trim_end_matches('/')
+        .rsplit('/')
+        .next()
+        .unwrap_or(path)
+        .to_string()
+}
+
+fn child_token_mentioned(token: &str, text: &str) -> bool {
+    let token = token.trim();
+    if token.is_empty() {
+        return false;
+    }
+    let token_l = token.to_ascii_lowercase();
+    let text_l = text.to_ascii_lowercase();
+    if token_l.len() < 4 {
+        return path_delimited_hit(&text_l, &token_l);
+    }
+    path_delimited_hit(&text_l, &token_l) || word_boundary_hit(&text_l, &token_l)
+}
+
+fn path_token_mentioned(path: &str, text: &str) -> bool {
+    let p = path.trim();
+    if p.is_empty() {
+        return false;
+    }
+    text.to_ascii_lowercase().contains(&p.to_ascii_lowercase())
+}
+
+fn path_delimited_hit(text: &str, slug: &str) -> bool {
+    let needles = [
+        format!("/{slug}/"),
+        format!("\\{slug}\\"),
+        format!("/{slug}"),
+        format!("\\{slug}"),
+    ];
+    needles.iter().any(|n| text.contains(n))
+}
+
+fn is_slug_char(b: u8) -> bool {
+    b.is_ascii_alphanumeric() || b == b'-' || b == b'_'
+}
+
+fn word_boundary_hit(text: &str, slug: &str) -> bool {
+    let hay = text.as_bytes();
+    let needle = slug.as_bytes();
+    if needle.is_empty() || hay.len() < needle.len() {
+        return false;
+    }
+    let mut i = 0;
+    while i + needle.len() <= hay.len() {
+        if hay[i..i + needle.len()] == *needle {
+            let before_ok = i == 0 || !is_slug_char(hay[i - 1]);
+            let after = i + needle.len();
+            let after_ok = after == hay.len() || !is_slug_char(hay[after]);
+            if before_ok && after_ok {
+                return true;
+            }
+        }
+        i += 1;
+    }
+    false
 }
 
 fn unbound_cursor_project(
@@ -671,11 +783,17 @@ pub fn import_cursor_sessions<S: CaptureSink>(
         }
 
         let session_result: crate::errors::Result<()> = (|| {
+            let turn_text: String = turns
+                .iter()
+                .map(|t| t.turn.content.as_str())
+                .collect::<Vec<_>>()
+                .join("\n");
             let (mut project_id, alias, kind, needs_create) = resolve_cursor_project(
                 &source.project_folder,
                 query_store,
                 options.allow_default_project,
                 options.default_project_id,
+                &turn_text,
             )?;
             match kind {
                 CursorBindKind::Path => stats.bound_via_path += 1,
@@ -874,5 +992,64 @@ not-json
         assert_eq!(turns[1].turn.content, "ok-cursor");
         assert!(!turns[1].turn.content.contains("Shell"));
         assert!(!turns[1].turn.content.contains("tool_use"));
+    }
+
+    #[test]
+    fn unique_child_from_turns__folder_prefix_unique_name__binds() {
+        let child = ProjectId::new();
+        let aliases = vec![(child, r"C:\dev\ledgerful-web".to_string())];
+        let hit = unique_child_from_turns("c-dev", &aliases, "please open ledgerful-web today");
+        assert_eq!(hit.map(|(p, _)| p), Some(child));
+    }
+
+    #[test]
+    fn unique_child_from_turns__hyphenated_longer_sibling__binds_longer() {
+        let web = ProjectId::new();
+        let api = ProjectId::new();
+        let aliases = vec![
+            (web, r"C:\dev\ledgerful-web".to_string()),
+            (api, r"C:\dev\ledgerful-web-api".to_string()),
+        ];
+        let hit = unique_child_from_turns("c-dev", &aliases, "please open ledgerful-web-api today");
+        assert_eq!(
+            hit.map(|(p, _)| p),
+            Some(api),
+            "hyphen is inside the slug; shorter prefix must not also match"
+        );
+    }
+
+    #[test]
+    fn unique_child_from_turns__two_prefix_children_one_named__binds_named() {
+        let web = ProjectId::new();
+        let api = ProjectId::new();
+        let aliases = vec![
+            (web, r"C:\dev\ledgerful-web".to_string()),
+            (api, r"C:\dev\ledgerful-api".to_string()),
+        ];
+        let hit = unique_child_from_turns("c-dev", &aliases, "unique hit ledgerful-web only");
+        assert_eq!(hit.map(|(p, _)| p), Some(web));
+    }
+
+    #[test]
+    fn unique_child_from_turns__two_children_named__none() {
+        let web = ProjectId::new();
+        let api = ProjectId::new();
+        let aliases = vec![
+            (web, r"C:\dev\ledgerful-web".to_string()),
+            (api, r"C:\dev\ledgerful-api".to_string()),
+        ];
+        let hit =
+            unique_child_from_turns("c-dev", &aliases, "compare ledgerful-web and ledgerful-api");
+        assert!(hit.is_none());
+    }
+
+    #[test]
+    fn child_token_mentioned__short_slug__requires_path_delimiter() {
+        assert!(!child_token_mentioned("ab", "see ab in the notes"));
+        assert!(child_token_mentioned("ab", r"path \ab\ file"));
+        assert!(child_token_mentioned(
+            "ledgerful-web",
+            "word ledgerful-web here"
+        ));
     }
 }

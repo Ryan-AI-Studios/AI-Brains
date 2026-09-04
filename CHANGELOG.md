@@ -25,6 +25,8 @@ Version banners in documentation are maintained manually from the workspace `Car
 
 ### Added
 
+- **T356 Unbound session reassign:** `ai-brains session reassign` appends compensating `SessionReassigned` (print-only default; `--write --yes` commits). Session + session-linked memories and turns follow dest. `--suggest` uses the local completion URL (fail-open skip). `--suggest --write --yes` tags `assigned_by=llm`. Cursor import may bind a unique child when the folder slug is a proper prefix of a registered alias slug and `filter_turn` text names it. `nightly --status` prints `next: ai-brains session reassign --suggest` when any source `unbound > 0` (JSON `reassign_hint`).
+
 - **T352 Session-start `--bind`:** `preflight --summary --bind` calls the same `maybe_auto_bind` helper as `context` (fail-open). Default `--summary` stays query-only. `--bind` without `--summary` is clap exit 2. JSON `--format json --summary --bind` keeps Auto-bound lines off stdout. `--global` / no project id skip exit 0.
 
 - **T353 Summary capture vault line:** Project-scoped `preflight --summary` prints `capture: this-project vault sessions=N` immediately after `Active sessions:` (all-time SQL `SessionStarted` for coverage harnesses; not disk). JSON `capture_vault_sessions` is present including **0**; omitted on `--global` and scope `none`.

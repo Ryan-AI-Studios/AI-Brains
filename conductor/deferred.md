@@ -2,6 +2,20 @@
 
 Tracks deferred from T142. Append-only; strike through when promoted to a real track.
 
+### T356 implement (2026-09-04) — unbound session reassign residuals
+
+FEATURE TX `e3df5b04-6f2e-4750-b0bc-d69b65773c20`. Landed F1–F12 / AC1–AC13. Spec §11 residuals stay:
+
+| Item | Disposition |
+|------|-------------|
+| T356-R1 other-harness parent-dir | **Residual** |
+| T356-R2 CozoProxy real DELETE | **Residual** |
+| T356-R3 recall DTO `assignment_suspicious` | **Residual** |
+| T356-R4 CSV / bulk human reassign | **Residual** |
+| T356-R5 preflight suspicious chrome | **Residual** |
+| T356-R6 `#[serial(env)]` crate | **Residual** (no `serial_test`; nextest isolation + TempEnv + denylist) |
+| T356-R7 nightly hint live unbound | **Residual** (F10 uses last_multi_import Σ; stale after reassign until next import) |
+
 ### T356 fold-in (2026-09-04) — agy + opencode plan reviews
 
 Fold-in DOCS TX `eeba897c-3ccb-4aed-8670-54b929eeef78`. Inputs: `agy-review.md`, `opencode-review.md`. Spec stays **Planned** / registry **Pending**. F0 until go.

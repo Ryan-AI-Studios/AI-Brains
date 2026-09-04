@@ -62,7 +62,7 @@ Governed memory separates **what was observed** from **what we conclude** and **
 
 ```text
 Setup:     init
-Daily:     recall | preflight | doctor | status | project | pin | context | stop-session | daemon
+Daily:     recall | preflight | doctor | status | project | pin | context | stop-session | session | daemon
 Operator:  backup | recovery | vault | retention | device | replicate | nightly | safety
 Governed:  scope | briefing | query | evidence | source | review | policy | conclusion | decision
 Dangerous: forget | erasure  (+ dual-ops: retention apply, vault encrypt|rotate-datakey, migrate governed --confirm, daemon install|uninstall|update)
@@ -222,6 +222,7 @@ Most users never need an explicit start: the CLI auto-launches. A Windows servic
 | Adopt path (T258/T266) | `project adopt-path` — bind daily Scope to the path-alias owner of cwd / git toplevel. Default **print-only** (names owner + exact `AI_BRAINS_PROJECT_ID=<id>` assignment; no file write). `--write-env --yes` rewrites **only** that key in cwd `.env` (creates the file if missing). `--write-env` without `--yes` is usage exit **2**. Already bound → exit **0**, no rewrite. No path owner → exit **1**, names `register-path`. Same T266 `--format` token map as whoami. `context` initializes / rotates; it is **not** adopt-path. Never writes `~/.ai-brains/.env`. Never silent auto-switch (T240 F2). |
 | Mismatch warn (T240/T257/T328) | Once per process when daily Scope env ≠ path-alias owner (after vault open). Human SOOT (stderr only, after the command): `Warning: project identity mismatch: daily Scope is '{env}', but path is registered to '{path}'. Run 'ai-brains project whoami'.` **JSON-effective silent:** when the command writes JSON on stdout, the human line is omitted so `2>&1` stays one parseable object. `scope resolve` JSON injects exactly one token into existing `warnings[]`: `project_identity_mismatch env=<uuid> path=<uuid>` (no `Warning:`). Skip: `--no-project-context`, argv `--global`, empty env, no path alias, **`project whoami`**, **`project adopt-path`**. Whoami JSON keeps `mismatch: true`. **T328 additive:** when env ≠ detect **and** path-alias is absent, `scope resolve` JSON also injects `project_identity_collision env=<uuid> detect=<uuid>` (no `Warning:`; not emitted when the mismatch token already applies; skip `--no-project-context` / `--global` like mismatch). **T332 additive:** when detect source is env, path-alias is absent, and a git slug is present, `scope resolve` JSON also injects `project_detect_env_fallback env=<uuid> slug=<slug>` (no `Warning:`; not emitted when mismatch or collision already applies). Nightly status JSON is silent (no `warnings` key). **Never** auto-switches Scope. |
 | Stop session | `stop-session` |
+| Session reassign (T356) | `session reassign <session_id> --to-project <id\|alias>` — compensating `SessionReassigned` (never mutates `SessionStarted`). Default **print-only**. `--write --yes` moves the session plus session-linked memories and turns. `--suggest` ranks `*-unbound` pool sessions against registered aliases via the local completion URL (fail-open skip when down). `--suggest --write --yes` tags `assigned_by=llm`. Contradiction / low confidence sets `assignment_suspicious` on the event and command JSON (not recall DTO). |
 | Env precedence | CLI flags / shell env > elevation handoff (elevated child only) > project `.env` > global `~\.ai-brains\.env` (always merged for gaps; `--no-project-context` skips project only) |
 | Local ID force-set | Project-local `.env` **always force-sets** `AI_BRAINS_PROJECT_ID` / `AI_BRAINS_SESSION_ID` (cwd project beats a stale shell). Other keys still follow shell > project > global gap-fill. |
 | Override warn (T223/T242) | When shell had a **different** ID value, CLI may print **one** collapsed stderr line: `Warning: local .env overrides inherited shell: AI_BRAINS_PROJECT_ID (was …)[, AI_BRAINS_SESSION_ID (was …)].` **Session-only** override (PROJECT equal/missing) → no stderr; debug only; **no session marker**. **Project** differ: first warn for a fingerprint, then session-quiet across process spawns. |
@@ -646,7 +647,7 @@ End-to-end recipes: [WORKFLOWS.md](WORKFLOWS.md) (“Find something”).
 
 ```text
 CAPTURE          ingest · agy-hook · antigravity-import · daemon queue
-CONTEXT          context · project list/resolve/detect/whoami/set-alias/register-path/list-paths/rebind-path/unregister-path/scan-roots · stop-session
+CONTEXT          context · project list/resolve/detect/whoami/set-alias/register-path/list-paths/rebind-path/unregister-path/scan-roots · stop-session · session reassign
 DENSE MEMORY     pin · forget/restore · safety sync
 RETRIEVAL        recall (FTS · semantic · graph-boost · bridge) · preflight · sync query
 INTELLIGENCE     nightly (summarize · embed · synthesize · multi-root Phase2 bridge)

@@ -577,3 +577,166 @@ fn import_cursor__unbound_folder__cursor_unbound_alias() {
         .expect("resolve")
         .expect("unbound alias");
 }
+
+fn cursor_user_jsonl(user: &str) -> String {
+    format!(
+        r#"{{"role":"user","message":{{"content":[{{"type":"text","text":"<user_query>\n{user}\n</user_query>"}}]}}}}
+{{"role":"assistant","message":{{"content":[{{"type":"text","text":"ok"}}]}}}}
+"#
+    )
+}
+
+fn session_project_id(conn: &VaultConnection, session_id: &str) -> String {
+    let guard = conn.lock().expect("lock");
+    guard
+        .query_row(
+            "SELECT project_id FROM session_projection WHERE session_id = ?",
+            [session_id],
+            |row| row.get(0),
+        )
+        .expect("session project")
+}
+
+/// T356 AC8: folder `c-dev` + alias `C:\dev\ledgerful-web` + unique transcript hit.
+#[test]
+fn import_cursor__parent_folder_unique_child_in_turns__binds_child_not_unbound() {
+    let root = tempdir().unwrap();
+    let home = root.path().join("home");
+    let vault_dir = root.path().join("vault");
+    fs::create_dir_all(&home).unwrap();
+    fs::create_dir_all(&vault_dir).unwrap();
+
+    let sid = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaa08";
+    write_cursor_session(
+        &home,
+        "c-dev",
+        sid,
+        &cursor_user_jsonl("please open ledgerful-web"),
+    );
+
+    let (conn, store) = open_vault(&vault_dir);
+    let project_id = ProjectId::new();
+    register_path_alias(&store, project_id, r"C:\dev\ledgerful-web");
+    let mut sink = TestSink {
+        store,
+        last_error: None,
+    };
+    let service = CaptureService::new();
+    let stats = import_cursor_sessions(
+        &conn,
+        &service,
+        &mut sink,
+        CursorImportOptions {
+            days: 30,
+            default_project_id: ProjectId::new(),
+            allow_default_project: false,
+            force: true,
+            home_override: Some(home),
+            dry_run: false,
+        },
+    )
+    .expect("import");
+    assert!(stats.bound_via_path >= 1, "AC8 bound: {stats:?}");
+    assert_eq!(stats.unbound_project, 0, "AC8 unbound: {stats:?}");
+    assert_eq!(session_project_id(&conn, sid), project_id.to_string());
+    assert!(
+        conn.resolve_project_id_from_alias(CURSOR_UNBOUND_ALIAS)
+            .expect("resolve")
+            .is_none(),
+        "AC8 must not mint cursor-unbound"
+    );
+}
+
+/// T356 AC8b: two prefix children; transcript uniquely names one.
+#[test]
+fn import_cursor__two_prefix_children_unique_text__binds_named() {
+    let root = tempdir().unwrap();
+    let home = root.path().join("home");
+    let vault_dir = root.path().join("vault");
+    fs::create_dir_all(&home).unwrap();
+    fs::create_dir_all(&vault_dir).unwrap();
+
+    let sid = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaa8b";
+    write_cursor_session(
+        &home,
+        "c-dev",
+        sid,
+        &cursor_user_jsonl("unique hit ledgerful-web only"),
+    );
+
+    let (conn, store) = open_vault(&vault_dir);
+    let web = ProjectId::new();
+    let api = ProjectId::new();
+    register_path_alias(&store, web, r"C:\dev\ledgerful-web");
+    register_path_alias(&store, api, r"C:\dev\ledgerful-api");
+    let mut sink = TestSink {
+        store,
+        last_error: None,
+    };
+    let service = CaptureService::new();
+    let stats = import_cursor_sessions(
+        &conn,
+        &service,
+        &mut sink,
+        CursorImportOptions {
+            days: 30,
+            default_project_id: ProjectId::new(),
+            allow_default_project: false,
+            force: true,
+            home_override: Some(home),
+            dry_run: false,
+        },
+    )
+    .expect("import");
+    assert!(stats.bound_via_path >= 1, "AC8b bound: {stats:?}");
+    assert_eq!(session_project_id(&conn, sid), web.to_string());
+}
+
+/// T356 AC9: two children named in text → unbound.
+#[test]
+fn import_cursor__two_children_named_in_text__unbound() {
+    let root = tempdir().unwrap();
+    let home = root.path().join("home");
+    let vault_dir = root.path().join("vault");
+    fs::create_dir_all(&home).unwrap();
+    fs::create_dir_all(&vault_dir).unwrap();
+
+    let sid = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaa09";
+    write_cursor_session(
+        &home,
+        "c-dev",
+        sid,
+        &cursor_user_jsonl("compare ledgerful-web and ledgerful-api"),
+    );
+
+    let (conn, store) = open_vault(&vault_dir);
+    let web = ProjectId::new();
+    let api = ProjectId::new();
+    register_path_alias(&store, web, r"C:\dev\ledgerful-web");
+    register_path_alias(&store, api, r"C:\dev\ledgerful-api");
+    let mut sink = TestSink {
+        store,
+        last_error: None,
+    };
+    let service = CaptureService::new();
+    let stats = import_cursor_sessions(
+        &conn,
+        &service,
+        &mut sink,
+        CursorImportOptions {
+            days: 30,
+            default_project_id: ProjectId::new(),
+            allow_default_project: false,
+            force: true,
+            home_override: Some(home),
+            dry_run: false,
+        },
+    )
+    .expect("import");
+    assert!(stats.unbound_project >= 1, "AC9 unbound: {stats:?}");
+    let unbound = conn
+        .resolve_project_id_from_alias(CURSOR_UNBOUND_ALIAS)
+        .expect("resolve")
+        .expect("cursor-unbound");
+    assert_eq!(session_project_id(&conn, sid), unbound.to_string());
+}
