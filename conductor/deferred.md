@@ -2,6 +2,22 @@
 
 Tracks deferred from T142. Append-only; strike through when promoted to a real track.
 
+### T356 plan (2026-09-04) — unbound session reassign
+
+DOCS TX `3274b9a4-d06d-4cc5-aa4a-9bc940fe49eb`. last-PR `#284` Cursor usage-limit. Spec **Planned** / registry **Pending**. F0 until go.
+
+| Item | Disposition |
+|------|-------------|
+| Placeholder F1 compensating reassign | **Absorb** F1–F6 |
+| Placeholder F2 LLM `--apply` | **Absorb** as `--suggest --write --yes` (T259 SOOT; no `--apply` flag) |
+| Placeholder F3 slug child-heuristic | **Absorb** F9 Cursor-only |
+| Placeholder F4 status honesty | **Absorb** F10 |
+| T348-R2 JSONL peek | **Not stolen** |
+| T353-R1 disk coverage | **Not stolen** |
+| Other-harness parent-dir / Cozo remove_edge / summary suspicious line / bulk CSV | **Residual** T356-R1–R4 |
+| `#284` Cursor | **N/A empty** |
+| clap 5 / 0.1.6 / install / doctor 16 / T240 F2 | **Decline** |
+
 ### T355 implement (2026-09-02) — twin Win+WSL path aliases
 
 BUGFIX TX `5113e6fd-de19-4242-97de-670a9eca73da`. AC1 already green at register (recapture). Human collapse is defense in depth.
