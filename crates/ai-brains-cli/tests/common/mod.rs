@@ -70,6 +70,9 @@ pub const AMBIENT_DENYLIST: &[&str] = &[
     "AI_BRAINS_NO_AUTO_BIND",
     // T354 F8: ambient governed briefing must not skip the legacy Index helper.
     "AI_BRAINS_GOVERNED_BRIEFING",
+    // T356 F7: ambient suggest knobs must not leak into hermetic reassign ACs.
+    "AI_BRAINS_REASSIGN_SUGGEST_CAP",
+    "AI_BRAINS_REASSIGN_MIN_CONFIDENCE",
 ];
 
 /// `cargo_bin("ai-brains")` with ambient denylist stripped.

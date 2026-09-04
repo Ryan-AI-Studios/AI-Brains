@@ -22,6 +22,7 @@ pub enum EventKind {
     AssistantFinalRecorded,
     SessionCompleted,
     SessionFailed,
+    SessionReassigned,
     SessionSummaryCreated,
 
     // Memory
@@ -112,6 +113,7 @@ impl EventKind {
             EventKind::AssistantFinalRecorded => "AssistantFinalRecorded",
             EventKind::SessionCompleted => "SessionCompleted",
             EventKind::SessionFailed => "SessionFailed",
+            EventKind::SessionReassigned => "SessionReassigned",
             EventKind::SessionSummaryCreated => "SessionSummaryCreated",
             EventKind::MemoryPinned => "MemoryPinned",
             EventKind::MemoryForgotten => "MemoryForgotten",
@@ -181,6 +183,7 @@ impl EventKind {
             "AssistantFinalRecorded" => EventKind::AssistantFinalRecorded,
             "SessionCompleted" => EventKind::SessionCompleted,
             "SessionFailed" => EventKind::SessionFailed,
+            "SessionReassigned" => EventKind::SessionReassigned,
             "SessionSummaryCreated" => EventKind::SessionSummaryCreated,
             "MemoryPinned" => EventKind::MemoryPinned,
             "MemoryForgotten" => EventKind::MemoryForgotten,
@@ -276,6 +279,7 @@ impl From<&crate::payload::Payload> for EventKind {
             Payload::AssistantFinalRecorded(_) => EventKind::AssistantFinalRecorded,
             Payload::SessionCompleted(_) => EventKind::SessionCompleted,
             Payload::SessionFailed(_) => EventKind::SessionFailed,
+            Payload::SessionReassigned(_) => EventKind::SessionReassigned,
             Payload::MemoryPinned(_) => EventKind::MemoryPinned,
             Payload::MemoryForgotten(_) => EventKind::MemoryForgotten,
             Payload::MemoryRestored(_) => EventKind::MemoryRestored,

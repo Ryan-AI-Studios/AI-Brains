@@ -2,6 +2,51 @@
 
 Tracks deferred from T142. Append-only; strike through when promoted to a real track.
 
+### T356 implement (2026-09-04) — unbound session reassign residuals
+
+FEATURE TX `e3df5b04-6f2e-4750-b0bc-d69b65773c20`. Landed F1–F12 / AC1–AC13. Spec §11 residuals stay:
+
+| Item | Disposition |
+|------|-------------|
+| T356-R1 other-harness parent-dir | **Residual** |
+| T356-R2 CozoProxy real DELETE | **Residual** |
+| T356-R3 recall DTO `assignment_suspicious` | **Residual** |
+| T356-R4 CSV / bulk human reassign | **Residual** |
+| T356-R5 preflight suspicious chrome | **Residual** |
+| T356-R6 `#[serial(env)]` crate | **Residual** (no `serial_test`; nextest isolation + TempEnv + denylist) |
+| T356-R7 nightly hint live unbound | **Residual** (F10 uses last_multi_import Σ; stale after reassign until next import) |
+
+### T356 fold-in (2026-09-04) — agy + opencode plan reviews
+
+Fold-in DOCS TX `eeba897c-3ccb-4aed-8670-54b929eeef78`. Inputs: `agy-review.md`, `opencode-review.md`. Spec stays **Planned** / registry **Pending**. F0 until go.
+
+| Item | Disposition |
+|------|-------------|
+| Agy/OpenCode B1 graph rebuild dual `IN_PROJECT` | **Absorb** F5 buffer prune + AC13 |
+| Agy/OpenCode M1 `turn_projection.project_id` | **Absorb** F4 / AC3 |
+| Agy M2 / OpenCode m4 multiplex `remove_edge` | **Absorb** F5 three impls |
+| Agy M3 / OpenCode M2 recall `assignment_suspicious` | **Defer** T356-R3 (option B: event field only; no 0030) |
+| OpenCode M3 AC4 stub `query_neighbors` | **Absorb** AC4 GraphSearch / `graph_edge` |
+| F9 slug-prefix + AC8b / word-boundary | **Absorb** F9 |
+| Recall DTO + preflight suspicious chrome | **Residual** T356-R3 / T356-R5 |
+| `#284` Cursor | **N/A empty** — no new placeholder |
+
+### T356 plan (2026-09-04) — unbound session reassign
+
+DOCS TX `3274b9a4-d06d-4cc5-aa4a-9bc940fe49eb`. last-PR `#284` Cursor usage-limit. Spec **Planned** / registry **Pending**. F0 until go.
+
+| Item | Disposition |
+|------|-------------|
+| Placeholder F1 compensating reassign | **Absorb** F1–F6 |
+| Placeholder F2 LLM `--apply` | **Absorb** as `--suggest --write --yes` (T259 SOOT; no `--apply` flag) |
+| Placeholder F3 slug child-heuristic | **Absorb** F9 Cursor-only |
+| Placeholder F4 status honesty | **Absorb** F10 |
+| T348-R2 JSONL peek | **Not stolen** |
+| T353-R1 disk coverage | **Not stolen** |
+| Other-harness parent-dir / Cozo remove_edge / recall+preflight suspicious / bulk CSV | **Residual** T356-R1–R5 |
+| `#284` Cursor | **N/A empty** |
+| clap 5 / 0.1.6 / install / doctor 16 / T240 F2 | **Decline** |
+
 ### T355 implement (2026-09-02) — twin Win+WSL path aliases
 
 BUGFIX TX `5113e6fd-de19-4242-97de-670a9eca73da`. AC1 already green at register (recapture). Human collapse is defense in depth.

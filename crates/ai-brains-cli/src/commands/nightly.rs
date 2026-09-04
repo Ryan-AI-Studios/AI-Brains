@@ -16,7 +16,7 @@ const NIGHTLY_STATUS_PROBE_TIMEOUT: Duration = Duration::from_millis(750);
 pub(crate) const DEFAULT_MODEL_URL: &str = "http://127.0.0.1:8081";
 /// Default embedding endpoint when env is unset (matches run path).
 pub(crate) const DEFAULT_EMBEDDING_URL: &str = "http://127.0.0.1:8083";
-const DEFAULT_COMPLETION_MODEL: &str = "gemma-4-E4B-it-Q6_K.gguf";
+pub(crate) const DEFAULT_COMPLETION_MODEL: &str = "gemma-4-E4B-it-Q6_K.gguf";
 const DEFAULT_EMBEDDING_MODEL: &str = "nomic-embed-text-v1.5";
 
 #[allow(clippy::too_many_arguments)]
@@ -267,6 +267,11 @@ pub async fn run(
             }
         }
         crate::commands::multi_import::print_multi_import_status(&multi_import);
+        if let Some(hint) =
+            crate::commands::nightly_status::reassign_hint_from_import(&multi_import)
+        {
+            println!("next: {hint}");
+        }
         println!("======================");
         // Status exit remains 0 when probe is down/timeout/error.
         return Ok(());

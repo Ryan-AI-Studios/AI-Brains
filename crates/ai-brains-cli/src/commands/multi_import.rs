@@ -658,6 +658,21 @@ pub enum MultiImportStatusView {
     Report(Box<MultiImportReport>),
 }
 
+/// Sum of per-source `unbound` counts (0 for never/unreadable).
+pub(crate) fn unbound_total(view: &MultiImportStatusView) -> usize {
+    match view {
+        MultiImportStatusView::Report(r) => {
+            r.agy.unbound
+                + r.grok.unbound
+                + r.opencode.unbound
+                + r.claude.unbound
+                + r.codex.unbound
+                + r.cursor.unbound
+        }
+        MultiImportStatusView::Never | MultiImportStatusView::Unreadable => 0,
+    }
+}
+
 /// Load and parse `last_multi_import` for status display.
 pub fn load_multi_import_status(
     query_store: &dyn QueryStore,

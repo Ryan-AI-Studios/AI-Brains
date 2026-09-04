@@ -524,6 +524,7 @@ pub fn classify_legacy(events: &[Envelope], opts: &ImportOpts) -> Result<ImportP
             Payload::SessionStarted(_)
             | Payload::SessionCompleted(_)
             | Payload::SessionFailed(_)
+            | Payload::SessionReassigned(_)
             | Payload::UserPromptRecorded(_)
             | Payload::AssistantFinalRecorded(_) => {
                 actions.push(skip_action(env.event_id, REASON_IGNORE, privacy));

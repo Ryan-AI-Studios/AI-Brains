@@ -31,8 +31,9 @@ pub use payload::{
     RepositoryJoinedWorkspacePayload, RepositoryPathAliasAddedPayload,
     RepositoryPathAliasRemovedPayload, RetentionAppliedPayload, RetentionClassCount,
     ReviewItemOpenedPayload, ReviewItemResolvedPayload, ScopeGrantIssuedPayload,
-    ScopeGrantRevokedPayload, SessionCompletedPayload, SessionFailedPayload, SessionStartedPayload,
-    SessionSummaryCreatedPayload, SourceObservedPayload, SourceRegisteredPayload,
-    SourceUnavailablePayload, SourceVersionRecordedPayload, UserPromptRecordedPayload,
-    VerifyOutcomeRecordedPayload, WorkspaceRegisteredPayload,
+    ScopeGrantRevokedPayload, SessionCompletedPayload, SessionFailedPayload,
+    SessionReassignedPayload, SessionStartedPayload, SessionSummaryCreatedPayload,
+    SourceObservedPayload, SourceRegisteredPayload, SourceUnavailablePayload,
+    SourceVersionRecordedPayload, UserPromptRecordedPayload, VerifyOutcomeRecordedPayload,
+    WorkspaceRegisteredPayload,
 };

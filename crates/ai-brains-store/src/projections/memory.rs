@@ -149,6 +149,16 @@ impl Projection for MemoryProjection {
                     ],
                 )?;
             }
+            Payload::SessionReassigned(p) => {
+                tx.execute(
+                    "UPDATE memory_projection SET project_id = ?, updated_at = ? WHERE session_id = ?",
+                    rusqlite::params![
+                        p.to_project_id.to_string(),
+                        occurred_at,
+                        p.session_id.to_string()
+                    ],
+                )?;
+            }
             _ => {}
         }
         Ok(())

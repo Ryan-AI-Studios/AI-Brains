@@ -1715,6 +1715,33 @@ mod tests {
         );
     }
 
+    /// T356 AC12: `session reassign --help` lists --suggest/--write/--yes and has no `--apply`.
+    #[test]
+    #[allow(non_snake_case)]
+    fn session_reassign__help__lists_suggest_write_yes_no_apply_token() {
+        let err = match super::Cli::try_parse_from(["ai-brains", "session", "reassign", "--help"]) {
+            Ok(_) => panic!("expected --help to be DisplayHelp"),
+            Err(e) => e,
+        };
+        let help = err.to_string();
+        assert!(
+            help.contains("--suggest"),
+            "AC12: help lists --suggest; got: {help}"
+        );
+        assert!(
+            help.contains("--write"),
+            "AC12: help lists --write; got: {help}"
+        );
+        assert!(
+            help.contains("--yes"),
+            "AC12: help lists --yes; got: {help}"
+        );
+        assert!(
+            !help.contains("--apply"),
+            "AC12: help must not contain --apply token; got: {help}"
+        );
+    }
+
     /// T268 AC13: after_help names `--root` and both C:\\dev examples.
     #[test]
     #[allow(non_snake_case)]
@@ -2477,6 +2504,12 @@ enum Commands {
     StopSession {
         /// Session ID to stop
         session_id: String,
+    },
+    /// Reassign captured sessions between projects (T356)
+    #[command(display_order = 17)]
+    Session {
+        #[command(subcommand)]
+        command: SessionCommands,
     },
     /// Initialize or refresh the project context (first-init writes local .env; already-initialized ensures vault)
     #[command(
@@ -3929,6 +3962,35 @@ pub enum GraphCommands {
     Update {
         /// Output format: json (default pretty-JSON), auto (same as json), or human
         #[arg(long, default_value = "json", value_parser = ["json", "auto", "human"])]
+        format: String,
+    },
+}
+
+/// T356 session remediator subcommands.
+#[derive(Subcommand, Clone)]
+pub enum SessionCommands {
+    /// Move a captured session to another project (compensating event)
+    #[command(
+        after_help = "Default is print-only (does not append events). Write requires both --write and --yes (no third writer flag).\nLLM proposals use --suggest; confirm with --suggest --write --yes (tagged assigned_by=llm).\nExamples:\n  ai-brains session reassign <session-id> --to-project <alias>\n  ai-brains session reassign <session-id> --to-project <alias> --write --yes\n  ai-brains session reassign --suggest\n  ai-brains session reassign --suggest --write --yes"
+    )]
+    Reassign {
+        /// Session ID (omit with --suggest)
+        #[arg(conflicts_with = "suggest")]
+        session_id: Option<String>,
+        /// Rank unbound-pool sessions against registered projects (local LLM)
+        #[arg(long)]
+        suggest: bool,
+        /// Destination project UUID or alias (required unless --suggest)
+        #[arg(long = "to-project")]
+        to_project: Option<String>,
+        /// Append SessionReassigned (requires --yes)
+        #[arg(long)]
+        write: bool,
+        /// Confirm a --write
+        #[arg(long)]
+        yes: bool,
+        /// Output format: human (default), json, or auto
+        #[arg(long, default_value = "human", value_parser = ["human", "json", "auto"])]
         format: String,
     },
 }
@@ -6033,6 +6095,25 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
         Commands::StopSession { session_id } => {
             commands::stop_session::run(&ctx, session_id.clone())
         }
+        Commands::Session { command } => match command {
+            SessionCommands::Reassign {
+                session_id,
+                suggest,
+                to_project,
+                write,
+                yes,
+                format,
+            } => commands::session_reassign::run(
+                &ctx,
+                session_id.clone(),
+                *suggest,
+                to_project.clone(),
+                *write,
+                *yes,
+                format,
+                None,
+            ),
+        },
         Commands::Context {
             new_project,
             new_session,

@@ -87,6 +87,23 @@ pub struct SessionFailedPayload {
     pub reason: String,
 }
 
+/// Compensating session project move (T356). Never mutates `SessionStarted`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SessionReassignedPayload {
+    pub session_id: SessionId,
+    pub from_project_id: ProjectId,
+    pub to_project_id: ProjectId,
+    /// Closed set: `"human"` | `"llm"`.
+    pub assigned_by: String,
+    #[serde(default)]
+    pub suspicious: bool,
+    /// Decimal confidence text when `assigned_by=llm` (keeps [`Payload`] `Eq`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub confidence: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub model_provenance: Option<ModelProvenance>,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MemoryPinnedPayload {
     pub memory_id: MemoryId,
@@ -783,6 +800,7 @@ pub enum Payload {
     AssistantFinalRecorded(AssistantFinalRecordedPayload),
     SessionCompleted(SessionCompletedPayload),
     SessionFailed(SessionFailedPayload),
+    SessionReassigned(SessionReassignedPayload),
     MemoryPinned(MemoryPinnedPayload),
     MemoryForgotten(MemoryForgottenPayload),
     MemoryRestored(MemoryRestoredPayload),
@@ -856,6 +874,7 @@ enum KnownPayload {
     AssistantFinalRecorded(AssistantFinalRecordedPayload),
     SessionCompleted(SessionCompletedPayload),
     SessionFailed(SessionFailedPayload),
+    SessionReassigned(SessionReassignedPayload),
     MemoryPinned(MemoryPinnedPayload),
     MemoryForgotten(MemoryForgottenPayload),
     MemoryRestored(MemoryRestoredPayload),
@@ -922,6 +941,7 @@ fn is_known_payload_type(type_str: &str) -> bool {
             | "AssistantFinalRecorded"
             | "SessionCompleted"
             | "SessionFailed"
+            | "SessionReassigned"
             | "MemoryPinned"
             | "MemoryForgotten"
             | "MemoryRestored"
@@ -989,6 +1009,7 @@ impl From<KnownPayload> for Payload {
             KnownPayload::AssistantFinalRecorded(p) => Payload::AssistantFinalRecorded(p),
             KnownPayload::SessionCompleted(p) => Payload::SessionCompleted(p),
             KnownPayload::SessionFailed(p) => Payload::SessionFailed(p),
+            KnownPayload::SessionReassigned(p) => Payload::SessionReassigned(p),
             KnownPayload::MemoryPinned(p) => Payload::MemoryPinned(p),
             KnownPayload::MemoryForgotten(p) => Payload::MemoryForgotten(p),
             KnownPayload::MemoryRestored(p) => Payload::MemoryRestored(p),
@@ -1059,6 +1080,7 @@ impl Payload {
             Payload::AssistantFinalRecorded(p) => KnownPayload::AssistantFinalRecorded(p.clone()),
             Payload::SessionCompleted(p) => KnownPayload::SessionCompleted(p.clone()),
             Payload::SessionFailed(p) => KnownPayload::SessionFailed(p.clone()),
+            Payload::SessionReassigned(p) => KnownPayload::SessionReassigned(p.clone()),
             Payload::MemoryPinned(p) => KnownPayload::MemoryPinned(p.clone()),
             Payload::MemoryForgotten(p) => KnownPayload::MemoryForgotten(p.clone()),
             Payload::MemoryRestored(p) => KnownPayload::MemoryRestored(p.clone()),

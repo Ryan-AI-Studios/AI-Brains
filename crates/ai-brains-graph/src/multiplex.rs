@@ -54,6 +54,15 @@ impl GraphBackend for MultiplexGraphBackend {
         Ok(())
     }
 
+    fn remove_edge(&self, source: &str, target: &str, relation: &str) -> Result<()> {
+        for backend in &self.backends {
+            if backend.is_available() {
+                backend.remove_edge(source, target, relation)?;
+            }
+        }
+        Ok(())
+    }
+
     fn query_neighbors(&self, node_id: &str) -> Result<Vec<(String, String)>> {
         // Return first available result
         for backend in &self.backends {

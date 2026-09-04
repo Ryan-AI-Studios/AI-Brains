@@ -29,6 +29,13 @@ impl Projection for TurnProjection {
                 p.tx_id.as_ref().map(|t| t.to_string()),
                 p.turn_id,
             ),
+            Payload::SessionReassigned(p) => {
+                tx.execute(
+                    "UPDATE turn_projection SET project_id = ? WHERE session_id = ?",
+                    rusqlite::params![p.to_project_id.to_string(), p.session_id.to_string()],
+                )?;
+                return Ok(());
+            }
             _ => return Ok(()),
         };
 

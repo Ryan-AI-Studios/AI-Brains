@@ -119,6 +119,22 @@ impl GraphBackend for SqliteGraphBackend {
         Ok(())
     }
 
+    fn remove_edge(&self, source: &str, target: &str, relation: &str) -> Result<()> {
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| GraphError::DbError(e.to_string()))?;
+        conn.execute(
+            "DELETE FROM graph_edge
+             WHERE src_id = (SELECT node_id FROM graph_node WHERE external_id = ?1)
+               AND dst_id = (SELECT node_id FROM graph_node WHERE external_id = ?2)
+               AND label = ?3",
+            params![source, target, relation],
+        )
+        .map_err(|e| GraphError::DbError(e.to_string()))?;
+        Ok(())
+    }
+
     fn query_neighbors(&self, _node_id: &str) -> Result<Vec<(String, String)>> {
         // Implementation omitted for brevity, using GraphSearch instead
         Ok(Vec::new())

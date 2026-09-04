@@ -54,6 +54,27 @@ impl<'a> GraphProjector<'a> {
                     confidence: 1.0,
                 });
             }
+            Payload::SessionReassigned(s) => {
+                let session = s.session_id.to_string();
+                let from = s.from_project_id.to_string();
+                let to = s.to_project_id.to_string();
+                self.edge_buffer.retain(|e| {
+                    !(e.source == session && e.target == from && e.relation == "IN_PROJECT")
+                });
+                self.backend.remove_edge(&session, &from, "IN_PROJECT")?;
+                self.node_buffer.push(GraphNode {
+                    id: to.clone(),
+                    label: "Project".to_string(),
+                    category: "project".to_string(),
+                    metadata: serde_json::json!({}),
+                });
+                self.edge_buffer.push(GraphEdge {
+                    source: session,
+                    target: to,
+                    relation: "IN_PROJECT".to_string(),
+                    confidence: 1.0,
+                });
+            }
             Payload::UserPromptRecorded(p) => {
                 self.project_capture_turn(p.turn_id.as_ref(), &p.session_id, envelope);
             }

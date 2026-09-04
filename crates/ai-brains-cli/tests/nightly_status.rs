@@ -5,7 +5,7 @@
 mod common;
 
 use ai_brains_crypto::{DataKey, SqlCipherKey};
-use ai_brains_store::VaultConnection;
+use ai_brains_store::{EventStore, SqliteEventStore, VaultConnection};
 use tempfile::tempdir;
 
 fn open_temp_vault() -> (tempfile::TempDir, std::path::PathBuf, String) {
@@ -146,4 +146,74 @@ fn nightly_status__format_json_quick__probe_skipped() {
         serde_json::from_str(stdout.trim()).expect("stdout must be one JSON object");
     assert_eq!(value["completion"]["probe"], "skipped");
     assert_eq!(value["embedding"]["probe"], "skipped");
+}
+
+fn persist_cursor_unbound(vault_path: &std::path::Path, sql_key: &SqlCipherKey, unbound: usize) {
+    let conn = VaultConnection::open(vault_path, sql_key).expect("reopen vault");
+    let store = SqliteEventStore::new(conn);
+    let ok =
+        |u: usize| format!(r#"{{"status":"ok","sessions":{u},"imported_turns":0,"unbound":{u}}}"#);
+    let json = format!(
+        r#"{{"v":1,"at":"2026-09-04T00:00:00Z","agy":{},"grok":{},"opencode":{},"claude":{},"codex":{},"cursor":{}}}"#,
+        ok(0),
+        ok(0),
+        ok(0),
+        ok(0),
+        ok(0),
+        ok(unbound),
+    );
+    store
+        .set_sync_state("last_multi_import", &json)
+        .expect("persist last_multi_import");
+}
+
+/// T356 AC11: unbound>0 prints `next: ai-brains session reassign --suggest`.
+#[test]
+fn nightly_status__cursor_unbound_3__prints_reassign_next_and_json_hint() {
+    let (_dir, vault_path, key_arg) = open_temp_vault();
+    let sql_key = SqlCipherKey::from_raw(key_arg.clone());
+    persist_cursor_unbound(&vault_path, &sql_key, 3);
+
+    let human = nightly_status_cmd(&vault_path, &key_arg, &["--quick"])
+        .output()
+        .expect("nightly --status --quick");
+    assert!(
+        human.status.success(),
+        "expected exit 0; stderr={}",
+        String::from_utf8_lossy(&human.stderr)
+    );
+    let stdout = String::from_utf8_lossy(&human.stdout);
+    assert!(
+        stdout.contains("next: ai-brains session reassign --suggest"),
+        "AC11: human next: line; got: {stdout}"
+    );
+
+    let json_out = nightly_status_cmd(&vault_path, &key_arg, &["--format", "json", "--quick"])
+        .output()
+        .expect("nightly --status json");
+    assert!(json_out.status.success());
+    let value: serde_json::Value =
+        serde_json::from_str(String::from_utf8_lossy(&json_out.stdout).trim())
+            .expect("json object");
+    assert_eq!(
+        value["reassign_hint"],
+        "ai-brains session reassign --suggest"
+    );
+    assert_eq!(value["schema_version"], 1);
+}
+
+/// T356 AC11: unbound=0 omits JSON `reassign_hint`.
+#[test]
+fn nightly_status__unbound_zero__omits_reassign_hint() {
+    let (_dir, vault_path, key_arg) = open_temp_vault();
+    let output = nightly_status_cmd(&vault_path, &key_arg, &["--format", "json", "--quick"])
+        .output()
+        .expect("json status");
+    assert!(output.status.success());
+    let value: serde_json::Value =
+        serde_json::from_str(String::from_utf8_lossy(&output.stdout).trim()).expect("json");
+    assert!(
+        value.get("reassign_hint").is_none(),
+        "AC11: omit when 0; got: {value}"
+    );
 }
