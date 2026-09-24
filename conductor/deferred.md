@@ -2,6 +2,22 @@
 
 Tracks deferred from T142. Append-only; strike through when promoted to a real track.
 
+### T357 plan (2026-09-24) — dual-harness Claude hook spawn
+
+DOCS TX `4834f513-378b-4338-b2a7-2fc62b228508`. Spec **Planned** / registry **Pending**. F0 until go. last-PR `#285` Cursor usage-limit.
+
+| Item | Disposition |
+|------|-------------|
+| Absolute System32 `powershell.exe` in Claude exec-form `command` | **Absorb** F1 / AC1–AC2 |
+| Grok `[compat.claude] hooks = false` on grok/`all-ready` | **Absorb** F2 / AC4–AC9 |
+| Grok native shell-form bare `powershell.exe` | **Residual** T357-R1 |
+| Grok PATH-resolve of bare `command` | **Decline** — T357-R2 upstream |
+| `GROK_CLAUDE_HOOKS_ENABLED` status chrome | **Residual** T357-R4 |
+| T356-R1–R7 / T350–T355 residuals | **Not stolen** |
+| `#285` Cursor | **N/A empty** |
+| Dependabot open PRs | **Decline** |
+| clap 5 / 0.1.6 / install / doctor 16 / T240 F2 | **Decline** |
+
 ### T356 implement (2026-09-04) — unbound session reassign residuals
 
 FEATURE TX `e3df5b04-6f2e-4750-b0bc-d69b65773c20`. Landed F1–F12 / AC1–AC13. Spec §11 residuals stay:
