@@ -33,4 +33,4 @@ ai-brains-events = { path = "../ai-brains-events" }
 tempfile.workspace = true
 uuid = { workspace = true, features = ["v4"] }
 serde_json.workspace = true
-rstest = "0.25"
+rstest = "0.26"
