@@ -122,10 +122,7 @@ pub fn agy_wrapper_path(home: &Path) -> PathBuf {
 
 /// Build PowerShell -File command with absolute wrapper path (F15 quoting).
 pub fn agy_command_line(wrapper: &Path) -> String {
-    format!(
-        "powershell.exe -NoProfile -ExecutionPolicy Bypass -File \"{}\"",
-        wrapper.display()
-    )
+    windows_powershell_shell_command(wrapper)
 }
 
 pub fn plan_agy_install(home: &Path) -> InstallPlan {
@@ -511,10 +508,7 @@ pub fn grok_wrapper_path(home: &Path) -> PathBuf {
 
 /// Build PowerShell -File command with absolute wrapper path (no `$` / `${` — AC19).
 pub fn grok_command_line(wrapper: &Path) -> String {
-    format!(
-        "powershell.exe -NoProfile -ExecutionPolicy Bypass -File \"{}\"",
-        wrapper.display()
-    )
+    windows_powershell_shell_command(wrapper)
 }
 
 pub fn plan_grok_install(home: &Path) -> InstallPlan {
@@ -1224,6 +1218,20 @@ pub fn windows_powershell_exe() -> String {
     format!(r"{root}\System32\WindowsPowerShell\v1.0\powershell.exe")
 }
 
+/// Shell-form PowerShell `-File` line (T358 F1). Quotes the exe only when it contains whitespace.
+pub fn windows_powershell_shell_command(wrapper: &Path) -> String {
+    let exe = windows_powershell_exe();
+    let exe_tok = if exe.chars().any(char::is_whitespace) {
+        format!("\"{exe}\"")
+    } else {
+        exe
+    };
+    format!(
+        "{exe_tok} -NoProfile -ExecutionPolicy Bypass -File \"{}\"",
+        wrapper.display()
+    )
+}
+
 /// Exec-form handler: `command` + `args` (official Windows Claude shape).
 fn claude_managed_handler(wrapper: &Path) -> Value {
     let mut handler = Map::new();
@@ -1421,10 +1429,7 @@ pub fn codex_hooks_disabled_warn() -> &'static str {
 }
 
 pub fn codex_command_line(wrapper: &Path) -> String {
-    format!(
-        "powershell.exe -NoProfile -ExecutionPolicy Bypass -File \"{}\"",
-        wrapper.display()
-    )
+    windows_powershell_shell_command(wrapper)
 }
 
 pub fn plan_codex_install(home: &Path) -> InstallPlan {
@@ -2541,6 +2546,205 @@ mod tests {
         assert!(cmd.contains("powershell.exe"));
         assert!(cmd.contains("-File"));
         assert!(!cmd.contains('$'), "AC6 no dollar in command: {cmd}");
+    }
+
+    fn first_shell_token(cmd: &str) -> &str {
+        let cmd = cmd.trim_start();
+        if let Some(rest) = cmd.strip_prefix('"') {
+            rest.split_once('"').map(|(tok, _)| tok).unwrap_or(rest)
+        } else {
+            cmd.split(' ').next().unwrap_or(cmd)
+        }
+    }
+
+    #[test]
+    fn windows_powershell_shell_command__systemroot__unquoted_absolute() {
+        let _sr = ai_brains_core::temp_env::TempEnv::set("SystemRoot", r"Z:\Win");
+        let wrapper = Path::new(r"C:\hooks\w.ps1");
+        let cmd = windows_powershell_shell_command(wrapper);
+        assert_eq!(
+            first_shell_token(&cmd),
+            r"Z:\Win\System32\WindowsPowerShell\v1.0\powershell.exe"
+        );
+        assert!(
+            cmd.starts_with(r"Z:\Win\System32\WindowsPowerShell\v1.0\powershell.exe -NoProfile"),
+            "{cmd}"
+        );
+        let _trail = ai_brains_core::temp_env::TempEnv::set("SystemRoot", r"Z:\Win\");
+        let cmd2 = windows_powershell_shell_command(wrapper);
+        assert_eq!(
+            first_shell_token(&cmd2),
+            r"Z:\Win\System32\WindowsPowerShell\v1.0\powershell.exe"
+        );
+        assert!(
+            !cmd2.contains(r"\\System32"),
+            "trailing separator must not double: {cmd2}"
+        );
+    }
+
+    #[test]
+    fn windows_powershell_shell_command__missing_systemroot__c_windows_fallback() {
+        let _a = ai_brains_core::temp_env::TempEnv::remove("SystemRoot");
+        let _b = ai_brains_core::temp_env::TempEnv::remove("SYSTEMROOT");
+        let cmd = windows_powershell_shell_command(Path::new(r"C:\hooks\w.ps1"));
+        assert_eq!(
+            first_shell_token(&cmd),
+            r"C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe"
+        );
+    }
+
+    #[test]
+    fn windows_powershell_shell_command__whitespace_systemroot__quoted_exe() {
+        let _sr = ai_brains_core::temp_env::TempEnv::set("SystemRoot", r"Z:\Win Dir");
+        let wrapper = Path::new(r"C:\hooks\w.ps1");
+        let cmd = windows_powershell_shell_command(wrapper);
+        let exe = windows_powershell_exe();
+        assert_eq!(
+            exe,
+            r"Z:\Win Dir\System32\WindowsPowerShell\v1.0\powershell.exe"
+        );
+        assert_eq!(first_shell_token(&cmd), exe);
+        assert!(
+            cmd.starts_with(&format!("\"{exe}\" -NoProfile")),
+            "quoted exe, not starts_with(exe): {cmd}"
+        );
+        assert!(cmd.contains(r#"-File "C:\hooks\w.ps1""#), "{cmd}");
+        assert!(!cmd.contains('$'), "{cmd}");
+    }
+
+    #[test]
+    fn grok_command_line__absolute_systemroot__starts_with_exe() {
+        let _sr = ai_brains_core::temp_env::TempEnv::set("SystemRoot", r"Z:\Win");
+        let wrapper = Path::new(r"C:\hooks\grok-capture.ps1");
+        let cmd = grok_command_line(wrapper);
+        assert_eq!(
+            first_shell_token(&cmd),
+            r"Z:\Win\System32\WindowsPowerShell\v1.0\powershell.exe"
+        );
+        assert!(cmd.contains("-NoProfile"), "{cmd}");
+    }
+
+    #[test]
+    fn agy_command_line__absolute_systemroot__starts_with_exe() {
+        let _sr = ai_brains_core::temp_env::TempEnv::set("SystemRoot", r"Z:\Win");
+        let cmd = agy_command_line(Path::new(r"C:\hooks\agy-stop.ps1"));
+        assert_eq!(
+            first_shell_token(&cmd),
+            r"Z:\Win\System32\WindowsPowerShell\v1.0\powershell.exe"
+        );
+        assert!(cmd.contains("-NoProfile"), "{cmd}");
+    }
+
+    #[test]
+    fn codex_command_line__absolute_systemroot__starts_with_exe() {
+        let _sr = ai_brains_core::temp_env::TempEnv::set("SystemRoot", r"Z:\Win");
+        let cmd = codex_command_line(Path::new(r"C:\hooks\codex-capture.ps1"));
+        assert_eq!(
+            first_shell_token(&cmd),
+            r"Z:\Win\System32\WindowsPowerShell\v1.0\powershell.exe"
+        );
+        assert!(cmd.contains("-NoProfile"), "{cmd}");
+    }
+
+    #[test]
+    fn install_grok__marker_command__absolute_windows_powershell() {
+        let dir = tempdir().expect("tempdir");
+        let home = dir.path();
+        let _sr = ai_brains_core::temp_env::TempEnv::set("SystemRoot", r"Z:\Win");
+        let cfg = grok_config_toml_path(home);
+        std::fs::create_dir_all(cfg.parent().unwrap()).expect("mkdir");
+        std::fs::write(&cfg, "# keep-me\n[cli]\ninstaller = \"internal\"\n").expect("seed");
+
+        let out = install_grok(home, false).expect("install");
+        assert!(matches!(out, InstallOutcome::Installed { .. }));
+        let expected = windows_powershell_shell_command(&grok_wrapper_path(home));
+        let raw = std::fs::read_to_string(grok_hooks_marker_path(home)).expect("marker");
+        let v: Value = serde_json::from_str(&raw).expect("json");
+        for event in ["Stop", "SessionEnd"] {
+            let cmd = v["hooks"][event][0]["hooks"][0]["command"]
+                .as_str()
+                .expect("command");
+            assert_eq!(cmd, expected, "{event}");
+        }
+        let toml = std::fs::read_to_string(&cfg).expect("toml");
+        assert_eq!(parsed_compat_claude_hooks(&toml), Some(false));
+        assert!(toml.contains("keep-me"), "{toml}");
+    }
+
+    #[test]
+    fn install_grok__whitespace_systemroot__quoted_exe_in_marker() {
+        let dir = tempdir().expect("tempdir");
+        let home = dir.path();
+        let _sr = ai_brains_core::temp_env::TempEnv::set("SystemRoot", r"Z:\Win Dir");
+        let out = install_grok(home, false).expect("install");
+        assert!(matches!(out, InstallOutcome::Installed { .. }));
+        let exe = windows_powershell_exe();
+        let raw = std::fs::read_to_string(grok_hooks_marker_path(home)).expect("marker");
+        let v: Value = serde_json::from_str(&raw).expect("json");
+        for event in ["Stop", "SessionEnd"] {
+            let cmd = v["hooks"][event][0]["hooks"][0]["command"]
+                .as_str()
+                .expect("command");
+            assert_eq!(first_shell_token(cmd), exe, "{event}");
+            assert!(
+                cmd.starts_with(&format!("\"{exe}\"")),
+                "{event} quoted: {cmd}"
+            );
+        }
+    }
+
+    #[test]
+    fn install_agy__hooks_command__absolute_windows_powershell() {
+        let dir = tempdir().expect("tempdir");
+        let home = dir.path();
+        let _sr = ai_brains_core::temp_env::TempEnv::set("SystemRoot", r"Z:\Win");
+        let cli = home.join(".gemini").join("antigravity-cli");
+        std::fs::create_dir_all(&cli).expect("mkdir cli");
+
+        let out = install_agy(home, false).expect("install");
+        assert!(matches!(out, InstallOutcome::Installed { .. }));
+        let expected = windows_powershell_shell_command(&agy_wrapper_path(home));
+
+        let ide: Value =
+            serde_json::from_str(&std::fs::read_to_string(agy_ide_hooks_path(home)).expect("ide"))
+                .expect("ide json");
+        let ide_cmd = ide["ai-brains-capture"]["Stop"][0]["command"]
+            .as_str()
+            .expect("ide cmd");
+        assert_eq!(ide_cmd, expected);
+
+        let bundle = agy_cli_plugin_dir(home).expect("bundle dir");
+        let bundle_v: Value = serde_json::from_str(
+            &std::fs::read_to_string(bundle.join("hooks.json")).expect("bundle"),
+        )
+        .expect("bundle json");
+        let bundle_cmd = bundle_v["ai-brains-capture"]["Stop"][0]["command"]
+            .as_str()
+            .expect("bundle cmd");
+        assert_eq!(bundle_cmd, expected);
+    }
+
+    #[test]
+    fn install_codex__handler_command__absolute_windows_powershell_no_args() {
+        let dir = tempdir().expect("tempdir");
+        let home = dir.path();
+        let _sr = ai_brains_core::temp_env::TempEnv::set("SystemRoot", r"Z:\Win");
+        let out = install_codex(home, false).expect("install");
+        assert!(matches!(out, InstallOutcome::Installed { .. }));
+        let expected = windows_powershell_shell_command(&codex_wrapper_path(home));
+        let v: Value =
+            serde_json::from_str(&std::fs::read_to_string(codex_hooks_path(home)).expect("hooks"))
+                .expect("json");
+        for event in ["UserPromptSubmit", "Stop"] {
+            let handler = &v["hooks"][event][0]["hooks"][0];
+            assert_eq!(handler["command"].as_str().expect("cmd"), expected);
+            assert!(handler.get("args").is_none(), "{handler}");
+            assert_eq!(handler["name"], "ai-brains-capture");
+        }
+        assert!(
+            !codex_config_toml_path(home).exists(),
+            "must not create config.toml"
+        );
     }
 
     #[test]
