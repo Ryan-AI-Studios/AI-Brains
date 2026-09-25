@@ -21,6 +21,7 @@ Version banners in documentation are maintained manually from the workspace `Car
 
 ### Fixed
 
+- **T358 Shell-form absolute Windows PowerShell:** Grok, AGY, and Codex hook `command` strings start with `%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe` (quoted only if `SystemRoot` has whitespace). Claude exec-form `command`+`args` is unchanged.
 - **T357 Dual-harness Claude hook spawn:** Claude exec-form `command` is `%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe`. `harness install --harness grok` / `all-ready` merges `compat.claude.hooks = false` into `~/.grok/config.toml` (fallible; skip still `Installed`). Unnamed Claude handlers whose `args` contain `claude-capture.ps1` are adopted in place.
 
 - **T355 Twin Win+WSL path aliases:** `register-path` of location-equal Windows and `/mnt/<drive>/` strings still stores **one** `list-paths` JSON row (path-crate collapse). Human `list-paths` also collapses any location-equal rows by `(project_id, normalize_for_location_compare)` (first SQL-ASC `exists` wins). `--shared-only` JSON `owner_counts` stays raw-row.
