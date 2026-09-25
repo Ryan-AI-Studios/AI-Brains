@@ -136,10 +136,18 @@ pub fn run_install(opts: HarnessInstallOptions) -> GovernedResult {
                             }
                             println!("  {}", f34_map_contract_summary());
                         }
-                        HarnessId::Grok => println!(
-                            "  {}",
-                            crate::harness::install::grok_stop_stdout_contract_summary()
-                        ),
+                        HarnessId::Grok => {
+                            println!(
+                                "  {}",
+                                crate::harness::install::grok_stop_stdout_contract_summary()
+                            );
+                            println!(
+                                "  {}",
+                                crate::harness::install::grok_compat_claude_hooks_plan_summary(
+                                    &home
+                                )
+                            );
+                        }
                         HarnessId::Opencode => {
                             println!(
                                 "  note: managed plugin session.idle or session.status idle → opencode-hook (no opencode.json rewrite)"

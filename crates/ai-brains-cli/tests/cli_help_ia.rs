@@ -8,6 +8,9 @@ use std::process::Output;
 
 fn help_stdout(args: &[&str]) -> String {
     let mut cmd = common::hermetic_bin();
+    // F31 line-prefix locks (`  recall`) fail when clap emits ANSI around names.
+    cmd.env("NO_COLOR", "1");
+    cmd.env("CLICOLOR", "0");
     for a in args {
         cmd.arg(a);
     }

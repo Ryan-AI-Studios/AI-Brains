@@ -42,6 +42,7 @@ strip-ansi-escapes.workspace = true
 sha2.workspace = true
 hex.workspace = true
 chrono.workspace = true
+toml_edit = "0.25.12"
 
 time.workspace = true
 zeroize.workspace = true

@@ -97,6 +97,10 @@ pub const ZERO_SQLCIPHER_KEY: &str =
 pub fn hermetic_bin() -> Command {
     let mut cmd = Command::cargo_bin("ai-brains").expect("ai-brains bin must be built for tests");
     strip_ambient(&mut cmd);
+    // Clap ANSI around `Usage:` / command names breaks prefix locks (`Usage:`, `  recall`)
+    // when the parent TUI/CI attaches a TTY. Hermetic help must be colorless.
+    cmd.env("NO_COLOR", "1");
+    cmd.env("CLICOLOR", "0");
     cmd.env("AI_BRAINS_ALLOW_ZERO_KEY", "1");
     cmd.env("AI_BRAINS_KEY", ZERO_SQLCIPHER_KEY);
     // T279 F13: repo-cwd `ledgerful hotspots` must not leak into hermetic Safety.

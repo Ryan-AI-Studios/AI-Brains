@@ -389,3 +389,54 @@ fn harness_wiring_activation__uninstall_agy__keeps_foreign_and_siblings() {
     );
     assert!(cli.is_dir(), "antigravity-cli home remains");
 }
+
+/// T357 AC5: grok dry-run names config.toml merge and writes nothing.
+#[test]
+fn harness_wiring_activation__grok_dry_run__names_compat_claude_hooks_zero_writes() {
+    let (dir, mut cmd) = hermetic_harness_home();
+    let home = dir.path();
+    let before = walk_files(home);
+    let out = cmd
+        .args(["harness", "install", "--harness", "grok", "--dry-run"])
+        .output()
+        .expect("grok dry-run");
+    let text = combined(&out);
+    assert_eq!(out.status.code(), Some(0), "{text}");
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    assert!(
+        stdout.contains("config.toml") && stdout.to_ascii_lowercase().contains("hooks = false"),
+        "dry-run must name grok config merge; got: {stdout}"
+    );
+    assert_eq!(before, walk_files(home));
+    assert!(!home.join(".grok").join("config.toml").exists());
+}
+
+/// T357 AC7: corrupt grok config.toml still installs marker; stderr skip line.
+#[test]
+fn harness_wiring_activation__grok_yes__corrupt_config_toml__stderr_skip() {
+    let dir = tempdir().unwrap();
+    let home = dir.path();
+    let cfg = home.join(".grok").join("config.toml");
+    std::fs::create_dir_all(cfg.parent().unwrap()).expect("mkdir");
+    let original = b"not toml [[[";
+    std::fs::write(&cfg, original).expect("seed");
+
+    let out = hermetic_harness_cmd(home)
+        .args(["harness", "install", "--harness", "grok", "--yes"])
+        .output()
+        .expect("grok --yes");
+    let text = combined(&out);
+    assert_eq!(out.status.code(), Some(0), "{text}");
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        stderr.contains("skip") && stderr.contains("config.toml"),
+        "stderr skip+config.toml; got: {stderr}"
+    );
+    assert_eq!(std::fs::read(&cfg).expect("read"), original);
+    assert!(
+        home.join(".grok")
+            .join("hooks")
+            .join("ai-brains.json")
+            .is_file()
+    );
+}

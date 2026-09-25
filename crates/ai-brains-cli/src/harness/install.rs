@@ -492,6 +492,19 @@ pub fn grok_hooks_marker_path(home: &Path) -> PathBuf {
     join_rel(home, ".grok/hooks/ai-brains.json")
 }
 
+/// Grok user `config.toml` under the CLI home (not `GROK_HOME` — T357-R6).
+pub fn grok_config_toml_path(home: &Path) -> PathBuf {
+    join_rel(home, ".grok/config.toml")
+}
+
+/// Dry-run / plan chrome: intended `compat.claude.hooks = false` merge target.
+pub fn grok_compat_claude_hooks_plan_summary(home: &Path) -> String {
+    format!(
+        "merge {} compat.claude.hooks = false (disables home and project .claude/settings.json scans)",
+        grok_config_toml_path(home).display()
+    )
+}
+
 pub fn grok_wrapper_path(home: &Path) -> PathBuf {
     join_rel(home, ".ai-brains/hooks/grok-capture.ps1")
 }
@@ -644,6 +657,72 @@ pub fn load_grok_marker_object(path: &Path) -> Result<Option<Map<String, Value>>
     }
 }
 
+fn grok_implicit_table() -> toml_edit::Item {
+    let mut t = toml_edit::Table::new();
+    t.set_implicit(true);
+    toml_edit::Item::Table(t)
+}
+
+enum GrokCompatMerge {
+    Applied(String),
+    Unchanged,
+    Skip(String),
+}
+
+fn merge_compat_claude_hooks_false(raw: &str) -> GrokCompatMerge {
+    let mut doc = match raw.parse::<toml_edit::DocumentMut>() {
+        Ok(d) => d,
+        Err(e) => return GrokCompatMerge::Skip(format!("parse error: {e}")),
+    };
+    let compat_item = doc
+        .as_table_mut()
+        .entry("compat")
+        .or_insert_with(grok_implicit_table);
+    let Some(compat_table) = compat_item.as_table_like_mut() else {
+        return GrokCompatMerge::Skip("compat is not a table".into());
+    };
+    if compat_table.get("claude").is_none() {
+        compat_table.insert("claude", grok_implicit_table());
+    }
+    let Some(claude_item) = compat_table.get_mut("claude") else {
+        return GrokCompatMerge::Skip("compat.claude missing after insert".into());
+    };
+    let Some(claude_table) = claude_item.as_table_like_mut() else {
+        return GrokCompatMerge::Skip("compat.claude is not a table".into());
+    };
+    if claude_table.get("hooks").and_then(|i| i.as_bool()) == Some(false) {
+        return GrokCompatMerge::Unchanged;
+    }
+    claude_table.insert("hooks", toml_edit::value(false));
+    GrokCompatMerge::Applied(doc.to_string())
+}
+
+fn skip_grok_config_merge(path: &Path, reason: &str) {
+    eprintln!("[ai-brains-grok] skip: {} {reason}", path.display());
+}
+
+/// Merge `compat.claude.hooks = false`. Failures skip; marker/wrapper already written (F3).
+fn apply_grok_compat_claude_hooks_false(home: &Path) {
+    let path = grok_config_toml_path(home);
+    let raw = match fs::read_to_string(&path) {
+        Ok(s) => s,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => String::new(),
+        Err(e) => {
+            skip_grok_config_merge(&path, &format!("unreadable: {e}"));
+            return;
+        }
+    };
+    match merge_compat_claude_hooks_false(&raw) {
+        GrokCompatMerge::Unchanged => {}
+        GrokCompatMerge::Skip(reason) => skip_grok_config_merge(&path, &reason),
+        GrokCompatMerge::Applied(body) => {
+            if let Err(e) = atomic_write_str(&path, &body) {
+                skip_grok_config_merge(&path, &format!("write failed: {e}"));
+            }
+        }
+    }
+}
+
 /// Install Grok wiring (or dry-run). Idempotent. Never deletes sibling hook JSON.
 pub fn install_grok(home: &Path, dry_run: bool) -> Result<InstallOutcome, String> {
     let plan = plan_grok_install(home);
@@ -673,6 +752,8 @@ pub fn install_grok(home: &Path, dry_run: bool) -> Result<InstallOutcome, String
         &plan.wrapper_path,
         &grok_wrapper_script_body(resolve_cli_exe_for_wrapper().as_deref()),
     )?;
+
+    apply_grok_compat_claude_hooks_false(home);
 
     let mut prefs = load_prefs(home);
     let now = chrono::Utc::now().to_rfc3339();
@@ -1132,11 +1213,22 @@ fn claude_exec_command_display(wrapper: &Path) -> String {
     )
 }
 
+/// Windows PowerShell 5.1 exec-form path (T357 F1). Always a Windows string, including on Linux CI.
+pub fn windows_powershell_exe() -> String {
+    let root = std::env::var("SystemRoot")
+        .or_else(|_| std::env::var("SYSTEMROOT"))
+        .ok()
+        .map(|s| s.trim().trim_end_matches(['\\', '/']).to_string())
+        .filter(|s| !s.is_empty())
+        .unwrap_or_else(|| "C:\\Windows".to_string());
+    format!(r"{root}\System32\WindowsPowerShell\v1.0\powershell.exe")
+}
+
 /// Exec-form handler: `command` + `args` (official Windows Claude shape).
 fn claude_managed_handler(wrapper: &Path) -> Value {
     let mut handler = Map::new();
     handler.insert("type".into(), Value::String("command".into()));
-    handler.insert("command".into(), Value::String("powershell.exe".into()));
+    handler.insert("command".into(), Value::String(windows_powershell_exe()));
     handler.insert(
         "args".into(),
         Value::Array(vec![
@@ -1575,6 +1667,19 @@ fn merge_official_event_handlers(
     Ok(())
 }
 
+fn handler_args_contain_token(existing: &Value, token: &str) -> bool {
+    let needle = token.to_ascii_lowercase();
+    existing
+        .get("args")
+        .and_then(|a| a.as_array())
+        .is_some_and(|args| {
+            args.iter().any(|v| {
+                v.as_str()
+                    .is_some_and(|s| s.to_ascii_lowercase().contains(&needle))
+            })
+        })
+}
+
 fn merge_named_handler_into_event(
     hooks: &mut Map<String, Value>,
     event: &str,
@@ -1604,6 +1709,13 @@ fn merge_named_handler_into_event(
         };
         for existing in handlers.iter_mut() {
             if existing.get("name").and_then(|n| n.as_str()) == Some(managed_name) {
+                *existing = handler.clone();
+                return Ok(());
+            }
+        }
+        for existing in handlers.iter_mut() {
+            let unnamed = existing.get("name").and_then(|n| n.as_str()).is_none();
+            if unnamed && handler_args_contain_token(existing, "claude-capture.ps1") {
                 *existing = handler.clone();
                 return Ok(());
             }
@@ -2649,7 +2761,7 @@ mod tests {
             let handler = &v["hooks"][event][0]["hooks"][0];
             assert_eq!(handler["name"], "ai-brains-capture");
             assert_eq!(handler["type"], "command");
-            assert_eq!(handler["command"], "powershell.exe");
+            assert_eq!(handler["command"], windows_powershell_exe());
             assert_eq!(handler["timeout"], 30);
             let args = handler["args"].as_array().expect("exec-form args");
             let args_s: Vec<&str> = args.iter().filter_map(|a| a.as_str()).collect();
@@ -2965,6 +3077,256 @@ mod tests {
         }
         assert_eq!(std::fs::read(&hooks).expect("read"), original);
         assert!(!codex_wrapper_path(home).exists());
+    }
+
+    fn parsed_compat_claude_hooks(raw: &str) -> Option<bool> {
+        let doc: toml_edit::DocumentMut = raw.parse().ok()?;
+        doc.get("compat")?.get("claude")?.get("hooks")?.as_bool()
+    }
+
+    fn unnamed_claude_settings_json() -> String {
+        serde_json::json!({
+            "hooks": {
+                "UserPromptSubmit": [{
+                    "hooks": [{
+                        "type": "command",
+                        "command": "powershell.exe",
+                        "args": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "C:\\hooks\\claude-capture.ps1"],
+                        "timeout": 30
+                    }]
+                }],
+                "Stop": [{
+                    "hooks": [{
+                        "type": "command",
+                        "command": "powershell.exe",
+                        "args": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "C:\\hooks\\claude-capture.ps1"],
+                        "timeout": 30
+                    }]
+                }],
+                "SessionEnd": [{
+                    "hooks": [{
+                        "type": "command",
+                        "command": "powershell.exe",
+                        "args": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "C:\\hooks\\claude-capture.ps1"],
+                        "timeout": 30
+                    }]
+                }]
+            }
+        })
+        .to_string()
+    }
+
+    #[test]
+    fn install_claude__windows_command__absolute_systemroot_powershell() {
+        let dir = tempdir().expect("tempdir");
+        let home = dir.path();
+        // Windows env keys are case-insensitive: do not remove SYSTEMROOT after set.
+        let _sr = ai_brains_core::temp_env::TempEnv::set("SystemRoot", r"Z:\Win");
+        let expected = r"Z:\Win\System32\WindowsPowerShell\v1.0\powershell.exe";
+        assert_eq!(windows_powershell_exe(), expected);
+
+        let out = install_claude(home, false).expect("install");
+        assert!(matches!(out, InstallOutcome::Installed { .. }));
+        let raw = std::fs::read_to_string(claude_settings_path(home)).expect("read");
+        let v: Value = serde_json::from_str(&raw).expect("json");
+        for event in ["UserPromptSubmit", "Stop", "SessionEnd"] {
+            let handler = &v["hooks"][event][0]["hooks"][0];
+            assert_eq!(handler["command"], expected);
+            assert_eq!(handler["name"], "ai-brains-capture");
+            assert_eq!(handler["timeout"], 30);
+            let args = handler["args"].as_array().expect("args");
+            let args_s: Vec<&str> = args.iter().filter_map(|a| a.as_str()).collect();
+            assert_eq!(
+                args_s[0..4],
+                ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File"]
+            );
+            assert!(
+                args_s[4].ends_with("claude-capture.ps1"),
+                "wrapper: {:?}",
+                args_s[4]
+            );
+        }
+
+        let _trail = ai_brains_core::temp_env::TempEnv::set("SystemRoot", r"Z:\Win\");
+        assert_eq!(
+            windows_powershell_exe(),
+            r"Z:\Win\System32\WindowsPowerShell\v1.0\powershell.exe"
+        );
+    }
+
+    #[test]
+    fn install_claude__missing_systemroot__c_windows_fallback() {
+        let dir = tempdir().expect("tempdir");
+        let home = dir.path();
+        let _a = ai_brains_core::temp_env::TempEnv::remove("SystemRoot");
+        let _b = ai_brains_core::temp_env::TempEnv::remove("SYSTEMROOT");
+        assert_eq!(
+            windows_powershell_exe(),
+            r"C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe"
+        );
+        let out = install_claude(home, false).expect("install");
+        assert!(matches!(out, InstallOutcome::Installed { .. }));
+        let raw = std::fs::read_to_string(claude_settings_path(home)).expect("read");
+        let v: Value = serde_json::from_str(&raw).expect("json");
+        assert_eq!(
+            v["hooks"]["Stop"][0]["hooks"][0]["command"],
+            r"C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe"
+        );
+    }
+
+    #[test]
+    fn install_claude__adopts_unnamed_claude_capture_handler__no_duplicate_group() {
+        let dir = tempdir().expect("tempdir");
+        let home = dir.path();
+        let settings = claude_settings_path(home);
+        std::fs::create_dir_all(settings.parent().unwrap()).expect("mkdir");
+        std::fs::write(&settings, unnamed_claude_settings_json()).expect("seed");
+
+        let out = install_claude(home, false).expect("install");
+        assert!(matches!(out, InstallOutcome::Installed { .. }));
+        let raw = std::fs::read_to_string(&settings).expect("read");
+        let v: Value = serde_json::from_str(&raw).expect("json");
+        for event in ["UserPromptSubmit", "Stop", "SessionEnd"] {
+            let groups = v["hooks"][event].as_array().expect("groups");
+            assert_eq!(groups.len(), 1, "no duplicate matcher group for {event}");
+            let handlers = groups[0]["hooks"].as_array().expect("handlers");
+            assert_eq!(handlers.len(), 1, "one handler for {event}");
+            assert_eq!(handlers[0]["name"], "ai-brains-capture");
+            assert_eq!(handlers[0]["command"], windows_powershell_exe());
+        }
+    }
+
+    #[test]
+    fn install_grok__merges_compat_claude_hooks_false__preserves_sibling_keys() {
+        let dir = tempdir().expect("tempdir");
+        let home = dir.path();
+        let cfg = grok_config_toml_path(home);
+        std::fs::create_dir_all(cfg.parent().unwrap()).expect("mkdir");
+        std::fs::write(&cfg, "# keep-me\n[cli]\ninstaller = \"internal\"\n").expect("seed");
+
+        let out = install_grok(home, false).expect("install");
+        assert!(matches!(out, InstallOutcome::Installed { .. }));
+        let raw = std::fs::read_to_string(&cfg).expect("read");
+        assert!(raw.contains("keep-me"), "comment survives: {raw}");
+        assert!(raw.contains("installer = \"internal\""), "{raw}");
+        assert_eq!(parsed_compat_claude_hooks(&raw), Some(false));
+        assert!(grok_hooks_marker_path(home).is_file());
+        assert!(grok_wrapper_path(home).is_file());
+    }
+
+    #[test]
+    fn install_grok__dry_run__zero_config_toml_writes() {
+        let dir = tempdir().expect("tempdir");
+        let home = dir.path();
+        let before = walk_files(home);
+        let out = install_grok(home, true).expect("dry-run");
+        assert!(matches!(out, InstallOutcome::DryRun { .. }));
+        assert_eq!(before, walk_files(home));
+        assert!(!grok_config_toml_path(home).exists());
+        let summary = grok_compat_claude_hooks_plan_summary(home);
+        assert!(summary.contains("config.toml"), "{summary}");
+        assert!(summary.contains("hooks = false"), "{summary}");
+    }
+
+    #[test]
+    fn install_grok__corrupt_config_toml__hooks_installed_config_unchanged() {
+        let dir = tempdir().expect("tempdir");
+        let home = dir.path();
+        let cfg = grok_config_toml_path(home);
+        std::fs::create_dir_all(cfg.parent().unwrap()).expect("mkdir");
+        let original = b"this is not toml [[[";
+        std::fs::write(&cfg, original).expect("seed");
+
+        let out = install_grok(home, false).expect("install");
+        assert!(matches!(out, InstallOutcome::Installed { .. }));
+        assert_eq!(std::fs::read(&cfg).expect("read"), original);
+        assert!(grok_hooks_marker_path(home).is_file());
+        assert!(grok_wrapper_path(home).is_file());
+    }
+
+    #[test]
+    fn install_grok__nontable_compat__hooks_installed_config_unchanged() {
+        let dir = tempdir().expect("tempdir");
+        let home = dir.path();
+        let cfg = grok_config_toml_path(home);
+        std::fs::create_dir_all(cfg.parent().unwrap()).expect("mkdir");
+        let original = "compat = \"x\"\n";
+        std::fs::write(&cfg, original).expect("seed");
+
+        let out = install_grok(home, false).expect("install");
+        assert!(matches!(out, InstallOutcome::Installed { .. }));
+        assert_eq!(std::fs::read_to_string(&cfg).expect("read"), original);
+        assert!(grok_hooks_marker_path(home).is_file());
+    }
+
+    #[test]
+    fn install_grok__config_toml_directory__hooks_installed() {
+        let dir = tempdir().expect("tempdir");
+        let home = dir.path();
+        let cfg = grok_config_toml_path(home);
+        std::fs::create_dir_all(&cfg).expect("config.toml as dir");
+
+        let out = install_grok(home, false).expect("install");
+        assert!(matches!(out, InstallOutcome::Installed { .. }));
+        assert!(cfg.is_dir(), "directory seed must stay a directory");
+        assert!(grok_hooks_marker_path(home).is_file());
+        assert!(grok_wrapper_path(home).is_file());
+    }
+
+    #[test]
+    fn uninstall_grok__leaves_compat_claude_hooks_false() {
+        let dir = tempdir().expect("tempdir");
+        let home = dir.path();
+        let cfg = grok_config_toml_path(home);
+        std::fs::create_dir_all(cfg.parent().unwrap()).expect("mkdir");
+        std::fs::write(&cfg, "[cli]\ninstaller = \"internal\"\n").expect("seed");
+
+        install_grok(home, false).expect("install");
+        let after_install = std::fs::read_to_string(&cfg).expect("read");
+        assert_eq!(parsed_compat_claude_hooks(&after_install), Some(false));
+
+        let out = uninstall_grok(home, false).expect("uninstall");
+        assert!(matches!(out, UninstallOutcome::Removed { .. }));
+        assert!(!grok_hooks_marker_path(home).exists());
+        assert!(!grok_wrapper_path(home).exists());
+        let after_uninstall = std::fs::read_to_string(&cfg).expect("read");
+        assert_eq!(parsed_compat_claude_hooks(&after_uninstall), Some(false));
+        assert!(after_uninstall.contains("installer = \"internal\""));
+    }
+
+    #[test]
+    fn install_grok__missing_config_toml__creates_compat_claude_hooks_false() {
+        let dir = tempdir().expect("tempdir");
+        let home = dir.path();
+        let cfg = grok_config_toml_path(home);
+        assert!(!cfg.exists());
+
+        let out = install_grok(home, false).expect("install");
+        assert!(matches!(out, InstallOutcome::Installed { .. }));
+        let raw = std::fs::read_to_string(&cfg).expect("created");
+        assert_eq!(parsed_compat_claude_hooks(&raw), Some(false));
+    }
+
+    #[test]
+    fn install_grok__hooks_already_false__skips_rewrite() {
+        let dir = tempdir().expect("tempdir");
+        let home = dir.path();
+        let cfg = grok_config_toml_path(home);
+        std::fs::create_dir_all(cfg.parent().unwrap()).expect("mkdir");
+        std::fs::write(
+            &cfg,
+            "# keep-me\n[cli]\ninstaller = \"internal\"\n[compat.claude]\nhooks = false\n",
+        )
+        .expect("seed");
+        install_grok(home, false).expect("first");
+        let snapshot = std::fs::read(&cfg).expect("snap");
+        let out = install_grok(home, false).expect("second");
+        assert!(matches!(out, InstallOutcome::Installed { .. }));
+        assert_eq!(std::fs::read(&cfg).expect("read"), snapshot);
+        assert_eq!(
+            parsed_compat_claude_hooks(&String::from_utf8_lossy(&snapshot)),
+            Some(false)
+        );
     }
 
     fn walk_files(root: &Path) -> Vec<PathBuf> {
