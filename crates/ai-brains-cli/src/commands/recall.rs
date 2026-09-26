@@ -693,10 +693,17 @@ pub(crate) fn classify_recall_empty(
     }
     let count_u = count as u64;
     if unowned {
-        let mut hint =
-            "This cwd is not registered to the bound project. next: ai-brains project whoami"
-                .to_string();
-        hint.push('\n');
+        let mut hint = build_recall_hint_core(
+            query,
+            semantic,
+            false,
+            embedding_status,
+            true,
+            include_sync_query_hint,
+        );
+        hint.push_str(
+            "\nThis cwd is not registered to the bound project. next: ai-brains project whoami\n",
+        );
         hint.push_str(&census_line(count));
         return RecallEmptyOutcome {
             empty_kind: Some("scope_unowned".to_string()),
@@ -708,7 +715,9 @@ pub(crate) fn classify_recall_empty(
         return RecallEmptyOutcome {
             empty_kind: Some("empty_scope".to_string()),
             project_memory_count: Some(0),
-            hint: "This project has 0 memories.\nnext: ai-brains capture coverage".to_string(),
+            hint: format!(
+                "No results for '{query}'.\nThis project has 0 memories.\nnext: ai-brains capture coverage"
+            ),
         };
     }
     let mut hint = build_recall_hint_core(
