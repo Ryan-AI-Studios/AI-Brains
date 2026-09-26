@@ -676,15 +676,16 @@ pub(crate) fn classify_recall_empty(
     include_sync_query_hint: bool,
     count: usize,
     unowned: bool,
+    project_scoped: bool,
 ) -> RecallEmptyOutcome {
-    if global {
+    if global || !project_scoped {
         return RecallEmptyOutcome {
             empty_kind: None,
             project_memory_count: None,
             hint: build_recall_hint_core(
                 query,
                 semantic,
-                true,
+                global,
                 embedding_status,
                 false,
                 include_sync_query_hint,
@@ -712,12 +713,19 @@ pub(crate) fn classify_recall_empty(
         };
     }
     if count == 0 {
+        let mut hint = format!(
+            "No results for '{query}'.\nThis project has 0 memories.\nnext: ai-brains capture coverage"
+        );
+        if include_sync_query_hint {
+            let q_display = sync_query_hint_query(query);
+            hint.push_str(&format!(
+                "\nFor vault + Ledgerful ledger in one view: ai-brains sync query \"{q_display}\" --format pretty"
+            ));
+        }
         return RecallEmptyOutcome {
             empty_kind: Some("empty_scope".to_string()),
             project_memory_count: Some(0),
-            hint: format!(
-                "No results for '{query}'.\nThis project has 0 memories.\nnext: ai-brains capture coverage"
-            ),
+            hint,
         };
     }
     let mut hint = build_recall_hint_core(
@@ -764,6 +772,7 @@ fn load_recall_empty_outcome(
         include_sync_query_hint,
         count,
         unowned,
+        !global && project_id.is_some(),
     ))
 }
 
@@ -936,7 +945,7 @@ mod tests {
     #[test]
     #[allow(non_snake_case)]
     fn classify_recall_empty__zero_memories__empty_scope_names_coverage() {
-        let out = classify_recall_empty("zzzz", false, false, None, false, 0, false);
+        let out = classify_recall_empty("zzzz", false, false, None, false, 0, false, true);
         assert_eq!(out.empty_kind.as_deref(), Some("empty_scope"));
         assert_eq!(out.project_memory_count, Some(0));
         assert!(
@@ -955,7 +964,7 @@ mod tests {
     #[test]
     #[allow(non_snake_case)]
     fn classify_recall_empty__nonzero_census__query_miss_keeps_t111() {
-        let twelve = classify_recall_empty("zzzz", false, false, None, false, 12, false);
+        let twelve = classify_recall_empty("zzzz", false, false, None, false, 12, false, true);
         assert_eq!(twelve.empty_kind.as_deref(), Some("query_miss"));
         assert_eq!(twelve.project_memory_count, Some(12));
         assert!(
@@ -978,7 +987,7 @@ mod tests {
             "got {}",
             twelve.hint
         );
-        let three = classify_recall_empty("zzzz", false, false, None, false, 3, false);
+        let three = classify_recall_empty("zzzz", false, false, None, false, 3, false, true);
         assert!(
             three
                 .hint
@@ -991,7 +1000,7 @@ mod tests {
     #[test]
     #[allow(non_snake_case)]
     fn classify_recall_empty__global__omits_kind_and_census() {
-        let out = classify_recall_empty("zzzz", false, true, None, false, 0, false);
+        let out = classify_recall_empty("zzzz", false, true, None, false, 0, false, false);
         assert!(out.empty_kind.is_none());
         assert!(out.project_memory_count.is_none());
         assert!(out.hint.contains("across all projects"), "got {}", out.hint);
