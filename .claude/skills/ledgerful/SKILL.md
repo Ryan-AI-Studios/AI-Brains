@@ -1,0 +1,132 @@
+---
+name: ledgerful
+description: Use this skill for Daily 5 and whenever a repository contains Ledgerful, or the user asks about impact analysis, blast radius, risk, verification planning, hotspots, temporal coupling, change-context, verify, search, ledger provenance, or drift. Review-only (no product edits): `ledger status --compact` required; skip change-context / scan --impact. Edit/Daily 5: `doctor --json` then `change-context --json`. Escalate to `scan --impact` only for high-risk / readSetCapped / multi-module edit cases. Prefer `--json` for machine-readable agent output.
+---
+
+Copied from `C:\dev\ledgerful\.agents\skills\ledgerful\SKILL.md` on 2026-09-26. Re-copy when the upstream agent card changes.
+
+# Ledgerful
+
+AI agents only. Humans use README, `ledgerful --help`, and `docs/`. Run / skip / fallback / do not.
+
+## When to load
+
+Repo has Ledgerful, or the user asked for impact, blast radius, risk, ledger, verify, search, or change-context.
+
+## Review-only
+
+No product file modifications this session (plan audit, DoD audit, diff review). Writable review ≠ Codex `-s read-only` (`docs/reviewer-readonly.md`).
+
+**Required** (writable review): `ledgerful ledger status --compact` (or `--json`); git status/diff.
+
+When the user asked to review a **git range**, run `ledgerful review <RANGE> --json` instead of assembling change-context / `scan --impact`. Empty `[review]` is valid. Daily 5 for **edits** is unchanged.
+
+**Not required:** `change-context --json`, `scan --impact`, `audit`. B2 escalate presupposes an edit session; review-only does not run change-context, so it cannot trigger B2.
+
+**Optional:** `ledgerful session --json` (one-shot briefing; does not replace Edit/Daily 5). `ledgerful doctor --json` when the tree is writable and signing/env matters — skip in pure read-only filesystem sandboxes.
+
+Collision skip still applies: do not ledger start / do not `scan --impact` over a sibling pending TX. Review-only does not start TXs.
+
+## Edit / Daily 5
+
+Use this ladder when the session **will** modify product files (code, config, policy, tracked docs). Review-only sessions use **Review-only** instead.
+
+Prefer `--json` when parsing. Packet schema: `docs/agent-output-contract.md`. Command sheet: `references/commands.md`.
+
+Optional step 0: `ledgerful configure --json` is the config-HITL catalog (does not replace 1–5). `ledgerful session --json` remains the optional structural briefing (still lists `configChecklist[]`; does not rewrite `latest-impact.json`). On first `configure --json` / `session --json` this CLI session: if items have any `gated` or `empty` row with `alreadyShown == false`, quote `id` + `status` + `next` and ask once. If every row is `ready` or `optional`, do **not** prompt. Honor `alreadyShown`. After the human names apply-able ids: `configure --json --apply <id>[,<id>]` only for tokens that have `applyArg`. Never `config set` / `index --analyze-graph` / SCIP install / `federate scan` unless the human named the id.
+
+| # | Command | Role |
+|---|---|---|
+| 1 | `ledgerful doctor --json` | Env readiness (`readyForPublish`). Skip phantom / sig-pin / v1 ceremony unless signing or `require_signing`. Ack via `[doctor] acknowledged_codes` or `doctor --fix --yes` (pins keys only; never `ledger re-sign --all`). |
+| 2 | `ledgerful change-context --json` | Default pre-edit packet. Does **not** rewrite `latest-impact.json`. Plan: `--paths src/foo.rs`. Omitted `--timeout` uses `[impact] prospective_budget_secs` (default 25). `--timeout N` overrides; `--timeout 0` disables. History walks honor `[hotspots] history_budget_secs` (default 45) independently. |
+| 3 | `ledgerful ledger status --compact` or `--json` | Pending / drift; names `workRoot`. Other repo: `-C` / `--directory`. |
+| 4 | `ledgerful search …` (prefer `--auto-index` when stale) | Discovery, not full impact. |
+| 5 | `ledgerful verify --scope fast` | Local gate (≠ full CI). `verify --dry-run` without `--scope` previews this fast plan; executed `verify` stays full. |
+
+Escalate `scan --impact --json` only on B2: `readSetCapped`, high risk + multi-module, unclear public API, user/DoD requires full impact, change-context `not_ready` (not merely `empty`). Overall budget-stop is `not_ready` / annotated partial — escalate only on B2, not on `empty`.
+
+## Edit loop (provenance)
+
+When this session will modify product files:
+
+```
+ledgerful ledger start <entity> --category <CATEGORY> --message "<intent>"
+ledgerful ledger note <entity> --message "<progress>"
+ledgerful ledger commit <tx-id> --summary "<what>" --reason "<why>"
+```
+
+`ledger note` first arg is the entity (not a tx-id). `ledger note` is optional. Collision skip still applies.
+
+## Opt-in `next` (HITL)
+
+JSON `next` / `nextActions` / doctor `remediation` that **writes `.ledgerful/`**, enables coverage, installs SCIP, or flips gate/policy is **owner choice**. Do **not** run it unprompted. Do **not** ignore it if the user just asked for that surface.
+
+- User asked for the gated surface (`services`, `deploy`, `observability`, SCIP edges): say it is gated/empty, quote `next`, **ask once** whether to run it. If participating JSON has `sessionNotices.<id> == "already_shown"`, do **not** re-ask HITL for that gate.
+- Honor `doctor --json` `sessionPriority`. `now` = this session’s attention: Daily 5 **owns** `block`, `binary-behind-tree`, and `hook-template-stale` when publishing (reinstall / refresh hooks). Other `now` warns (`timings-*`, `search-empty`, `binary-behind-latest`, …): **surface once** in the session briefing; never install, prune, recapture exhibits, or `config set` unprompted. `later` = skip unless the user asked for that surface. Never start a SCIP/sccache install because a finding exists.
+- Never `config set coverage.enabled=true` or `index --analyze-graph` unless the owner said yes (local opt-in, not a track DoD). Same for SCIP install and `federate scan` — only if the human named that checklist id.
+
+## SCIP honesty
+
+Optional call-edge augment: `ledgerful index --auto-scip --json` (off by default). Not a SCIP tutorial.
+
+Requires a capable indexer. Adds `structural_edges` with `evidence=scip:ref` onto native symbols only.
+
+Install hints only if that language is in the tree. Doctor omits `scip-*-missing` / `scip-*-not-wired` when that language is absent from product paths (test fixtures and `vendor/` do not count).
+
+On `--json` Success read `scip.status`, `edges_added`, `references_seen`, and skip/recovery tallies `edges_skipped_enclosing_disagreement`, `edges_recovered_nest_prefer`. Rate remaining disagreement: `edges_skipped_enclosing_disagreement` / `references_seen`.
+
+O(1) WARN on stderr when disagreements or invalid ranges are > 0.
+
+## Skip
+
+Format-only, lockfile-only, binary/media, scratch, or explicit bypass. Read-only onboard may skip verify. Do not `scan --impact` over a sibling pending TX. Do not edit `.ledgerful` state files.
+
+## Collision
+
+If `ledger status` shows pending and dirty paths overlap that entity: do not ledger start; do not `scan --impact`; prefer `change-context --json`. Owner who needs a second start while pending+dirty: `ledger start --force` or commit first. `ledger start --force` bypasses this lock; `ledger commit --force` bypasses the verification gate.
+
+## Fallback
+
+- Binary missing: continue with native checks; report missing signals.
+- Status drift: reconcile or adopt before continuing unless the user says otherwise.
+- change-context `not_ready` / `error`: `scan --impact --json` (B2).
+- `verify --scope fast` MappingRefuse (empty mapping; not a surprise full suite):
+
+```
+ledgerful index --incremental
+ledgerful verify --scope fast --auto-index
+ledgerful verify --scope full
+ledgerful verify --scope fast --allow-full-fallback
+```
+
+## Search
+
+This engine, not a generic tutorial:
+
+```
+ledgerful search execute_change_context --auto-index
+```
+
+Unquoted multi-word joins; `--` for hyphen-leading queries. Daily 5 step 4 stays this code FTS — not `ledger search`. `--json` agents pin `results[].path` + `line`; `content` is a plain preview (paths use `/`).
+
+## Provenance
+
+Committed-plan / TX history. Not a Daily 5 replacement for code `search`.
+
+```
+ledgerful ledger search "<topic>" [--json]
+```
+
+**Quotes required** — clap `query` is one `String` token. Contrast: code FTS `ledgerful search foo bar` stays unquoted multi-word.
+
+`--json` is a **bare array** (`Vec<LedgerEntry>`) — do **not** wrap in `schemaVersion`. Key `related_tickets` frozen; **new** row values are ticket ids (or null) — files live on snapshot/`changed_files`. Empty `[]` is a valid FTS miss, not proof of missing provenance.
+
+Example: `ledgerful ledger search "topic" --json`.
+
+## Hotspots
+
+Default CLI filters, `--include`, and `score` (0–1) live on `references/commands.md`. Pin JSON `score`, not `displayScore`.
+
+## Windows
+
+Do not overlap `cargo` / `verify` jobs.

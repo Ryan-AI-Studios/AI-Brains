@@ -5,7 +5,7 @@ description: "Use this skill when you want a cross-model code review, a second o
 
 # Codex Cross-Model Review (AI-Brains)
 
-Different AI models catch different issues. Use Codex (GPT-based) as an independent read-only reviewer to supplement Claude-based development. This is especially valuable before committing high-risk changes, after substantial refactors, or when the ChangeGuard impact report shows elevated risk.
+Different AI models catch different issues. Use Codex (GPT-based) as an independent read-only reviewer to supplement Claude-based development. This is especially valuable before committing high-risk changes, after substantial refactors, or when the Ledgerful impact report shows elevated risk.
 
 **Preferred Models (May 2026):**
 - **`gpt-5.5-thinking`**: Best for reasoning and identifying architectural drift. (Default)
@@ -15,7 +15,7 @@ Different AI models catch different issues. Use Codex (GPT-based) as an independ
 
 - Before committing high-risk changes (ARCHITECTURE, FEATURE, SECURITY categories)
 - After a substantial refactor spanning multiple crates in the workspace
-- When ChangeGuard reports `riskLevel: High` or broad temporal couplings
+- When Ledgerful reports `riskLevel: High` or broad temporal couplings
 - After implementing a full track from the `Docs/Implementation-Plan.md`
 - When you want a second opinion on design decisions (e.g., Event Sourcing, SQLCipher integration, Privacy Inheritance)
 - Before creating a PR
@@ -28,12 +28,12 @@ Run a non-interactive read-only review:
 codex exec -C "." -s read-only -m gpt-5.5-thinking -o review.md "Review the current phase of work. Compare the current git diff against the base branch, identify bugs, regressions, missing tests, risky patterns (panics, unwraps), and unclear assumptions regarding Event Sourcing or CQRS. Do not modify files. Give findings ordered by severity (critical/high/medium/low)."
 ```
 
-## ChangeGuard-Aware Review
+## Ledgerful-Aware Review
 
-Include ChangeGuard signals in the review prompt:
+Include Ledgerful signals in the review prompt:
 
 ```powershell
-codex exec -C "." -s read-only -m gpt-5.5-thinking -o review.md "Run 'ledgerful impact --summary' to see the current risk level. Then review the git diff with that risk context. Focus on: (1) files with high hotspot scores, (2) unintended couplings between ai-brains-capture and ai-brains-models, (3) SQLCipher migration logic. Do not modify files."
+codex exec -C "." -s read-only -m gpt-5.5-thinking -o review.md "Run 'ledgerful change-context --json' or 'ledgerful scan --impact' to see the current risk level. Then review the git diff with that risk context. Focus on: (1) files with high hotspot scores, (2) unintended couplings between ai-brains-capture and ai-brains-models, (3) SQLCipher migration logic. Do not modify files."
 ```
 
 ## Review Checklist for AI-Brains
@@ -45,14 +45,14 @@ When reviewing AI-Brains code, the reviewer should specifically look for:
 - **Privacy Inheritance**: Does derived data inherit the source's privacy flag?
 - **Windows Pathing**: Does the path normalization handle UNC and WSL correctly?
 
-## Integration with ChangeGuard Workflow
+## Integration with Ledgerful Workflow
 
 1. Run `ledgerful scan --impact` — get risk signals
 2. Make your changes
-3. Run `ledgerful impact` — see blast radius
+3. Run `ledgerful change-context --json` or `ledgerful scan --impact` — see blast radius
 4. Run `codex exec -s read-only ...` — get cross-model review
 5. Address critical/high findings
-6. Run `ledgerful verify` — run Rust CI gate
+6. Run `ledgerful verify --scope fast` — run the local gate
 7. Commit with `ledgerful ledger commit`
 
 ## Safety Notes
