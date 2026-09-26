@@ -142,6 +142,39 @@ pub fn index_fill_eligible(query: &str) -> bool {
         })
 }
 
+/// How many contentful query tokens appear as **whole** tokens in `content`.
+///
+/// ASCII-lowercase set intersection (same fold as [`contentful_tokens`]).
+/// Repeated content tokens count once. Substring is not a match (`zzzz` vs
+/// `zzzznonexistentquery999`). unicode61 diacritic folding is **not** mirrored.
+pub fn or_hit_token_coverage(content: &str, contentful: &[String]) -> usize {
+    let content_tokens: std::collections::HashSet<String> = extract_fts_tokens(content)
+        .into_iter()
+        .map(|token| token.to_ascii_lowercase())
+        .collect();
+    let mut seen = std::collections::HashSet::new();
+    let mut n = 0;
+    for query_token in contentful {
+        let key = query_token.to_ascii_lowercase();
+        if seen.insert(key.clone()) && content_tokens.contains(&key) {
+            n += 1;
+        }
+    }
+    n
+}
+
+/// Whether an OR-admitted hit may be kept (T363).
+///
+/// Contentful length &lt; 3 is always admissible (T312 two-token F8; a
+/// three-raw-token query with a stopword, e.g. `zzzz the nohit`). Otherwise
+/// requires coverage ≥ 2.
+pub fn or_rescue_hit_admissible(content: &str, contentful: &[String]) -> bool {
+    if contentful.len() < 3 {
+        return true;
+    }
+    or_hit_token_coverage(content, contentful) >= 2
+}
+
 #[cfg(test)]
 #[allow(non_snake_case)] // TDD names use __ separators
 mod tests {
@@ -401,5 +434,32 @@ mod tests {
         assert!(!index_fill_eligible("chose the path"));
         assert!(!index_fill_eligible("decided"));
         assert!(!index_fill_eligible("constrained"));
+    }
+
+    #[test]
+    fn or_hit_token_coverage__whole_tokens_only() {
+        let q = vec!["zzzz".to_string(), "t362".to_string(), "nohit".to_string()];
+        assert_eq!(or_hit_token_coverage("zzzznonexistentquery999", &q), 0);
+        assert_eq!(or_hit_token_coverage("zzzz t362 review", &q), 2);
+        assert_eq!(or_hit_token_coverage("zzzz t362 nohit", &q), 3);
+        assert_eq!(
+            or_hit_token_coverage(
+                "DECISION: T362 Gate",
+                &["t362".into(), "gate".into(), "index".into()]
+            ),
+            2
+        );
+        assert_eq!(or_hit_token_coverage("zzzz zzzz zzzz", &q), 1);
+    }
+
+    #[test]
+    fn or_rescue_hit_admissible__ge3_needs_two() {
+        let two = vec!["zzzz".to_string(), "t362".to_string()];
+        assert!(or_rescue_hit_admissible("zzzz only", &two));
+        let three = vec!["zzzz".to_string(), "t362".to_string(), "nohit".to_string()];
+        assert!(!or_rescue_hit_admissible("zzzz only", &three));
+        assert!(or_rescue_hit_admissible("zzzz t362 review", &three));
+        assert!(or_rescue_hit_admissible("zzzz", &[]));
+        assert!(or_rescue_hit_admissible("zzzz", &["zzzz".into()]));
     }
 }
