@@ -259,7 +259,7 @@ pub fn build_report(
         "cursor-import",
     );
 
-    if grok.status == "unverifiable_subagent" {
+    if grok.status == "unverifiable_subagent" && grok.vault_sessions == 0 {
         warnings.push("grok_batch_empty_all_subagent".to_string());
     }
     if agy_disk.unreadable
@@ -420,6 +420,10 @@ fn classify_project_unscoped_disk(
 ) -> SourceCoverage {
     let mut row = classify_source(name, mode, None, 0, vault_sessions, days, false, import_cmd);
     row.disk_note = Some("project_disk_unscoped".to_string());
+    if vault_sessions == 0 {
+        row.status = "never_exercised".to_string();
+        row.next_step = clip_next_step("ai-brains capture coverage --global".to_string());
+    }
     row
 }
 
@@ -507,6 +511,8 @@ fn clip_next_step(s: String) -> String {
     s.chars().take(NEXT_STEP_MAX).collect()
 }
 
+/// Branch order (T360): missing OpenCode binary → sidechain-only skip →
+/// never_exercised (Some(0)/0/0) → deficit (Some(n) > vault) → ok.
 #[allow(clippy::too_many_arguments)]
 fn classify_source(
     name: &str,
@@ -527,7 +533,10 @@ fn classify_source(
         next_step = "set AI_BRAINS_OPENCODE_BIN".to_string();
     } else if disk_eligible.is_some() && eligible == 0 && sidechain > 0 {
         status = "expected_skip".to_string();
-    } else if disk_eligible.is_some() && eligible > 0 && vault_sessions == 0 {
+    } else if disk_eligible == Some(0) && sidechain == 0 && vault_sessions == 0 {
+        status = "never_exercised".to_string();
+        next_step = format!("start a {name} session; then ai-brains capture coverage");
+    } else if disk_eligible.is_some() && eligible > vault_sessions {
         status = "deficit".to_string();
         next_step = format!("ai-brains {import_cmd} --days {days}");
     }
@@ -560,7 +569,7 @@ fn classify_grok(
         false,
         "grok-import",
     );
-    if eligible > 0 && vault_sessions == 0 {
+    if eligible > vault_sessions {
         row.status = "unverifiable_subagent".to_string();
         row.next_step = clip_next_step(format!("ai-brains grok-import --days {days} --dry-run"));
     }
@@ -579,6 +588,12 @@ fn classify_opencode(vault_sessions: u64, missing_binary: bool) -> SourceCoverag
         "opencode-import",
     );
     row.disk_note = Some("requires_opencode_bin".to_string());
+    if !missing_binary && vault_sessions == 0 {
+        row.status = "never_exercised".to_string();
+        row.next_step = clip_next_step(
+            "start an opencode session; then ai-brains capture coverage".to_string(),
+        );
+    }
     row
 }
 
@@ -1186,6 +1201,149 @@ mod tests {
         assert!(!grok.next_step.contains("--force"));
         assert!(
             report
+                .warnings
+                .iter()
+                .any(|w| w == "grok_batch_empty_all_subagent"),
+            "warnings={:?}",
+            report.warnings
+        );
+    }
+
+    #[test]
+    fn classify_source__disk_gt_vault_nonzero__deficit() {
+        let row = classify_source(
+            "claude",
+            "hook+import",
+            Some(5),
+            0,
+            2,
+            30,
+            false,
+            "claude-import",
+        );
+        assert_eq!(row.status, "deficit");
+        assert!(row.next_step.contains("claude-import"), "{}", row.next_step);
+        assert!(row.next_step.contains("--days"), "{}", row.next_step);
+        assert!(!row.next_step.contains("--force"));
+    }
+
+    #[test]
+    fn classify_grok__disk_gt_vault_nonzero__unverifiable_dry_run() {
+        let row = classify_grok(5, 0, 2, 30);
+        assert_eq!(row.status, "unverifiable_subagent");
+        assert!(row.next_step.contains("grok-import"), "{}", row.next_step);
+        assert!(row.next_step.contains("--dry-run"), "{}", row.next_step);
+        assert!(!row.next_step.contains("--force"));
+    }
+
+    #[test]
+    fn classify_source__zero_disk_zero_vault__never_exercised() {
+        let row = classify_source(
+            "claude",
+            "hook+import",
+            Some(0),
+            0,
+            0,
+            30,
+            false,
+            "claude-import",
+        );
+        assert_eq!(row.status, "never_exercised");
+        assert!(!row.next_step.is_empty());
+        assert!(
+            row.next_step.contains("capture coverage"),
+            "{}",
+            row.next_step
+        );
+        assert!(row.next_step.contains("claude"), "{}", row.next_step);
+        assert!(row.next_step.chars().count() <= NEXT_STEP_MAX);
+        assert!(!row.next_step.contains("harness install"));
+        let json = serde_json::to_value(&row).expect("json");
+        assert_eq!(json["status"].as_str(), Some("never_exercised"));
+        assert!(json["status"].is_string());
+    }
+
+    #[test]
+    fn classify_source__disk_le_vault__ok() {
+        let row = classify_source(
+            "cursor",
+            "import_only",
+            Some(4),
+            0,
+            11,
+            30,
+            false,
+            "cursor-import",
+        );
+        assert_eq!(row.status, "ok");
+        assert!(row.next_step.is_empty());
+    }
+
+    #[test]
+    fn classify_project_unscoped__vault_zero__never_exercised_names_global() {
+        let zero =
+            classify_project_unscoped_disk("agy", "hook+import", 0, 30, "antigravity-import");
+        assert_eq!(zero.status, "never_exercised");
+        assert!(zero.next_step.contains("--global"), "{}", zero.next_step);
+        let ok = classify_project_unscoped_disk("agy", "hook+import", 3, 30, "antigravity-import");
+        assert_eq!(ok.status, "ok");
+    }
+
+    #[test]
+    fn classify_opencode__zero_vault_binary_present__never_exercised() {
+        let row = classify_opencode(0, false);
+        assert_eq!(row.status, "never_exercised");
+        assert!(
+            row.next_step.contains("capture coverage"),
+            "{}",
+            row.next_step
+        );
+        assert!(row.next_step.contains("opencode"), "{}", row.next_step);
+        let skip = classify_opencode(0, true);
+        assert_eq!(skip.status, "expected_skip");
+    }
+
+    #[test]
+    fn capture_coverage__grok_disk_gt_vault_nonzero__unverifiable_no_batch_warning() {
+        let home = tempfile::tempdir().expect("home");
+        let (_vdir, store) = open_store();
+        let project_id = ProjectId::new();
+        register_project(&store, project_id);
+        start_harness_session(&store, project_id, GROK_HARNESS_UUID);
+        write_file(
+            &home
+                .path()
+                .join(".grok")
+                .join("sessions")
+                .join("C%3A")
+                .join("sid")
+                .join("chat_history.jsonl"),
+            "{}\n",
+        );
+        write_file(
+            &home
+                .path()
+                .join(".grok")
+                .join("sessions")
+                .join("C%3A")
+                .join("sid2")
+                .join("chat_history.jsonl"),
+            "{}\n",
+        );
+
+        let report = build_report(
+            store.connection(),
+            &coverage_opts_global(home.path(), project_id, 30),
+        )
+        .expect("report");
+        let grok = source(&report, "grok");
+        assert!(grok.disk_eligible.unwrap_or(0) >= 2);
+        assert!(grok.vault_sessions >= 1);
+        assert!(grok.disk_eligible.unwrap_or(0) > grok.vault_sessions);
+        assert_eq!(grok.status, "unverifiable_subagent");
+        assert!(grok.next_step.contains("--dry-run"), "{}", grok.next_step);
+        assert!(
+            !report
                 .warnings
                 .iter()
                 .any(|w| w == "grok_batch_empty_all_subagent"),

@@ -17,6 +17,8 @@ Version banners in documentation are maintained manually from the workspace `Car
 
 ### Changed
 
+- **T360 Capture coverage honesty:** Numbered `disk_eligible > vault` is `deficit` (reverses the T337 vault-0-only watermark). Grok `eligible > vault` is `unverifiable_subagent` + `grok-import --days N --dry-run` (never `--force`). Zero disk and zero vault is `never_exercised`. Doctor `harness_wiring` stays presence-only (15 checks).
+
 - **T359 Docs/skill/state reconciliation:** Tracked onboarding Current State points at `conductor/conductor.md` (no frozen T-range); crate table lists all 23 workspace members. Daily 5 Ledgerful skill lives at `.claude/skills/ledgerful/` (retired `.claude/skills/changeguard/`). `AGENTS.md` names `dev-check.ps1` + GHA workflow `CI` as the local/publish gates and appends review debt to `conductor/deferred.md`.
 
 - **T349 BREAKING (0.x):** Omitted `--format` on `status`, `graph neighbors`/`hierarchy`/`session`, `scope resolve`, `retention plan`, `project list-paths`, `briefing`, and `decision in-force` stays **human even when piped**. Scripts: `--format json`. `--format auto` still means TTY human / pipe JSON (resolver frozen). Human `project list` hides non-cwd 0-memory rows and caps at 20 (`--all` / JSON keep all). `daemon status` unset URLs probe nightly `:8081`/`:8083` (not Ollama `:11434` / llama.cpp `:8080`). Denied project briefing human stops after Denied + SHORT (no empty `## Decisions` wall). Whoami path-null env fallback prints the same `git/env project mismatch` stderr as detect (JSON silent; `mismatch` still env vs path-alias).
