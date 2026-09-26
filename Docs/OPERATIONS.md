@@ -71,9 +71,10 @@ ai-brains capture coverage --global
 - `--format human|json`: default **human**; pipes stay human unless `--format json`.
 - JSON additive: `scope` is `"project"` or `"global"`. Project `slug` is always present (`string` or `null`). `--global` **omits** `slug`. `disk_eligible` is never omitted: OpenCode is `null`; project-scope agy/codex are `null` (`disk_note=project_disk_unscoped`); cursor/grok/claude are numbers including `0`. There is no `disk_this` / `disk_machine`. `null` ≠ `0` ≠ omit.
 - `--global`: vault counts across all projects; otherwise `AI_BRAINS_PROJECT_ID` (exit 2 if missing).
-- Status `deficit` means disk-eligible files exist and vault count is 0 — next step is a copy-paste importer (`cursor-import`, `claude-import`, `codex-import`, `antigravity-import`). Exit **0** (honesty, not a fail).
-- Grok files without a path-explainable `subagent-` / `worktrees` skip and vault 0 → `unverifiable_subagent`; next step is `grok-import --days N --dry-run` (**never** `--force`). Live Grok hooks remain the capture path.
-- OpenCode disk cell is `—` / JSON `null` (`requires_opencode_bin`). Missing binary in `last_multi_import` → `expected_skip` with next step `set AI_BRAINS_OPENCODE_BIN`.
+- Status `deficit` means numbered `disk_eligible` is greater than vault `SessionStarted` for that source (including partial capture, not only vault 0). Next step is a copy-paste importer (`cursor-import`, `claude-import`, `codex-import`, `antigravity-import`). Exit **0** (honesty, not a fail).
+- Grok `eligible > vault` (including vault>0) is `unverifiable_subagent`, not `deficit`: coverage counts path-only `chat_history.jsonl` while import may skip summary-declared subagents. Next step is `grok-import --days N --dry-run` (**never** `--force`). `grok_batch_empty_all_subagent` warns only when vault is 0. Live Grok hook JSON is writer evidence, not capture-firing proof.
+- Status `never_exercised` means this-scope disk and vault are both empty (numbered `Some(0)` / 0 / 0, or unscoped/OpenCode `disk_eligible=null` with vault 0). Next step names `capture coverage` (project unscoped names `--global`). Install presence stays `harness status`. A project run can be `never_exercised` while `--global` shows sessions.
+- OpenCode disk cell is `—` / JSON `null` (`requires_opencode_bin`). Missing binary in `last_multi_import` → `expected_skip` with next step `set AI_BRAINS_OPENCODE_BIN`. Binary present and vault 0 → `never_exercised`.
 - Pre-T334 three-source `last_multi_import` blobs warn `stale_multi_import` (`skip_reason=absent_pre_t334`). PATH may still lack `cursor-import` until the owner installs the T334 binary.
 
 ### Antigravity Import

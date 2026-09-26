@@ -3,7 +3,18 @@
 
 mod common;
 
+use ai_brains_adapters::GROK_HARNESS_UUID;
+use ai_brains_core::ids::{HarnessId, ProjectId, SessionId};
+use ai_brains_core::privacy::Privacy;
+use ai_brains_crypto::SqlCipherKey;
+use ai_brains_events::constructors::EventBuilder;
+use ai_brains_events::{
+    Actor, AggregateType, Payload, ProjectRegisteredPayload, SessionStartedPayload,
+};
+use ai_brains_store::{EventStore, SqliteEventStore};
 use std::fs;
+use std::path::Path;
+use std::str::FromStr;
 use tempfile::tempdir;
 
 const CURSOR_SID: &str = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaa01";
@@ -141,5 +152,121 @@ fn capture_coverage__grok_home_env__honored_without_user_home_override() {
     assert!(
         grok["disk_eligible"].as_u64().unwrap_or(0) >= 1,
         "GROK_HOME must be consulted when home_override is None; grok={grok}"
+    );
+}
+
+fn start_harness_session(vault: &Path, harness_uuid: &str) {
+    let _allow = ai_brains_core::temp_env::TempEnv::set("AI_BRAINS_ALLOW_ZERO_KEY", "1");
+    let key = SqlCipherKey::from_raw(common::ZERO_SQLCIPHER_KEY.to_string());
+    let conn = ai_brains_store::connection::VaultConnection::open(
+        vault.to_str().expect("utf8 vault"),
+        &key,
+    )
+    .expect("open vault");
+    let store = SqliteEventStore::new(conn);
+    let project_id = ProjectId::from_str(common::DEFAULT_PROJECT).expect("project id");
+    store
+        .append_event(
+            &EventBuilder::new(
+                AggregateType::Project,
+                project_id.as_uuid(),
+                Actor::System,
+                Privacy::LocalOnly,
+            )
+            .build(Payload::ProjectRegistered(ProjectRegisteredPayload {
+                project_id,
+                name: "t360".into(),
+                tx_id: None,
+            }))
+            .expect("project envelope"),
+        )
+        .expect("append ProjectRegistered");
+    let session_id = SessionId::new();
+    let harness = HarnessId::from_str(harness_uuid).expect("harness");
+    store
+        .append_event(
+            &EventBuilder::new(
+                AggregateType::Session,
+                session_id.as_uuid(),
+                Actor::Harness(harness),
+                Privacy::LocalOnly,
+            )
+            .build(Payload::SessionStarted(SessionStartedPayload {
+                session_id,
+                project_id,
+                tx_id: None,
+            }))
+            .expect("session envelope"),
+        )
+        .expect("append SessionStarted");
+}
+
+#[test]
+fn capture_coverage__grok_partial_vault__unverifiable_exit_0() {
+    let home = tempdir().expect("home");
+    let vault_dir = tempdir().expect("vault");
+    let vault = vault_dir.path().join("v.db");
+    init_vault(&vault);
+    start_harness_session(&vault, GROK_HARNESS_UUID);
+    let history = home
+        .path()
+        .join(".grok")
+        .join("sessions")
+        .join("C%3A")
+        .join("sid")
+        .join("chat_history.jsonl");
+    fs::create_dir_all(history.parent().expect("parent")).expect("mkdir");
+    fs::write(&history, "{}\n").expect("write grok history");
+    let history2 = home
+        .path()
+        .join(".grok")
+        .join("sessions")
+        .join("C%3A")
+        .join("sid2")
+        .join("chat_history.jsonl");
+    fs::create_dir_all(history2.parent().expect("parent")).expect("mkdir");
+    fs::write(&history2, "{}\n").expect("write grok history 2");
+
+    let mut cmd = common::hermetic_vault(&vault);
+    strip_harness_homes(&mut cmd);
+    let output = cmd
+        .arg("--no-project-context")
+        .arg("capture")
+        .arg("coverage")
+        .arg("--global")
+        .arg("--format")
+        .arg("json")
+        .env("USERPROFILE", home.path())
+        .env("HOME", home.path())
+        .env("GROK_HOME", home.path().join(".grok"))
+        .output()
+        .expect("capture coverage");
+    assert!(
+        output.status.success(),
+        "AC9 exit 0; stderr={}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(output.status.code(), Some(0));
+    let parsed: serde_json::Value = serde_json::from_slice(&output.stdout).expect("json stdout");
+    let grok = parsed["sources"]
+        .as_array()
+        .expect("sources")
+        .iter()
+        .find(|s| s["source"] == "grok")
+        .expect("grok row");
+    assert_eq!(
+        grok["status"].as_str(),
+        Some("unverifiable_subagent"),
+        "grok={grok}"
+    );
+    let next = grok["next_step"].as_str().unwrap_or("");
+    assert!(next.contains("--dry-run"), "next_step={next}");
+    assert!(!next.contains("--force"));
+    let warnings = parsed["warnings"].as_array().cloned().unwrap_or_default();
+    assert!(
+        !warnings
+            .iter()
+            .any(|w| w.as_str() == Some("grok_batch_empty_all_subagent")),
+        "warnings={warnings:?}"
     );
 }
