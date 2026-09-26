@@ -9,8 +9,8 @@ use crate::ranking::ScoreKind;
 use crate::semantic::classify_embedding_error;
 use ai_brains_contracts::bridge::BridgeRecord;
 use ai_brains_contracts::recall::EmbeddingStatusDto;
-use ai_brains_core::is_contentless_query;
 use ai_brains_core::privacy::Privacy;
+use ai_brains_core::{index_fill_eligible, is_contentless_query};
 use ai_brains_store::VaultConnection;
 
 #[derive(Debug, Clone, Copy, Default)]
@@ -431,6 +431,7 @@ pub fn recall_full(
     // Must run before Phase 4 so a bridge hit cannot starve vault fill.
     if local_hits.is_empty()
         && let Some(pid) = project_id
+        && index_fill_eligible(query)
     {
         let fill = index_authority_fill(conn, pid, session_id, limit, exclude_stubs)?;
         if !fill.is_empty() {

@@ -11,6 +11,9 @@ use rusqlite::OptionalExtension;
 use std::io::IsTerminal;
 use std::str::FromStr;
 
+/// Pretty and JSON Index-fill honesty SOOT (T362 F3 / T346).
+pub const INDEX_FILL_HONESTY_HINT: &str = "No FTS hits; showing in-scope pins";
+
 pub struct RecallRunOptions {
     pub query: String,
     pub limit: usize,
@@ -287,6 +290,7 @@ pub fn run(
         embedding,
         empty_kind: None,
         project_memory_count: None,
+        fill_kind: None,
     };
     let embedding_status = embedding_status_owned.as_deref();
 
@@ -365,7 +369,7 @@ pub fn run(
                     }
                 }
                 if hits.iter().any(|h| h.source == "index") {
-                    println!("No FTS hits; showing in-scope pins");
+                    println!("{INDEX_FILL_HONESTY_HINT}");
                 }
                 if options.global {
                     let tags = crate::commands::recall_global::tags_for_hits(&ctx.conn, &hits)?;
@@ -390,6 +394,9 @@ pub fn run(
                 response.hint = Some(empty.hint).filter(|s| !s.is_empty());
                 response.empty_kind = empty.empty_kind;
                 response.project_memory_count = empty.project_memory_count;
+            } else if response.results.iter().any(|r| r.source == "index") {
+                response.hint = Some(INDEX_FILL_HONESTY_HINT.to_string());
+                response.fill_kind = Some("index".to_string());
             }
             crate::commands::identity_warn::note_machine_stdout();
             println!("{}", serde_json::to_string(&response)?);

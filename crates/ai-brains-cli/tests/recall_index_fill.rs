@@ -5,10 +5,12 @@
 mod common;
 
 use serde_json::Value;
+use std::fs;
 use std::path::Path;
 use tempfile::tempdir;
 
 const UNMATCHED: &str = "zzzzt346nomatch";
+const T315_QUERY: &str = "what did we decide";
 const HONESTY: &str = "No FTS hits; showing in-scope pins";
 const DECISION: &str = "DECISION: we chose the empty-rescue path";
 
@@ -72,7 +74,7 @@ fn recall_index_fill__fts_empty_authority_pin__honesty_and_hits() {
     init_vault(&vault);
     pin_decision(&vault);
 
-    let stdout = pretty_recall(&vault, "recall", UNMATCHED, &[]);
+    let stdout = pretty_recall(&vault, "recall", T315_QUERY, &[]);
     assert!(
         stdout.contains(HONESTY),
         "AC1: exact honesty SOOT missing; stdout={stdout}"
@@ -108,7 +110,7 @@ fn search_index_fill__alias_shares_recall_path() {
     init_vault(&vault);
     pin_decision(&vault);
 
-    let stdout = pretty_recall(&vault, "search", UNMATCHED, &[]);
+    let stdout = pretty_recall(&vault, "search", T315_QUERY, &[]);
     assert!(
         stdout.contains(HONESTY),
         "AC5: search alias must share fill honesty; stdout={stdout}"
@@ -130,7 +132,7 @@ fn recall_index_fill__global__no_fill_t111_hint() {
     init_vault(&vault);
     pin_decision(&vault);
 
-    let stdout = pretty_recall(&vault, "recall", UNMATCHED, &["--global"]);
+    let stdout = pretty_recall(&vault, "recall", T315_QUERY, &["--global"]);
     assert!(
         !stdout.contains(HONESTY),
         "AC8: --global must not Index-fill; stdout={stdout}"
@@ -147,7 +149,7 @@ fn recall_index_fill__no_pins__t111_hint() {
     let vault = dir.path().join("vault.db");
     init_vault(&vault);
 
-    let stdout = pretty_recall(&vault, "recall", UNMATCHED, &[]);
+    let stdout = pretty_recall(&vault, "recall", T315_QUERY, &[]);
     assert!(
         !stdout.contains(HONESTY),
         "AC9: no pins → no fill honesty; stdout={stdout}"
@@ -169,7 +171,7 @@ fn recall_index_fill__source_index__json_omits_score() {
         .arg("--log-format")
         .arg("off")
         .arg("recall")
-        .arg(UNMATCHED)
+        .arg(T315_QUERY)
         .arg("--format")
         .arg("json")
         .arg("--no-bridge")
@@ -197,9 +199,11 @@ fn recall_index_fill__source_index__json_omits_score() {
         results[0]
     );
     assert_eq!(results[0]["score_kind"], "bm25");
+    assert_eq!(v["fill_kind"], "index");
+    assert_eq!(v["hint"], HONESTY);
     assert!(
-        v.get("hint").is_none() || v["hint"].is_null(),
-        "AC10: hint omitted when results non-empty; got {v}"
+        v.get("empty_kind").is_none() || v["empty_kind"].is_null(),
+        "fill omits empty_kind; got {v}"
     );
 }
 
@@ -243,5 +247,225 @@ fn recall_pretty__bm25__omits_score() {
         results[0]["score"].as_f64().is_some(),
         "AC4: json keeps numeric BM25 score; got {}",
         results[0]
+    );
+    assert!(
+        v.get("fill_kind").is_none() || v["fill_kind"].is_null(),
+        "AC6: FTS-only omits fill_kind; got {v}"
+    );
+}
+
+fn hermetic() -> assert_cmd::Command {
+    let mut cmd = common::hermetic_bin();
+    common::isolate_empty_home(&mut cmd);
+    cmd
+}
+
+fn register_project(vault: &Path, work_dir: &Path) -> String {
+    fs::create_dir_all(work_dir).expect("work dir");
+    let out = hermetic()
+        .current_dir(work_dir)
+        .arg("--no-project-context")
+        .arg("--vault-path")
+        .arg(vault)
+        .arg("context")
+        .arg("--no-auto-bind")
+        .output()
+        .expect("context");
+    assert!(
+        out.status.success(),
+        "context must succeed; stderr={}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let env_path = work_dir.join(".env");
+    let content = fs::read_to_string(&env_path).expect(".env");
+    for line in content.lines() {
+        if let Some(rest) = line.strip_prefix("AI_BRAINS_PROJECT_ID=") {
+            let id = rest.trim();
+            assert!(!id.is_empty());
+            return id.to_string();
+        }
+    }
+    panic!("AI_BRAINS_PROJECT_ID missing from .env");
+}
+
+fn register_path(vault: &Path, work_dir: &Path, project_id: &str) {
+    hermetic()
+        .current_dir(work_dir)
+        .arg("--no-project-context")
+        .arg("--vault-path")
+        .arg(vault)
+        .arg("project")
+        .arg("register-path")
+        .arg(project_id)
+        .arg(work_dir)
+        .assert()
+        .success();
+}
+
+fn pin_owned(vault: &Path, work_dir: &Path, project_id: &str, content: &str) {
+    let env_content = fs::read_to_string(work_dir.join(".env")).expect(".env");
+    let mut session_id = String::new();
+    for line in env_content.lines() {
+        if let Some(rest) = line.strip_prefix("AI_BRAINS_SESSION_ID=") {
+            session_id = rest.trim().to_string();
+        }
+    }
+    assert!(!session_id.is_empty());
+    hermetic()
+        .current_dir(work_dir)
+        .arg("--no-project-context")
+        .arg("--vault-path")
+        .arg(vault)
+        .env("AI_BRAINS_PROJECT_ID", project_id)
+        .env("AI_BRAINS_SESSION_ID", &session_id)
+        .arg("pin")
+        .arg(content)
+        .assert()
+        .success();
+}
+
+fn owned_cmd<'a>(vault: &'a Path, work_dir: &'a Path, project_id: &'a str) -> assert_cmd::Command {
+    let mut cmd = hermetic();
+    cmd.current_dir(work_dir)
+        .arg("--no-project-context")
+        .arg("--vault-path")
+        .arg(vault)
+        .env("AI_BRAINS_PROJECT_ID", project_id)
+        .arg("--log-format")
+        .arg("off");
+    if let Ok(env_content) = fs::read_to_string(work_dir.join(".env")) {
+        for line in env_content.lines() {
+            if let Some(rest) = line.strip_prefix("AI_BRAINS_SESSION_ID=") {
+                cmd.env("AI_BRAINS_SESSION_ID", rest.trim());
+            }
+        }
+    }
+    cmd
+}
+
+#[test]
+fn recall_index_fill__unmatched__query_miss_not_unowned() {
+    let dir = tempdir().expect("tempdir");
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+    let work = dir.path().join("proj");
+    let pid = register_project(&vault, &work);
+    register_path(&vault, &work, &pid);
+    pin_owned(&vault, &work, &pid, DECISION);
+
+    let out = owned_cmd(&vault, &work, &pid)
+        .arg("recall")
+        .arg(UNMATCHED)
+        .arg("--format")
+        .arg("json")
+        .arg("--no-bridge")
+        .output()
+        .expect("recall unmatched json");
+    assert_eq!(
+        out.status.code(),
+        Some(0),
+        "stderr={}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    let v = parse_last_json_object(&stdout);
+    assert_eq!(
+        v["results"].as_array().map(|a| a.len()),
+        Some(0),
+        "stdout={stdout}"
+    );
+    assert_eq!(v["empty_kind"], "query_miss");
+    assert!(
+        v["project_memory_count"].as_u64().unwrap_or(0) >= 1,
+        "got {v}"
+    );
+
+    let pretty = owned_cmd(&vault, &work, &pid)
+        .arg("recall")
+        .arg(UNMATCHED)
+        .arg("--format")
+        .arg("pretty")
+        .arg("--no-bridge")
+        .output()
+        .expect("recall unmatched pretty");
+    let pstdout = String::from_utf8_lossy(&pretty.stdout);
+    assert!(
+        !pstdout.contains(HONESTY),
+        "unmatched must not print fill honesty; stdout={pstdout}"
+    );
+    assert!(
+        pstdout.contains("This project has") || pstdout.contains("No results"),
+        "census/T111 missing; stdout={pstdout}"
+    );
+}
+
+#[test]
+fn search_index_fill__json__fill_kind_and_hint() {
+    let dir = tempdir().expect("tempdir");
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+    let work = dir.path().join("proj");
+    let pid = register_project(&vault, &work);
+    register_path(&vault, &work, &pid);
+    pin_owned(&vault, &work, &pid, DECISION);
+
+    let out = owned_cmd(&vault, &work, &pid)
+        .arg("search")
+        .arg(T315_QUERY)
+        .arg("--format")
+        .arg("json")
+        .arg("--no-bridge")
+        .arg("--limit")
+        .arg("5")
+        .output()
+        .expect("search json");
+    assert_eq!(
+        out.status.code(),
+        Some(0),
+        "stderr={}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    let v = parse_last_json_object(&stdout);
+    let results = v["results"].as_array().expect("results");
+    assert!(!results.is_empty(), "stdout={stdout}");
+    assert_eq!(results[0]["source"], "index");
+    assert_eq!(v["fill_kind"], "index");
+    assert_eq!(v["hint"], HONESTY);
+}
+
+#[test]
+fn sync_query__unmatched__no_index_fill_honesty() {
+    let dir = tempdir().expect("tempdir");
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+    let work = dir.path().join("proj");
+    let pid = register_project(&vault, &work);
+    register_path(&vault, &work, &pid);
+    pin_owned(&vault, &work, &pid, DECISION);
+
+    let out = owned_cmd(&vault, &work, &pid)
+        .arg("sync")
+        .arg("query")
+        .arg(UNMATCHED)
+        .arg("--no-bridge")
+        .arg("--format")
+        .arg("pretty")
+        .output()
+        .expect("sync query");
+    assert_eq!(
+        out.status.code(),
+        Some(0),
+        "stderr={}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    assert!(
+        !stdout.contains(HONESTY),
+        "AC11: unmatched sync must not Index-fill; stdout={stdout}"
+    );
+    assert!(
+        stdout.contains("No results") || stdout.contains("This project has"),
+        "AC11: empty census/T111; stdout={stdout}"
     );
 }
