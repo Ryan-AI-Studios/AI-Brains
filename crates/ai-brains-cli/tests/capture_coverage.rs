@@ -270,3 +270,119 @@ fn capture_coverage__grok_partial_vault__unverifiable_exit_0() {
         "warnings={warnings:?}"
     );
 }
+
+#[test]
+fn capture_coverage__grok_summary_non_main__sidechain_not_eligible() {
+    let home = tempdir().expect("home");
+    let vault_dir = tempdir().expect("vault");
+    let vault = vault_dir.path().join("v.db");
+    init_vault(&vault);
+    start_harness_session(&vault, GROK_HARNESS_UUID);
+    let history = home
+        .path()
+        .join(".grok")
+        .join("sessions")
+        .join("C%3A")
+        .join("sid")
+        .join("chat_history.jsonl");
+    fs::create_dir_all(history.parent().expect("parent")).expect("mkdir");
+    fs::write(&history, "{}\n").expect("write grok history");
+    fs::write(
+        history.parent().expect("parent").join("summary.json"),
+        r#"{"agent_name":"Explore"}"#,
+    )
+    .expect("write summary");
+    let history2 = home
+        .path()
+        .join(".grok")
+        .join("sessions")
+        .join("C%3A")
+        .join("sid2")
+        .join("chat_history.jsonl");
+    fs::create_dir_all(history2.parent().expect("parent")).expect("mkdir");
+    fs::write(&history2, "{}\n").expect("write grok history 2");
+
+    let mut cmd = common::hermetic_vault(&vault);
+    strip_harness_homes(&mut cmd);
+    let output = cmd
+        .arg("--no-project-context")
+        .arg("capture")
+        .arg("coverage")
+        .arg("--global")
+        .arg("--format")
+        .arg("json")
+        .env("USERPROFILE", home.path())
+        .env("HOME", home.path())
+        .env("GROK_HOME", home.path().join(".grok"))
+        .output()
+        .expect("capture coverage");
+    assert!(
+        output.status.success(),
+        "AC4 exit 0; stderr={}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let parsed: serde_json::Value = serde_json::from_slice(&output.stdout).expect("json stdout");
+    let grok = parsed["sources"]
+        .as_array()
+        .expect("sources")
+        .iter()
+        .find(|s| s["source"] == "grok")
+        .expect("grok row");
+    assert_eq!(grok["disk_eligible"].as_u64(), Some(1), "grok={grok}");
+    assert!(
+        grok["disk_skipped_sidechain"].as_u64().unwrap_or(0) >= 1,
+        "grok={grok}"
+    );
+    assert_eq!(grok["status"].as_str(), Some("ok"), "grok={grok}");
+    assert_eq!(grok["next_step"].as_str(), Some(""), "grok={grok}");
+}
+
+#[test]
+fn capture_coverage__grok_garbage_jsonl_body__classifies_by_summary() {
+    let home = tempdir().expect("home");
+    let vault_dir = tempdir().expect("vault");
+    let vault = vault_dir.path().join("v.db");
+    init_vault(&vault);
+    let sess = home
+        .path()
+        .join(".grok")
+        .join("sessions")
+        .join("C%3A")
+        .join("sid");
+    fs::create_dir_all(&sess).expect("mkdir");
+    fs::write(sess.join("chat_history.jsonl"), [0xff, 0xfe, 0x00, 0x01]).expect("garbage jsonl");
+    fs::write(sess.join("summary.json"), r#"{"agent_name":"Explore"}"#).expect("summary");
+
+    let mut cmd = common::hermetic_vault(&vault);
+    strip_harness_homes(&mut cmd);
+    let output = cmd
+        .arg("--no-project-context")
+        .arg("capture")
+        .arg("coverage")
+        .arg("--global")
+        .arg("--format")
+        .arg("json")
+        .env("USERPROFILE", home.path())
+        .env("HOME", home.path())
+        .env("GROK_HOME", home.path().join(".grok"))
+        .output()
+        .expect("capture coverage");
+    assert!(
+        output.status.success(),
+        "AC8 exit 0; stderr={}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let parsed: serde_json::Value = serde_json::from_slice(&output.stdout).expect("json stdout");
+    let grok = parsed["sources"]
+        .as_array()
+        .expect("sources")
+        .iter()
+        .find(|s| s["source"] == "grok")
+        .expect("grok row");
+    assert!(
+        grok["disk_skipped_sidechain"].as_u64().unwrap_or(0) >= 1
+            || grok["disk_eligible"].as_u64() == Some(0),
+        "grok={grok}"
+    );
+    assert_eq!(output.status.code(), Some(0));
+}

@@ -1,7 +1,8 @@
 //! T337 — read-only `ai-brains capture coverage` (disk files vs vault SessionStarted).
 //!
-//! Inventory + event-log query only. Never opens JSONL turn bodies or Grok
-//! `summary.json`. Never imports. Never adds a doctor check.
+//! Inventory + event-log query only. Never opens JSONL turn bodies. Grok sibling
+//! `summary.json` is opened fail-open for `agent_name` classification only (T366;
+//! same SoT as `grok-import`). Never imports. Never adds a doctor check.
 
 use crate::commands::governed_common::fail_usage;
 use crate::commands::multi_import::{
@@ -13,8 +14,8 @@ use ai_brains_adapters::{
     OPENCODE_HARNESS_UUID, cursor_project_slug, cursor_project_slug_candidates,
     decode_claude_project_folder, discover_cursor_sessions, discover_sessions_from_home,
     is_claude_sidechain_path, is_cursor_sidechain_path, is_subagent_session,
-    percent_encode_path_component, resolve_claude_home, resolve_codex_home, resolve_cursor_home,
-    resolve_grok_home,
+    load_grok_session_summary, percent_encode_path_component, resolve_claude_home,
+    resolve_codex_home, resolve_cursor_home, resolve_grok_home,
 };
 use ai_brains_core::ids::ProjectId;
 use ai_brains_path::normalize_for_location_compare;
@@ -676,7 +677,9 @@ fn walk_grok_chat_history(
         if !mtime_in_window(&path, cutoff, counts) {
             continue;
         }
-        if is_subagent_session(&path, None) {
+        if is_subagent_session(&path, None)
+            || is_subagent_session(&path, load_grok_session_summary(&path).as_ref())
+        {
             counts.sidechain += 1;
         } else {
             counts.eligible += 1;
@@ -1161,6 +1164,70 @@ mod tests {
             "next_step={}",
             grok.next_step
         );
+    }
+
+    #[test]
+    fn capture_coverage__grok_subagent_summary__expected_skip() {
+        let home = tempfile::tempdir().expect("home");
+        let (_vdir, store) = open_store();
+        let project_id = ProjectId::new();
+        register_project(&store, project_id);
+        let sess = home
+            .path()
+            .join(".grok")
+            .join("sessions")
+            .join("C%3A")
+            .join("sid");
+        write_file(&sess.join("chat_history.jsonl"), "{}\n");
+        write_file(&sess.join("summary.json"), r#"{"agent_name":"Explore"}"#);
+
+        let report = build_report(
+            store.connection(),
+            &coverage_opts_global(home.path(), project_id, 30),
+        )
+        .expect("report");
+        let grok = source(&report, "grok");
+        assert_eq!(grok.status, "expected_skip");
+        assert_eq!(grok.disk_eligible, Some(0));
+        assert!(
+            grok.disk_skipped_sidechain >= 1,
+            "sidechain={}",
+            grok.disk_skipped_sidechain
+        );
+        assert!(grok.next_step.is_empty(), "next_step={}", grok.next_step);
+    }
+
+    #[test]
+    fn capture_coverage__grok_summary_non_main__project_scope() {
+        let home = tempfile::tempdir().expect("home");
+        let (_vdir, store) = open_store();
+        let project_id = ProjectId::new();
+        register_project(&store, project_id);
+        add_path_alias(&store, project_id, r"C:\dev\x");
+        start_harness_session(&store, project_id, GROK_HARNESS_UUID);
+        let enc = percent_encode_path_component(r"C:\dev\x");
+        let group = home.path().join(".grok").join("sessions").join(&enc);
+        write_file(&group.join("sid").join("chat_history.jsonl"), "{}\n");
+        write_file(
+            &group.join("sid").join("summary.json"),
+            r#"{"agent_name":"Explore"}"#,
+        );
+        write_file(&group.join("sid2").join("chat_history.jsonl"), "{}\n");
+
+        let report = build_report(
+            store.connection(),
+            &coverage_opts(home.path(), project_id, 30),
+        )
+        .expect("report");
+        let grok = source(&report, "grok");
+        assert_eq!(grok.disk_eligible, Some(1), "grok={grok:?}");
+        assert!(
+            grok.disk_skipped_sidechain >= 1,
+            "sidechain={}",
+            grok.disk_skipped_sidechain
+        );
+        assert_eq!(grok.status, "ok");
+        assert!(grok.next_step.is_empty(), "next_step={}", grok.next_step);
     }
 
     #[test]

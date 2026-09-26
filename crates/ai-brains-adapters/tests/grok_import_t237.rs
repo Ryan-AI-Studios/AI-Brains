@@ -395,6 +395,54 @@ fn import_grok__subagent_session__skipped_counter() {
 }
 
 #[test]
+fn import_grok__summary_agent_name_non_main__skipped_subagent() {
+    let root = tempdir().unwrap();
+    let home = root.path().join("home");
+    let vault_dir = root.path().join("vault");
+    fs::create_dir_all(&home).unwrap();
+    fs::create_dir_all(&vault_dir).unwrap();
+
+    let sid = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb";
+    write_grok_session(
+        &home,
+        r"C:\dev\Normal",
+        sid,
+        HISTORY_FORCE,
+        Some(r#"{"agent_name":"Explore"}"#),
+    );
+
+    let (conn, store) = open_vault(&vault_dir);
+    let mut sink = TestSink {
+        store,
+        last_error: None,
+    };
+    let service = CaptureService::new();
+    let stats = import_grok_sessions(
+        &conn,
+        &service,
+        &mut sink,
+        GrokImportOptions {
+            days: 30,
+            default_project_id: ProjectId::new(),
+            allow_default_project: false,
+            force: true,
+            home_override: Some(home),
+            dry_run: false,
+        },
+    )
+    .expect("import");
+    assert!(
+        stats.skipped_subagent >= 1,
+        "summary agent_name must increment skipped_subagent: {stats:?}"
+    );
+    let sub_turns = conn.get_session_turns(sid).expect("sub turns");
+    assert!(
+        sub_turns.is_empty(),
+        "summary subagent session must not be imported: {sub_turns:?}"
+    );
+}
+
+#[test]
 fn import_grok__never_ingests_updates_jsonl() {
     // AC14: discovery only chat_history; updates.jsonl present must not become content
     let root = tempdir().unwrap();

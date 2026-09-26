@@ -68,9 +68,10 @@ pub use grok::{
     GROK_HARNESS_UUID, GROK_UNBOUND_ALIAS, GROK_UNBOUND_DISPLAY_NAME, GrokBindKind,
     GrokImportOptions, GrokImportStats, GrokSessionSource, append_grok_turns,
     discover_grok_sessions, generate_grok_turn_id, grok_capability, grok_env_fallback_allowed,
-    grok_source_meta_key, import_grok_sessions, is_subagent_session, normalize_grok_project_hash,
-    parse_chat_history_file, percent_decode_component, percent_encode_path_component,
-    print_grok_import_stats, resolve_chat_history_path, resolve_grok_home, resolve_grok_project,
+    grok_source_meta_key, import_grok_sessions, is_subagent_session, load_grok_session_summary,
+    normalize_grok_project_hash, parse_chat_history_file, percent_decode_component,
+    percent_encode_path_component, print_grok_import_stats, resolve_chat_history_path,
+    resolve_grok_home, resolve_grok_project,
 };
 pub use hook_output::render_hook_output;
 pub use install::install_scope;
