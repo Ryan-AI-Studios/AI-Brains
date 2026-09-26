@@ -2,8 +2,8 @@ use crate::errors::Result;
 use crate::privacy_filter::is_injectable_privacy;
 use crate::session_chrome::{index_pass1_glob_sql, is_authority_pin_content};
 use ai_brains_core::{
-    LEXICAL_MATCH_HARD_CAP, contentful_tokens, extract_fts_tokens, is_contentless_query, match_and,
-    match_or, or_rescue_hit_admissible, select_or_tokens,
+    LEXICAL_MATCH_HARD_CAP, contentful_tokens, extract_fts_tokens, index_fill_eligible,
+    is_contentless_query, match_and, match_or, or_rescue_hit_admissible, select_or_tokens,
 };
 use ai_brains_store::VaultConnection;
 use rusqlite::params_from_iter;
@@ -305,6 +305,11 @@ fn match_query(
                     pass2_expr = or_expr;
                 }
             }
+        }
+        // T364 F1: Index-shaped default recall is authority-only. Skip pass-2
+        // chrome remainder so Phase 2c can fill. `--symbols` keeps pass-2.
+        if index_fill_eligible(raw_query) && exclude_symbol_stubs {
+            return Ok(retain);
         }
         let remainder = limit.saturating_sub(retain.len());
         if remainder == 0 {

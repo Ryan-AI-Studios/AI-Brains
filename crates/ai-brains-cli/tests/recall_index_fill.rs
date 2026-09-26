@@ -13,6 +13,8 @@ const UNMATCHED: &str = "zzzzt346nomatch";
 const T315_QUERY: &str = "what did we decide";
 const HONESTY: &str = "No FTS hits; showing in-scope pins";
 const DECISION: &str = "DECISION: we chose the empty-rescue path";
+const T315_DUMP: &str = r#"next: ai-brains recall "what did we decide""#;
+const AUTH_NO_PHRASE: &str = "DECISION: Track 0008 shipped";
 
 fn init_vault(vault_path: &Path) {
     common::hermetic_bin()
@@ -467,5 +469,170 @@ fn sync_query__unmatched__no_index_fill_honesty() {
     assert!(
         stdout.contains("No results") || stdout.contains("This project has"),
         "AC11: empty census/T111; stdout={stdout}"
+    );
+}
+
+fn dump_and_authority(vault: &Path, work: &Path, pid: &str) {
+    pin_owned(vault, work, pid, T315_DUMP);
+    pin_owned(vault, work, pid, AUTH_NO_PHRASE);
+}
+
+#[test]
+fn recall_index_fill__t315_dump_present__json_fills_authority() {
+    let dir = tempdir().expect("tempdir");
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+    let work = dir.path().join("proj");
+    let pid = register_project(&vault, &work);
+    register_path(&vault, &work, &pid);
+    dump_and_authority(&vault, &work, &pid);
+
+    let out = owned_cmd(&vault, &work, &pid)
+        .arg("recall")
+        .arg(T315_QUERY)
+        .arg("--format")
+        .arg("json")
+        .arg("--no-bridge")
+        .arg("--limit")
+        .arg("3")
+        .output()
+        .expect("recall json dump");
+    assert_eq!(
+        out.status.code(),
+        Some(0),
+        "stderr={}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    let v = parse_last_json_object(&stdout);
+    let results = v["results"].as_array().expect("results");
+    assert!(!results.is_empty(), "stdout={stdout}");
+    assert_eq!(results[0]["source"], "index");
+    assert_eq!(v["fill_kind"], "index");
+    assert_eq!(v["hint"], HONESTY);
+    let blob = stdout.to_string();
+    assert!(
+        !blob.contains("next: ai-brains recall"),
+        "AC4: dump body must be absent; stdout={stdout}"
+    );
+    assert!(
+        results[0]["content"]
+            .as_str()
+            .is_some_and(|c| c.contains("DECISION:")),
+        "AC4: authority pin; got {}",
+        results[0]
+    );
+}
+
+#[test]
+fn recall_index_fill__t315_dump_present__pretty_prints_honesty() {
+    let dir = tempdir().expect("tempdir");
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+    let work = dir.path().join("proj");
+    let pid = register_project(&vault, &work);
+    register_path(&vault, &work, &pid);
+    dump_and_authority(&vault, &work, &pid);
+
+    let out = owned_cmd(&vault, &work, &pid)
+        .arg("recall")
+        .arg(T315_QUERY)
+        .arg("--format")
+        .arg("pretty")
+        .arg("--no-bridge")
+        .arg("--limit")
+        .arg("3")
+        .output()
+        .expect("recall pretty dump");
+    assert_eq!(
+        out.status.code(),
+        Some(0),
+        "stderr={}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    assert!(
+        stdout.contains(HONESTY),
+        "AC4b: honesty missing; stdout={stdout}"
+    );
+    assert!(
+        stdout.contains("Track 0008") || stdout.contains("DECISION:"),
+        "AC4b: authority pin missing; stdout={stdout}"
+    );
+    assert!(
+        !stdout.contains("next: ai-brains recall"),
+        "AC4b: dump body must be absent; stdout={stdout}"
+    );
+}
+
+#[test]
+fn search_index_fill__t315_dump_present__json_fills_authority() {
+    let dir = tempdir().expect("tempdir");
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+    let work = dir.path().join("proj");
+    let pid = register_project(&vault, &work);
+    register_path(&vault, &work, &pid);
+    dump_and_authority(&vault, &work, &pid);
+
+    let out = owned_cmd(&vault, &work, &pid)
+        .arg("search")
+        .arg(T315_QUERY)
+        .arg("--format")
+        .arg("json")
+        .arg("--no-bridge")
+        .arg("--limit")
+        .arg("3")
+        .output()
+        .expect("search json dump");
+    assert_eq!(
+        out.status.code(),
+        Some(0),
+        "stderr={}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    let v = parse_last_json_object(&stdout);
+    assert_eq!(v["fill_kind"], "index");
+    assert_eq!(v["results"][0]["source"], "index");
+    assert!(
+        !stdout.contains("next: ai-brains recall"),
+        "AC8: dump body must be absent; stdout={stdout}"
+    );
+}
+
+#[test]
+fn sync_query__t315_dump_present__pretty_honesty() {
+    let dir = tempdir().expect("tempdir");
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+    let work = dir.path().join("proj");
+    let pid = register_project(&vault, &work);
+    register_path(&vault, &work, &pid);
+    dump_and_authority(&vault, &work, &pid);
+
+    let out = owned_cmd(&vault, &work, &pid)
+        .arg("sync")
+        .arg("query")
+        .arg(T315_QUERY)
+        .arg("--no-bridge")
+        .arg("--format")
+        .arg("pretty")
+        .output()
+        .expect("sync query dump");
+    assert_eq!(
+        out.status.code(),
+        Some(0),
+        "stderr={}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    assert!(
+        stdout.contains(HONESTY),
+        "AC9: sync pretty honesty missing; stdout={stdout}"
+    );
+    assert!(
+        !stdout.contains("next: ai-brains recall"),
+        "AC9: dump body must be absent; stdout={stdout}"
     );
 }
