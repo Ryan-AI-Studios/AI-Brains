@@ -13,6 +13,7 @@ use ai_brains_retrieval::{
 use ai_brains_store::event_store::{EventStore, SqliteEventStore};
 
 const UNMATCHED: &str = "zzzzt346nomatch";
+const T315_QUERY: &str = "what did we decide";
 const NIL_PROJECT: uuid::Uuid = uuid::Uuid::nil();
 
 fn append_pinned(
@@ -70,7 +71,7 @@ fn recall_index_fill__fts_empty_authority_pin__honesty_and_hits()
     let store = common::empty_store()?;
     let pin_id = append_pinned(&store, "DECISION: we chose the empty-rescue path")?;
 
-    let outcome = recall_full(store.connection(), None, UNMATCHED, 5, scoped_opts())?;
+    let outcome = recall_full(store.connection(), None, T315_QUERY, 5, scoped_opts())?;
     assert_eq!(
         outcome.hits.len(),
         1,
@@ -88,12 +89,26 @@ fn recall_index_fill__fts_empty_authority_pin__honesty_and_hits()
 }
 
 #[test]
+fn recall_index_fill__unmatched__no_fill() -> Result<(), Box<dyn std::error::Error>> {
+    let store = common::empty_store()?;
+    append_pinned(&store, "DECISION: we chose the empty-rescue path")?;
+
+    let outcome = recall_full(store.connection(), None, UNMATCHED, 5, scoped_opts())?;
+    assert!(
+        outcome.hits.is_empty(),
+        "AC3: unmatched query must not Index-fill; hits={:?}",
+        outcome.hits.iter().map(|h| &h.source).collect::<Vec<_>>()
+    );
+    Ok(())
+}
+
+#[test]
 fn recall_index_fill__lexical__embedding_none_still_fills() -> Result<(), Box<dyn std::error::Error>>
 {
     let store = common::empty_store()?;
     append_pinned(&store, "DECISION: lexical fill must not probe embed")?;
 
-    let outcome = recall_full(store.connection(), None, UNMATCHED, 5, scoped_opts())?;
+    let outcome = recall_full(store.connection(), None, T315_QUERY, 5, scoped_opts())?;
     assert!(
         outcome.embedding.is_none(),
         "AC2: lexical fill must leave embedding None; got {:?}",
@@ -116,7 +131,7 @@ fn recall_index_fill__classify__decision_constraint_not_hotspot_other()
     let hotspot = append_pinned(&store, "HOTSPOT: classify drop")?;
     let other = append_pinned(&store, "unmarked other classify drop")?;
 
-    let outcome = recall_full(store.connection(), None, UNMATCHED, 5, scoped_opts())?;
+    let outcome = recall_full(store.connection(), None, T315_QUERY, 5, scoped_opts())?;
     let ids: Vec<&str> = outcome.hits.iter().map(|h| h.memory_id.as_str()).collect();
     assert!(
         ids.contains(&decision.as_str()),
@@ -166,7 +181,7 @@ fn recall_index_fill__global__no_fill_t111_hint() -> Result<(), Box<dyn std::err
     let store = common::empty_store()?;
     append_pinned(&store, "DECISION: global must not fill")?;
 
-    let outcome = recall_full(store.connection(), None, UNMATCHED, 5, global_opts())?;
+    let outcome = recall_full(store.connection(), None, T315_QUERY, 5, global_opts())?;
     assert!(
         outcome.hits.is_empty(),
         "AC8: --global must not Index-fill; hits={}",
@@ -178,7 +193,7 @@ fn recall_index_fill__global__no_fill_t111_hint() -> Result<(), Box<dyn std::err
 #[test]
 fn recall_index_fill__no_pins__t111_hint() -> Result<(), Box<dyn std::error::Error>> {
     let store = common::empty_store()?;
-    let outcome = recall_full(store.connection(), None, UNMATCHED, 5, scoped_opts())?;
+    let outcome = recall_full(store.connection(), None, T315_QUERY, 5, scoped_opts())?;
     assert!(
         outcome.hits.is_empty(),
         "AC9: no authority pins → empty; hits={}",
@@ -192,7 +207,7 @@ fn recall_index_fill__source_index__not_fts_arm() -> Result<(), Box<dyn std::err
     let store = common::empty_store()?;
     append_pinned(&store, "DECISION: source is index not fts")?;
 
-    let outcome = recall_full(store.connection(), None, UNMATCHED, 5, scoped_opts())?;
+    let outcome = recall_full(store.connection(), None, T315_QUERY, 5, scoped_opts())?;
     assert!(!outcome.hits.is_empty(), "AC10: expected fill hits");
     assert!(
         outcome.hits.iter().all(|h| h.source == "index"),

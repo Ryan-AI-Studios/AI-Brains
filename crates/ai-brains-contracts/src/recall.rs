@@ -58,6 +58,8 @@ pub struct RecallResponse {
         rename = "effective_session_id"
     )]
     pub session_id: Option<String>,
+    /// Empty-state next-action (T111/T361) **or** Index-fill honesty (T362) when
+    /// any result `source` is `"index"`.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub hint: Option<String>,
     /// Present when `--semantic` was requested (T202 honesty).
@@ -69,6 +71,9 @@ pub struct RecallResponse {
     /// T361: project-scoped empty census. Omitted when results nonempty or `--global`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub project_memory_count: Option<u64>,
+    /// T362: `"index"` when any result `source` is Index-fill. Omitted otherwise.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub fill_kind: Option<String>,
 }
 
 #[cfg(test)]
@@ -86,6 +91,7 @@ mod tests {
             embedding: None,
             empty_kind: None,
             project_memory_count: None,
+            fill_kind: None,
         };
         let json = serde_json::to_string(&resp).unwrap();
         assert!(json.contains("session_id"));
@@ -103,6 +109,7 @@ mod tests {
             embedding: None,
             empty_kind: None,
             project_memory_count: None,
+            fill_kind: None,
         };
         let json = serde_json::to_string(&resp).unwrap();
         assert!(!json.contains("session_id"));
@@ -119,6 +126,7 @@ mod tests {
             embedding: None,
             empty_kind: None,
             project_memory_count: None,
+            fill_kind: None,
         };
         let json = serde_json::to_string(&resp).unwrap();
         assert!(
@@ -142,6 +150,7 @@ mod tests {
             }),
             empty_kind: None,
             project_memory_count: None,
+            fill_kind: None,
         };
         let json = serde_json::to_string(&resp).unwrap();
         assert!(json.contains("\"embedding\""));
@@ -240,5 +249,46 @@ mod tests {
         assert!(score < 0.05, "RRF rank-1 alone is ~0.016, not a cosine");
         assert_eq!(v["score_kind"], "rrf");
         assert!((v["cosine"].as_f64().unwrap() - 0.81).abs() < 1e-12);
+    }
+
+    #[test]
+    #[allow(clippy::disallowed_methods)]
+    #[allow(non_snake_case)]
+    fn recall_response__serializes_fill_kind() {
+        let resp = RecallResponse {
+            results: vec![],
+            session_id: None,
+            hint: Some("No FTS hits; showing in-scope pins".into()),
+            embedding: None,
+            empty_kind: None,
+            project_memory_count: None,
+            fill_kind: Some("index".into()),
+        };
+        let json = serde_json::to_string(&resp).unwrap();
+        assert!(json.contains("\"fill_kind\":\"index\""));
+        assert!(json.contains("No FTS hits; showing in-scope pins"));
+    }
+
+    #[test]
+    #[allow(clippy::disallowed_methods)]
+    #[allow(non_snake_case)]
+    fn recall_response__omits_none_fill_kind() {
+        let resp = RecallResponse {
+            results: vec![],
+            session_id: None,
+            hint: None,
+            embedding: None,
+            empty_kind: None,
+            project_memory_count: None,
+            fill_kind: None,
+        };
+        let json = serde_json::to_string(&resp).unwrap();
+        assert!(
+            !json.contains("fill_kind"),
+            "fill_kind omitted when None; got {json}"
+        );
+        let legacy = r#"{"results":[]}"#;
+        let parsed: RecallResponse = serde_json::from_str(legacy).unwrap();
+        assert!(parsed.fill_kind.is_none());
     }
 }

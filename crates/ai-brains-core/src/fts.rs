@@ -115,6 +115,33 @@ pub fn is_contentless_query(query: &str) -> bool {
     contentful_tokens(&extract_fts_tokens(query)).is_empty()
 }
 
+/// Closed token set for T346 Index-fill eligibility (T362 F1).
+///
+/// T315 `what did we decide` is eligible via `decide`. Porter stems
+/// (`decided`, `chose`) are intentionally absent.
+const INDEX_FILL_ELIGIBLE_TOKENS: &[&str] = &[
+    "decide",
+    "decision",
+    "decisions",
+    "constraint",
+    "constraints",
+    "invariant",
+    "invariants",
+];
+
+/// True when Phase 2c Index-authority fill may run (T362).
+///
+/// Uses [`extract_fts_tokens`] + [`contentful_tokens`]. Contentless and
+/// unmatched queries return false so T361 `query_miss` can fire.
+pub fn index_fill_eligible(query: &str) -> bool {
+    contentful_tokens(&extract_fts_tokens(query))
+        .iter()
+        .any(|token| {
+            let lower = token.to_ascii_lowercase();
+            INDEX_FILL_ELIGIBLE_TOKENS.contains(&lower.as_str())
+        })
+}
+
 #[cfg(test)]
 #[allow(non_snake_case)] // TDD names use __ separators
 mod tests {
@@ -353,5 +380,26 @@ mod tests {
         assert!(is_contentless_query("what's"));
         assert!(!is_contentless_query("i'll"));
         assert!(!is_contentless_query("don't"));
+    }
+
+    #[test]
+    fn index_fill_eligible__t315_decide__true() {
+        assert!(index_fill_eligible("what did we decide"));
+        assert!(index_fill_eligible("What Did We Decide"));
+        assert!(index_fill_eligible("list constraints"));
+        assert!(index_fill_eligible("project invariants"));
+        assert!(index_fill_eligible("decisions"));
+    }
+
+    #[test]
+    fn index_fill_eligible__unmatched_and_contentless__false() {
+        assert!(!index_fill_eligible("zzzzt346nomatch"));
+        assert!(!index_fill_eligible("zzzz-t362-nohit"));
+        assert!(!index_fill_eligible(""));
+        assert!(!index_fill_eligible("   "));
+        assert!(!index_fill_eligible("the the the"));
+        assert!(!index_fill_eligible("chose the path"));
+        assert!(!index_fill_eligible("decided"));
+        assert!(!index_fill_eligible("constrained"));
     }
 }

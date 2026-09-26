@@ -17,6 +17,8 @@ Version banners in documentation are maintained manually from the workspace `Car
 
 ### Changed
 
+- **T362 Index-fill query gate:** T346 Index fill runs only when a contentful token is in `decide` / `decision(s)` / `constraint(s)` / `invariant(s)` (T315 `what did we decide` still fills). Unmatched FTS-empty queries stay T361 `query_miss`. Fill JSON adds omit-if-none `fill_kind: "index"` and `hint` = `No FTS hits; showing in-scope pins`. `chose` / `decided` / `constrained` do not fill (Porter declined). `sync query` and daemon `query_memories` inherit the gate.
+
 - **T361 Consumer freshness:** `project detect` human/`--export` and JSON `label` use `detect_lead_label` (human alias wins; path-like alias keeps a human name). Empty `recall` JSON adds omit-if-none `empty_kind` (`empty_scope` / `query_miss` / `scope_unowned`) and `project_memory_count`. Project-scoped `--summary` with 0 pins next-steps `capture coverage` (grants still win; scope-none stays T315).
 
 - **T360 Capture coverage honesty:** Numbered `disk_eligible > vault` is `deficit` (reverses the T337 vault-0-only watermark). Grok `eligible > vault` is `unverifiable_subagent` + `grok-import --days N --dry-run` (never `--force`). Zero disk and zero vault is `never_exercised`. Doctor `harness_wiring` stays presence-only (15 checks).
