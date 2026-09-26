@@ -8,12 +8,17 @@ use ai_brains_core::privacy::Privacy;
 use ai_brains_events::constructors::EventBuilder;
 use ai_brains_events::{Actor, AggregateType, MemoryPinnedPayload, Payload};
 use ai_brains_retrieval::{
-    RecallHit, RecallOptions, has_fts_arm, merge_bridge_then_local, recall_full,
+    LexicalSearchOptions, RecallHit, RecallOptions, has_fts_arm, lexical_search,
+    merge_bridge_then_local, recall_full,
 };
 use ai_brains_store::event_store::{EventStore, SqliteEventStore};
 
 const UNMATCHED: &str = "zzzzt346nomatch";
 const T315_QUERY: &str = "what did we decide";
+const T315_DUMP: &str = r#"ASSISTANT: next: ai-brains recall "what did we decide""#;
+const AUTH_NO_PHRASE: &str = "ASSISTANT: DECISION: Track 0008 shipped";
+const LIKE_ONLY: &str = "blacklist constraints";
+const LIST_CONSTRAINTS: &str = "list constraints";
 const NIL_PROJECT: uuid::Uuid = uuid::Uuid::nil();
 
 fn append_pinned(
@@ -258,4 +263,117 @@ fn recall_index_fill__phase2c__bridge_hit_does_not_suppress() {
         blended.iter().any(|h| h.source == "bridge"),
         "AC11: bridge hit still present"
     );
+}
+
+#[test]
+fn recall_index_fill__t315_phrase_dump__fills_authority() -> Result<(), Box<dyn std::error::Error>>
+{
+    let store = common::empty_store()?;
+    let dump_id = append_pinned(&store, T315_DUMP)?;
+    let auth_id = append_pinned(&store, AUTH_NO_PHRASE)?;
+
+    let outcome = recall_full(store.connection(), None, T315_QUERY, 3, scoped_opts())?;
+    assert_eq!(
+        outcome.hits.len(),
+        1,
+        "AC1: dump must not occupy results; hits={:?}",
+        outcome
+            .hits
+            .iter()
+            .map(|h| (h.memory_id.as_str(), h.source.as_str()))
+            .collect::<Vec<_>>()
+    );
+    assert_eq!(outcome.hits[0].memory_id, auth_id);
+    assert_eq!(outcome.hits[0].source, "index");
+    assert!(
+        outcome.hits[0].content.contains("DECISION:"),
+        "AC1: fill must be the authority pin; content={}",
+        outcome.hits[0].content
+    );
+    assert_ne!(
+        outcome.hits[0].memory_id, dump_id,
+        "AC1: dump id must not be the hit"
+    );
+    Ok(())
+}
+
+#[test]
+fn lexical_search__index_shaped_t315__no_pass2_dump() -> Result<(), Box<dyn std::error::Error>> {
+    let store = common::empty_store()?;
+    append_pinned(&store, T315_DUMP)?;
+    append_pinned(&store, AUTH_NO_PHRASE)?;
+
+    let results = lexical_search(
+        store.connection(),
+        T315_QUERY,
+        Some(ProjectId::from_uuid(NIL_PROJECT)),
+        None,
+        LexicalSearchOptions {
+            rescue: true,
+            limit: 3,
+            exclude_symbol_stubs: true,
+            prefer_authority: true,
+        },
+    )?;
+    assert!(
+        results.is_empty(),
+        "AC2: Index-shaped pass-2 dump must be skipped; got {:?}",
+        results
+            .iter()
+            .map(|m| m.content.as_str())
+            .collect::<Vec<_>>()
+    );
+    Ok(())
+}
+
+#[test]
+fn recall_index_fill__index_shaped_skips_like() -> Result<(), Box<dyn std::error::Error>> {
+    let store = common::empty_store()?;
+    let like_id = append_pinned(&store, LIKE_ONLY)?;
+    let auth_id = append_pinned(&store, AUTH_NO_PHRASE)?;
+
+    let outcome = recall_full(store.connection(), None, LIST_CONSTRAINTS, 3, scoped_opts())?;
+    assert_eq!(
+        outcome.hits.len(),
+        1,
+        "AC10: LIKE-only Other must not starve fill; hits={:?}",
+        outcome
+            .hits
+            .iter()
+            .map(|h| (h.memory_id.as_str(), h.source.as_str(), h.content.as_str()))
+            .collect::<Vec<_>>()
+    );
+    assert_eq!(outcome.hits[0].memory_id, auth_id);
+    assert_eq!(outcome.hits[0].source, "index");
+    assert_ne!(outcome.hits[0].memory_id, like_id);
+    Ok(())
+}
+
+#[test]
+fn recall_index_fill__global_index_shaped__no_chrome_dump() -> Result<(), Box<dyn std::error::Error>>
+{
+    let store = common::empty_store()?;
+    let dump_id = append_pinned(&store, T315_DUMP)?;
+    append_pinned(&store, AUTH_NO_PHRASE)?;
+
+    let outcome = recall_full(store.connection(), None, T315_QUERY, 3, global_opts())?;
+    assert!(
+        outcome.hits.iter().all(|h| h.memory_id != dump_id),
+        "AC11: global Index-shaped must not dump chrome; hits={:?}",
+        outcome
+            .hits
+            .iter()
+            .map(|h| (h.memory_id.as_str(), h.source.as_str()))
+            .collect::<Vec<_>>()
+    );
+    assert!(
+        outcome.hits.iter().all(|h| h.source != "index"),
+        "AC11: --global must not Index-fill; hits={:?}",
+        outcome
+            .hits
+            .iter()
+            .map(|h| h.source.as_str())
+            .collect::<Vec<_>>()
+    );
+    Ok(())
 }

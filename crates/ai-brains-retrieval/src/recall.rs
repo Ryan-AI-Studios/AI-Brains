@@ -400,7 +400,8 @@ pub fn recall_full(
 
     // Phase 2b: If FTS ladder returned nothing, try a substring LIKE scan (T105).
     // Limited to small project scopes to avoid expensive full-table scans.
-    if local_hits.is_empty() {
+    // T364 F2: Index-shaped queries skip LIKE so chrome dumps cannot starve fill.
+    if local_hits.is_empty() && !index_fill_eligible(query) {
         let fallback =
             substring_fallback(conn, query, project_id, session_id, limit, exclude_stubs)?;
         if !fallback.is_empty() {
