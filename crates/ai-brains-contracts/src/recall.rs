@@ -63,6 +63,12 @@ pub struct RecallResponse {
     /// Present when `--semantic` was requested (T202 honesty).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub embedding: Option<EmbeddingStatusDto>,
+    /// T361: `empty_scope` | `query_miss` | `scope_unowned`. Omitted when results nonempty or `--global`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub empty_kind: Option<String>,
+    /// T361: project-scoped empty census. Omitted when results nonempty or `--global`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub project_memory_count: Option<u64>,
 }
 
 #[cfg(test)]
@@ -78,6 +84,8 @@ mod tests {
             session_id: Some("test-session".to_string()),
             hint: None,
             embedding: None,
+            empty_kind: None,
+            project_memory_count: None,
         };
         let json = serde_json::to_string(&resp).unwrap();
         assert!(json.contains("session_id"));
@@ -93,6 +101,8 @@ mod tests {
             session_id: None,
             hint: None,
             embedding: None,
+            empty_kind: None,
+            project_memory_count: None,
         };
         let json = serde_json::to_string(&resp).unwrap();
         assert!(!json.contains("session_id"));
@@ -107,6 +117,8 @@ mod tests {
             session_id: None,
             hint: None,
             embedding: None,
+            empty_kind: None,
+            project_memory_count: None,
         };
         let json = serde_json::to_string(&resp).unwrap();
         assert!(
@@ -128,6 +140,8 @@ mod tests {
                 endpoint: Some("http://127.0.0.1:8083".to_string()),
                 detail: Some("connection refused".to_string()),
             }),
+            empty_kind: None,
+            project_memory_count: None,
         };
         let json = serde_json::to_string(&resp).unwrap();
         assert!(json.contains("\"embedding\""));

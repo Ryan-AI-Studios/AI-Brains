@@ -397,6 +397,78 @@ pub(crate) fn sanitize_alias_suggestion(slug: &str) -> String {
 // Pure display helpers (F4 / F7 / F36) — unit-tested without vault spawn
 // ---------------------------------------------------------------------------
 
+/// True when an alias is a filesystem path (this-repo `C:\dev\ai-brains`), not a
+/// human label (`OrcaSlicer`). Drive `X:` counts as path-like.
+pub(crate) fn alias_is_path_like(alias: &str) -> bool {
+    if alias.contains('/') || alias.contains('\\') {
+        return true;
+    }
+    let b = alias.as_bytes();
+    b.len() >= 2 && b[0].is_ascii_alphabetic() && b[1] == b':'
+}
+
+/// Detect human/JSON lead token (T361 F1). Non-path alias wins; path-like alias
+/// keeps a human stored name; otherwise [`display_label`].
+pub(crate) fn detect_lead_label(name: &str, alias: &str, project_id: &str) -> String {
+    if !alias.is_empty() && !alias_is_path_like(alias) {
+        return alias.to_string();
+    }
+    if !name.starts_with("(no alias)")
+        && !name.trim().is_empty()
+        && !is_non_human_project_name(name, project_id)
+    {
+        return name.to_string();
+    }
+    display_label(name, alias, project_id)
+}
+
+/// Human success line for `project detect` (T361 AC1).
+pub(crate) fn format_detect_success_line(
+    source: DetectSource,
+    name: &str,
+    alias: &str,
+    pid: &str,
+    count: usize,
+) -> String {
+    let lead = detect_lead_label(name, alias, pid);
+    match source {
+        DetectSource::PathAlias => format!(
+            "Detected project from path alias: {lead} ({pid}) | alias={alias} | memories={count}"
+        ),
+        DetectSource::GitSlug => {
+            format!("Detected project from git: {lead} ({pid}) | alias={alias} | memories={count}")
+        }
+        DetectSource::Env => {
+            format!("Detected project from .env: {lead} ({pid}) | alias={alias} (from .env)")
+        }
+    }
+}
+
+/// `--export` comment after `export AI_BRAINS_PROJECT_ID=` (T361 Agy m2).
+pub(crate) fn format_detect_export_comment(
+    source: DetectSource,
+    name: &str,
+    alias: &str,
+    pid: &str,
+    count: usize,
+) -> String {
+    let lead = detect_lead_label(name, alias, pid);
+    match source {
+        DetectSource::PathAlias => format!(
+            "# AI-Brains project detected: {lead} | alias={alias} | memories={count} | from path_alias | source={}",
+            source.as_str()
+        ),
+        DetectSource::GitSlug => format!(
+            "# AI-Brains project detected: {lead} | alias={alias} | memories={count} | from git | source={}",
+            source.as_str()
+        ),
+        DetectSource::Env => format!(
+            "# AI-Brains project detected from .env: {lead} | alias={alias} (from .env) | source={}",
+            source.as_str()
+        ),
+    }
+}
+
 /// F4 / T230: human label order — alias → baked `(no alias)` → empty/ws name →
 /// Project uuid / id → name. Never returns empty string (orphan ids use empty name).
 pub(crate) fn display_label(name: &str, alias: &str, project_id: &str) -> String {
@@ -575,6 +647,8 @@ struct DetectReport {
     project_id: Option<String>,
     name: Option<String>,
     alias: Option<String>,
+    /// T361 F1: `detect_lead_label`. Null on miss/ambiguous like `name` (no skip).
+    label: Option<String>,
     memories: Option<i64>,
     source: String,
     notes: Vec<String>,
@@ -584,12 +658,13 @@ struct DetectReport {
     message: Option<String>,
 }
 
-fn emit_detect_json(outcome: Option<&DetectOutcome>) -> Result<(), Box<dyn std::error::Error>> {
-    let report = match outcome {
+fn build_detect_report(outcome: Option<&DetectOutcome>) -> DetectReport {
+    match outcome {
         None => DetectReport {
             project_id: None,
             name: None,
             alias: None,
+            label: None,
             memories: None,
             source: crate::commands::identity_warn::detect_source_label(None).to_string(),
             notes: Vec::new(),
@@ -603,6 +678,7 @@ fn emit_detect_json(outcome: Option<&DetectOutcome>) -> Result<(), Box<dyn std::
             project_id: None,
             name: None,
             alias: None,
+            label: None,
             memories: None,
             source: crate::commands::identity_warn::detect_source_label(Some(o)).to_string(),
             notes: o.notes.clone(),
@@ -615,6 +691,7 @@ fn emit_detect_json(outcome: Option<&DetectOutcome>) -> Result<(), Box<dyn std::
                 project_id: Some(pid.clone()),
                 name: Some(name.clone()),
                 alias: Some(alias.clone()),
+                label: Some(detect_lead_label(name, alias, pid)),
                 memories: Some(i64::try_from(*count).unwrap_or(i64::MAX)),
                 source: crate::commands::identity_warn::detect_source_label(Some(o)).to_string(),
                 notes: o.notes.clone(),
@@ -622,8 +699,11 @@ fn emit_detect_json(outcome: Option<&DetectOutcome>) -> Result<(), Box<dyn std::
                 message: None,
             }
         }
-    };
-    print_json_stdout(&report)
+    }
+}
+
+fn emit_detect_json(outcome: Option<&DetectOutcome>) -> Result<(), Box<dyn std::error::Error>> {
+    print_json_stdout(&build_detect_report(outcome))
 }
 
 pub fn detect(
@@ -682,7 +762,6 @@ pub fn detect(
     }
 
     let (pid, name, alias, count) = &outcome.project;
-    let source = outcome.source.as_str();
 
     // Conflict notes always on stderr (even with --export).
     for note in &outcome.notes {
@@ -694,13 +773,13 @@ pub fn detect(
             if export_shell {
                 println!("export AI_BRAINS_PROJECT_ID={}", pid);
                 println!(
-                    "# AI-Brains project detected: {} | alias={} | memories={} | from path_alias | source={}",
-                    name, alias, count, source
+                    "{}",
+                    format_detect_export_comment(outcome.source, name, alias, pid, *count)
                 );
             } else {
                 println!(
-                    "Detected project from path alias: {} ({}) | alias={} | memories={}",
-                    name, pid, alias, count
+                    "{}",
+                    format_detect_success_line(outcome.source, name, alias, pid, *count)
                 );
             }
         }
@@ -708,13 +787,13 @@ pub fn detect(
             if export_shell {
                 println!("export AI_BRAINS_PROJECT_ID={}", pid);
                 println!(
-                    "# AI-Brains project detected: {} | alias={} | memories={} | from git | source={}",
-                    name, alias, count, source
+                    "{}",
+                    format_detect_export_comment(outcome.source, name, alias, pid, *count)
                 );
             } else {
                 println!(
-                    "Detected project from git: {} ({}) | alias={} | memories={}",
-                    name, pid, alias, count
+                    "{}",
+                    format_detect_success_line(outcome.source, name, alias, pid, *count)
                 );
             }
         }
@@ -727,16 +806,16 @@ pub fn detect(
                 }
                 println!("export AI_BRAINS_PROJECT_ID={}", pid);
                 println!(
-                    "# AI-Brains project detected from .env: {} | alias={} (from .env) | source={}",
-                    name, alias, source
+                    "{}",
+                    format_detect_export_comment(outcome.source, name, alias, pid, *count)
                 );
             } else {
                 if let Some(ref w) = outcome.env_warn {
                     eprintln!("{}", w);
                 }
                 println!(
-                    "Detected project from .env: {} ({}) | alias={} (from .env)",
-                    name, pid, alias
+                    "{}",
+                    format_detect_success_line(outcome.source, name, alias, pid, *count)
                 );
             }
         }
@@ -1515,6 +1594,66 @@ mod tests {
     }
 
     // --- T212 display_label / truncate / last_activity ---
+
+    #[test]
+    fn detect_lead_label__alias_is_path__leads_with_human_name() {
+        let pid = "3581317d-601e-44f7-ab84-fde90aa12d3c";
+        assert_eq!(
+            detect_lead_label("ai-brains", r"C:\dev\ai-brains", pid),
+            "ai-brains"
+        );
+        assert_eq!(
+            detect_lead_label("ai-brains", "/mnt/c/dev/ai-brains", pid),
+            "ai-brains"
+        );
+    }
+
+    #[test]
+    fn detect_success_line__aliased_bake__leads_with_display_label() {
+        let pid = "62417123-a28e-a8ab-0000-000000000000";
+        let line = format_detect_success_line(
+            DetectSource::PathAlias,
+            "(no alias) — 62417123",
+            "OrcaSlicer",
+            pid,
+            4362,
+        );
+        assert!(
+            line.starts_with("Detected project from path alias: OrcaSlicer ("),
+            "lead token OrcaSlicer; got {line}"
+        );
+        assert!(line.contains("alias=OrcaSlicer"), "got {line}");
+        assert!(line.contains("memories=4362"), "got {line}");
+        assert!(
+            !line.contains("(no alias)"),
+            "must not lead with bake; got {line}"
+        );
+    }
+
+    #[test]
+    fn emit_detect_json__aliased__label_not_baked_name() {
+        let pid = "62417123-a28e-a8ab-0000-000000000000".to_string();
+        let outcome = DetectOutcome {
+            project: (
+                pid.clone(),
+                "(no alias) — 62417123".into(),
+                "OrcaSlicer".into(),
+                4362,
+            ),
+            source: DetectSource::PathAlias,
+            notes: Vec::new(),
+            env_warn: None,
+        };
+        let v = serde_json::to_value(build_detect_report(Some(&outcome))).expect("json");
+        assert_eq!(v["name"], "(no alias) — 62417123");
+        assert_eq!(v["alias"], "OrcaSlicer");
+        assert_eq!(v["memories"], 4362);
+        assert_eq!(v["label"], "OrcaSlicer");
+        let miss = serde_json::to_value(build_detect_report(None)).expect("miss");
+        assert!(miss["label"].is_null(), "E1 miss label null; got {miss}");
+        assert!(miss["name"].is_null());
+        assert!(miss.get("label").is_some());
+    }
 
     #[test]
     fn display_label__nonempty_alias__returns_alias() {

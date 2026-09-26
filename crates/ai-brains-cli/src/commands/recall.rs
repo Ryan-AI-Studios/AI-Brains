@@ -1,3 +1,5 @@
+use crate::commands::preflight::location_unowned_for_pid;
+use crate::commands::project::{collect_git_identity, resolve_path_alias_for_location};
 use crate::context::AppContext;
 use ai_brains_contracts::recall::{RecallResponse, RecallResult};
 use ai_brains_core::ids::{MemoryId, ProjectId, SessionId};
@@ -283,6 +285,8 @@ pub fn run(
         hint: None,
         // F2: include embedding only when --semantic (status may be ok/unreachable/…).
         embedding,
+        empty_kind: None,
+        project_memory_count: None,
     };
     let embedding_status = embedding_status_owned.as_deref();
 
@@ -316,7 +320,7 @@ pub fn run(
                     None
                 };
                 // T231 F12/F37: empty recall pretty includes ledger next-step (sync empty does not).
-                let hint = build_recall_hint(
+                let empty = load_recall_empty_outcome(
                     &ctx.conn,
                     &options.query,
                     options.semantic,
@@ -324,15 +328,14 @@ pub fn run(
                     options.project_id,
                     embedding_status,
                     true,
-                )?
-                .unwrap_or_default();
+                )?;
                 println!(
                     "{}",
                     format_pretty_empty_state(
                         &scope_line,
                         session_for_print,
                         embedding_line.as_deref(),
-                        &hint,
+                        &empty.hint,
                     )
                 );
             } else {
@@ -375,8 +378,7 @@ pub fn run(
         _ => {
             let mut response = response;
             if response.results.is_empty() {
-                // JSON agent path: no sync-query next-step (pretty-only discovery chrome).
-                response.hint = build_recall_hint(
+                let empty = load_recall_empty_outcome(
                     &ctx.conn,
                     &options.query,
                     options.semantic,
@@ -385,6 +387,9 @@ pub fn run(
                     embedding_status,
                     false,
                 )?;
+                response.hint = Some(empty.hint).filter(|s| !s.is_empty());
+                response.empty_kind = empty.empty_kind;
+                response.project_memory_count = empty.project_memory_count;
             }
             crate::commands::identity_warn::note_machine_stdout();
             println!("{}", serde_json::to_string(&response)?);
@@ -527,8 +532,8 @@ pub fn print_pretty_empty_sync(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let scope_line = resolve_active_scope_line(ctx.conn.as_ref(), global, project_id.as_ref())?;
     // T231 F37/AC8b: include_sync_query_hint = false (no circular self-mention).
-    let hint = build_recall_hint(&ctx.conn, query, false, global, project_id, None, false)?
-        .unwrap_or_default();
+    let hint =
+        load_recall_empty_outcome(&ctx.conn, query, false, global, project_id, None, false)?.hint;
     println!(
         "{}",
         format_pretty_empty_state(&scope_line, None, None, &hint)
@@ -637,12 +642,111 @@ fn format_pretty_empty_state(
     lines.join("\n")
 }
 
-/// Build a contextual hint when recall returns zero results (T111 / T202 F6 / T207 F6 / T231).
-///
-/// `include_sync_query_hint` (T231 F12/F37): when true, append ledger next-step after the
-/// core hint. Recall empty pretty passes true; `print_pretty_empty_sync` passes false
-/// so sync empty does not self-mention `sync query`.
-fn build_recall_hint(
+/// T361 empty-recall classification (pure). `unowned` is already fail-open resolved.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct RecallEmptyOutcome {
+    pub empty_kind: Option<String>,
+    pub project_memory_count: Option<u64>,
+    pub hint: String,
+}
+
+pub(crate) fn census_line(count: usize) -> String {
+    if count == 0 {
+        "This project has 0 memories.".to_string()
+    } else if count < 10 {
+        format!("This project has only {count} memories — results may be limited.")
+    } else {
+        format!("This project has {count} memories.")
+    }
+}
+
+/// Probe `Err` → not unowned (T361 F3 fail-open). `Ok(None)` with a pid is unowned.
+pub(crate) fn unowned_from_probe(probe: Result<Option<&str>, ()>, pid: Option<&ProjectId>) -> bool {
+    match probe {
+        Err(()) => false,
+        Ok(owner) => location_unowned_for_pid(owner, pid),
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn classify_recall_empty(
+    query: &str,
+    semantic: bool,
+    global: bool,
+    embedding_status: Option<&str>,
+    include_sync_query_hint: bool,
+    count: usize,
+    unowned: bool,
+    project_scoped: bool,
+) -> RecallEmptyOutcome {
+    if global || !project_scoped {
+        return RecallEmptyOutcome {
+            empty_kind: None,
+            project_memory_count: None,
+            hint: build_recall_hint_core(
+                query,
+                semantic,
+                global,
+                embedding_status,
+                false,
+                include_sync_query_hint,
+            ),
+        };
+    }
+    let count_u = count as u64;
+    if unowned {
+        let mut hint = build_recall_hint_core(
+            query,
+            semantic,
+            false,
+            embedding_status,
+            true,
+            include_sync_query_hint,
+        );
+        hint.push_str(
+            "\nThis cwd is not registered to the bound project. next: ai-brains project whoami\n",
+        );
+        hint.push_str(&census_line(count));
+        return RecallEmptyOutcome {
+            empty_kind: Some("scope_unowned".to_string()),
+            project_memory_count: Some(count_u),
+            hint,
+        };
+    }
+    if count == 0 {
+        let mut hint = format!(
+            "No results for '{query}'.\nThis project has 0 memories.\nnext: ai-brains capture coverage"
+        );
+        if include_sync_query_hint {
+            let q_display = sync_query_hint_query(query);
+            hint.push_str(&format!(
+                "\nFor vault + Ledgerful ledger in one view: ai-brains sync query \"{q_display}\" --format pretty"
+            ));
+        }
+        return RecallEmptyOutcome {
+            empty_kind: Some("empty_scope".to_string()),
+            project_memory_count: Some(0),
+            hint,
+        };
+    }
+    let mut hint = build_recall_hint_core(
+        query,
+        semantic,
+        false,
+        embedding_status,
+        true,
+        include_sync_query_hint,
+    );
+    hint.push('\n');
+    hint.push_str(&census_line(count));
+    RecallEmptyOutcome {
+        empty_kind: Some("query_miss".to_string()),
+        project_memory_count: Some(count_u),
+        hint,
+    }
+}
+
+fn load_recall_empty_outcome(
     conn: &ai_brains_store::VaultConnection,
     query: &str,
     semantic: bool,
@@ -650,28 +754,48 @@ fn build_recall_hint(
     project_id: Option<ProjectId>,
     embedding_status: Option<&str>,
     include_sync_query_hint: bool,
-) -> Result<Option<String>, Box<dyn std::error::Error>> {
-    let project_scoped = !global && project_id.is_some();
-    let mut hint = build_recall_hint_core(
+) -> Result<RecallEmptyOutcome, Box<dyn std::error::Error>> {
+    let count = if global {
+        0
+    } else {
+        project_memory_count(conn, project_id)?
+    };
+    let unowned = if global {
+        false
+    } else {
+        probe_empty_recall_unowned(conn, project_id.as_ref())
+    };
+    Ok(classify_recall_empty(
         query,
         semantic,
         global,
         embedding_status,
-        project_scoped,
         include_sync_query_hint,
-    );
+        count,
+        unowned,
+        !global && project_id.is_some(),
+    ))
+}
 
-    if !global {
-        let count = project_memory_count(conn, project_id)?;
-        if count < 10 {
-            hint.push_str(&format!(
-                "\nThis project has only {} memories — results may be limited. Consider importing more sessions.",
-                count
-            ));
-        }
+fn probe_empty_recall_unowned(
+    conn: &ai_brains_store::VaultConnection,
+    project_id: Option<&ProjectId>,
+) -> bool {
+    let Some(pid) = project_id else {
+        return false;
+    };
+    let cwd = match std::env::current_dir() {
+        Ok(c) => c,
+        Err(_) => return false,
+    };
+    let git = match collect_git_identity(&cwd) {
+        Ok(g) => g,
+        Err(_) => return false,
+    };
+    match resolve_path_alias_for_location(conn, &cwd, &git) {
+        Ok(owner) => unowned_from_probe(Ok(owner.as_deref()), Some(pid)),
+        Err(_) => unowned_from_probe(Err(()), Some(pid)),
     }
-
-    Ok(Some(hint))
 }
 
 /// Core empty-result hint. When embedding status is present and not `ok`, omit the
@@ -817,6 +941,83 @@ mod tests {
         // T243 F3 / AI2 L2: do not catch-all unknown formats to json here.
         assert_eq!(resolve_format(Some("ndjson"), true), "ndjson");
         assert_eq!(resolve_format(Some("ndjson"), false), "ndjson");
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn classify_recall_empty__zero_memories__empty_scope_names_coverage() {
+        let out = classify_recall_empty("zzzz", false, false, None, false, 0, false, true);
+        assert_eq!(out.empty_kind.as_deref(), Some("empty_scope"));
+        assert_eq!(out.project_memory_count, Some(0));
+        assert!(
+            out.hint.contains("This project has 0 memories."),
+            "got {}",
+            out.hint
+        );
+        assert!(out.hint.contains("capture coverage"), "got {}", out.hint);
+        assert!(
+            !out.hint.contains("--semantic"),
+            "empty_scope must not lead with --semantic; got {}",
+            out.hint
+        );
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn classify_recall_empty__nonzero_census__query_miss_keeps_t111() {
+        let twelve = classify_recall_empty("zzzz", false, false, None, false, 12, false, true);
+        assert_eq!(twelve.empty_kind.as_deref(), Some("query_miss"));
+        assert_eq!(twelve.project_memory_count, Some(12));
+        assert!(
+            twelve.hint.contains("This project has 12 memories."),
+            "got {}",
+            twelve.hint
+        );
+        assert!(
+            !twelve.hint.contains("only 12"),
+            "N>=10 must not say only; got {}",
+            twelve.hint
+        );
+        assert!(
+            !twelve.hint.contains("results may be limited"),
+            "got {}",
+            twelve.hint
+        );
+        assert!(
+            twelve.hint.contains("--semantic") || twelve.hint.contains("--global"),
+            "got {}",
+            twelve.hint
+        );
+        let three = classify_recall_empty("zzzz", false, false, None, false, 3, false, true);
+        assert!(
+            three
+                .hint
+                .contains("This project has only 3 memories — results may be limited."),
+            "got {}",
+            three.hint
+        );
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn classify_recall_empty__global__omits_kind_and_census() {
+        let out = classify_recall_empty("zzzz", false, true, None, false, 0, false, false);
+        assert!(out.empty_kind.is_none());
+        assert!(out.project_memory_count.is_none());
+        assert!(out.hint.contains("across all projects"), "got {}", out.hint);
+        assert!(!out.hint.contains("This project has"), "got {}", out.hint);
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn unowned_from_probe__err__not_unowned() {
+        let pid = ProjectId::from_str("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa").expect("uuid");
+        assert!(!unowned_from_probe(Err(()), Some(&pid)));
+        assert!(unowned_from_probe(Ok(None), Some(&pid)));
+        assert!(!unowned_from_probe(
+            Ok(Some("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")),
+            Some(&pid)
+        ));
     }
 
     #[test]

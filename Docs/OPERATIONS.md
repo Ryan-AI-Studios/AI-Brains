@@ -76,6 +76,7 @@ ai-brains capture coverage --global
 - Status `never_exercised` means this-scope disk and vault are both empty (numbered `Some(0)` / 0 / 0, or unscoped/OpenCode `disk_eligible=null` with vault 0). Next step names `capture coverage` (project unscoped names `--global`). Install presence stays `harness status`. A project run can be `never_exercised` while `--global` shows sessions.
 - OpenCode disk cell is `—` / JSON `null` (`requires_opencode_bin`). Missing binary in `last_multi_import` → `expected_skip` with next step `set AI_BRAINS_OPENCODE_BIN`. Binary present and vault 0 → `never_exercised`.
 - Pre-T334 three-source `last_multi_import` blobs warn `stale_multi_import` (`skip_reason=absent_pre_t334`). PATH may still lack `cursor-import` until the owner installs the T334 binary.
+- `preflight --summary` `capture: this-project vault sessions=0` with `Pinned memories: N>0` means this project has imported (or otherwise pinned) memories and no this-project `SessionStarted` capture — it is **not** an empty project. Empty recall names the pin census; a project-scoped empty vault's next step is `ai-brains capture coverage`.
 
 ### Antigravity Import
 Bulk-import Antigravity conversation logs from local tool-specific brain dirs.
