@@ -134,6 +134,7 @@ pub(crate) fn build_preflight_summary_json(
 
 const LAST_DECISION_MAX_BYTES: usize = 100;
 pub(crate) const SUMMARY_NEXT_CONTEXT: &str = "next: ai-brains context";
+pub(crate) const SUMMARY_NEXT_COVERAGE: &str = "next: ai-brains capture coverage";
 
 fn truncate_utf8_bytes(s: &str, max_bytes: usize) -> String {
     let end = s.floor_char_boundary(max_bytes.min(s.len()));
@@ -212,12 +213,17 @@ pub(crate) fn select_summary_next_step(
     location_unowned_for_this_pid: bool,
     grants_incomplete: bool,
     decision_count: usize,
+    pinned_memories: u64,
+    project_scoped: bool,
 ) -> Option<String> {
     if location_unowned_for_this_pid {
         return Some(SUMMARY_NEXT_CONTEXT.to_string());
     }
     if grants_incomplete {
         return Some(POLICY_BOOTSTRAP_SOOT_SHORT.to_string());
+    }
+    if project_scoped && pinned_memories == 0 {
+        return Some(SUMMARY_NEXT_COVERAGE.to_string());
     }
     format_summary_empty_decisions_next(decision_count)
 }
@@ -1170,11 +1176,13 @@ fn print_summary(
     let leftover_id = leftover_human.as_ref().and_then(|_| captured.clone());
     let last_decision = compose_last_decision(ctx.conn.as_ref(), global, project_id.as_ref(), text);
     let grants_incomplete = grants_count.is_some_and(|n| n < 3);
-    let next_step = if project_scoped {
-        select_summary_next_step(unowned, grants_incomplete, decision_count)
-    } else {
-        select_summary_next_step(false, grants_incomplete, decision_count)
-    };
+    let next_step = select_summary_next_step(
+        project_scoped && unowned,
+        grants_incomplete,
+        decision_count,
+        pinned_memories,
+        project_scoped,
+    );
     let capture_vault_sessions = if project_scoped {
         Some(super::capture_coverage::vault_session_total(
             ctx.conn.as_ref(),
@@ -1842,14 +1850,14 @@ mod tests {
         let mut env = build_preflight_summary_json(false, None, None, 0, 0, 0, 0, 0, 0);
         env.grants_status = format_grants_status(0);
         assert!(env.grants_status.is_some());
-        env.next_step = select_summary_next_step(false, true, 0);
+        env.next_step = select_summary_next_step(false, true, 0, 0, true);
         assert_eq!(
             env.next_step.as_deref(),
             Some(POLICY_BOOTSTRAP_SOOT_SHORT),
             "AC8: T241 bootstrap must not be overwritten by T315"
         );
         assert_eq!(
-            select_summary_next_step(true, true, 0).as_deref(),
+            select_summary_next_step(true, true, 0, 0, true).as_deref(),
             Some(SUMMARY_NEXT_CONTEXT),
             "T345 F7: unbound beats grants"
         );
@@ -1857,9 +1865,27 @@ mod tests {
 
     #[test]
     fn select_summary_next_step__t315_when_healthy_identity() {
-        let soot = select_summary_next_step(false, false, 0).expect("T315");
+        let soot = select_summary_next_step(false, false, 0, 1, true).expect("T315");
         assert_eq!(soot, r#"next: ai-brains recall "what did we decide""#);
-        assert!(select_summary_next_step(false, false, 1).is_none());
+        assert!(select_summary_next_step(false, false, 1, 1, true).is_none());
+        assert_eq!(
+            select_summary_next_step(false, false, 0, 0, false).as_deref(),
+            Some(r#"next: ai-brains recall "what did we decide""#),
+            "scope-none empty vault stays T315"
+        );
+    }
+
+    #[test]
+    fn select_summary_next_step__zero_pinned_project_scoped__names_coverage() {
+        assert_eq!(
+            select_summary_next_step(false, false, 0, 0, true).as_deref(),
+            Some(SUMMARY_NEXT_COVERAGE)
+        );
+        assert_eq!(
+            select_summary_next_step(false, true, 0, 0, true).as_deref(),
+            Some(POLICY_BOOTSTRAP_SOOT_SHORT),
+            "grants still win over pinned-0"
+        );
     }
 
     #[test]
@@ -1926,7 +1952,7 @@ mod tests {
             Some("bound"),
             None,
             Some("Foo"),
-            select_summary_next_step(false, false, 0),
+            select_summary_next_step(false, false, 0, 1, true),
         );
         let joined = lines.join("\n");
         let dec_idx = lines
@@ -1951,7 +1977,7 @@ mod tests {
             Some(r"C:\dev\bound"),
             None,
             None,
-            select_summary_next_step(false, true, 0),
+            select_summary_next_step(false, true, 0, 0, true),
         );
         let nexts: Vec<_> = lines.iter().filter(|l| l.starts_with("next:")).collect();
         assert_eq!(
@@ -1983,7 +2009,7 @@ mod tests {
             None,
             None,
             None,
-            select_summary_next_step(true, true, 0),
+            select_summary_next_step(true, true, 0, 0, true),
         );
         assert!(lines.iter().any(|l| l == "path=—"));
         let nexts: Vec<_> = lines.iter().filter(|l| l.starts_with("next:")).collect();
@@ -2032,7 +2058,7 @@ mod tests {
             Some("bound"),
             None,
             None,
-            select_summary_next_step(false, true, 0),
+            select_summary_next_step(false, true, 0, 0, true),
         );
         let nexts: Vec<_> = lines.iter().filter(|l| l.starts_with("next:")).collect();
         assert_eq!(nexts.len(), 1);

@@ -17,6 +17,8 @@ Version banners in documentation are maintained manually from the workspace `Car
 
 ### Changed
 
+- **T361 Consumer freshness:** `project detect` human/`--export` and JSON `label` use `detect_lead_label` (human alias wins; path-like alias keeps a human name). Empty `recall` JSON adds omit-if-none `empty_kind` (`empty_scope` / `query_miss` / `scope_unowned`) and `project_memory_count`. Project-scoped `--summary` with 0 pins next-steps `capture coverage` (grants still win; scope-none stays T315).
+
 - **T360 Capture coverage honesty:** Numbered `disk_eligible > vault` is `deficit` (reverses the T337 vault-0-only watermark). Grok `eligible > vault` is `unverifiable_subagent` + `grok-import --days N --dry-run` (never `--force`). Zero disk and zero vault is `never_exercised`. Doctor `harness_wiring` stays presence-only (15 checks).
 
 - **T359 Docs/skill/state reconciliation:** Tracked onboarding Current State points at `conductor/conductor.md` (no frozen T-range); crate table lists all 23 workspace members. Daily 5 Ledgerful skill lives at `.claude/skills/ledgerful/` (retired `.claude/skills/changeguard/`). `AGENTS.md` names `dev-check.ps1` + GHA workflow `CI` as the local/publish gates and appends review debt to `conductor/deferred.md`.
