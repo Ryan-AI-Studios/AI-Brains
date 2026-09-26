@@ -19,6 +19,10 @@ use tempfile::tempdir;
 
 const T315_SOOT: &str = r#"next: ai-brains recall "what did we decide""#;
 const CONTEXT_NEXT: &str = "next: ai-brains context";
+const LEFTOVER_NEXT: &str = "next: ai-brains context --show";
+const COVERAGE_NEXT: &str = "next: ai-brains capture coverage";
+const BOOTSTRAP_NEXT: &str =
+    "next: run `ai-brains policy bootstrap --dry-run` then `ai-brains policy bootstrap`";
 const SHELL_ID: &str = "7d97a456-f2f4-43ea-1f13-211af684ad37";
 const FILE_ID: &str = "3581317d-601e-44f7-ab84-fde90aa12d3c";
 const ZERO_KEY: &str = "x'0000000000000000000000000000000000000000000000000000000000000000'";
@@ -666,6 +670,86 @@ fn preflight_summary_card__leftover_shell_vs_file__exact_line() {
         "AC10 exact leftover line; got:\n{hstdout}"
     );
     let _ = id;
+}
+
+#[test]
+fn preflight_summary_card__leftover__next_show() {
+    let dir = tempdir().expect("tempdir");
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+    let proj = dir.path().join("leftover-bound");
+    let id = register_project(&vault, &proj);
+    register_path(&vault, &proj, &id);
+    bootstrap_discovery(&vault, &id);
+
+    let json_extra = ["--project-id", id.as_str(), "--format", "json"];
+    let (code, stdout, stderr) = run_summary(&vault, &proj, &json_extra, Some(&id), Some(SHELL_ID));
+    assert_eq!(code, 0, "stderr={stderr}");
+    let v: Value = serde_json::from_str(stdout.trim()).expect("json");
+    assert_eq!(
+        v["shell_leftover_project_id"].as_str(),
+        Some(SHELL_ID),
+        "AC4 json leftover; got {v}"
+    );
+    assert_eq!(
+        v["next_step"].as_str(),
+        Some(LEFTOVER_NEXT),
+        "AC4 json next_step; got {v}"
+    );
+
+    let human_extra = ["--project-id", id.as_str()];
+    let (hcode, hstdout, hstderr) =
+        run_summary(&vault, &proj, &human_extra, Some(&id), Some(SHELL_ID));
+    assert_eq!(hcode, 0, "stderr={hstderr}");
+    let expected = format!("shell leftover PROJECT_ID: {SHELL_ID} (.env overrides)");
+    assert!(
+        hstdout.contains(&expected),
+        "AC4 leftover line; got:\n{hstdout}"
+    );
+    let nexts = next_lines(&hstdout);
+    assert_eq!(nexts.len(), 1, "AC4 exactly one next:; got:\n{hstdout}");
+    assert_eq!(
+        nexts[0], LEFTOVER_NEXT,
+        "AC4 leftover next; got:\n{hstdout}"
+    );
+    assert!(
+        !hstdout.contains(T315_SOOT),
+        "AC4 must not T315; got:\n{hstdout}"
+    );
+    assert!(
+        !hstdout.contains(COVERAGE_NEXT),
+        "AC4 must not coverage; got:\n{hstdout}"
+    );
+    assert!(
+        !hstdout.contains(BOOTSTRAP_NEXT),
+        "AC4 must not bootstrap; got:\n{hstdout}"
+    );
+    assert!(
+        !nexts.contains(&CONTEXT_NEXT),
+        "AC4 bound leftover is --show not writer context; got:\n{hstdout}"
+    );
+}
+
+#[test]
+fn preflight_summary_card__global__leftover_does_not_next_show() {
+    let dir = tempdir().expect("tempdir");
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+    let proj = dir.path().join("leftover-global");
+    let id = register_project(&vault, &proj);
+
+    let extra = ["--global", "--format", "json"];
+    let (code, stdout, stderr) = run_summary(&vault, &proj, &extra, Some(&id), Some(SHELL_ID));
+    assert_eq!(code, 0, "stderr={stderr}");
+    let v: Value = serde_json::from_str(stdout.trim()).expect("json");
+    assert_eq!(v["api_version"].as_str(), Some("1"), "AC8 T220 api_version");
+    assert_eq!(v["scope"].as_str(), Some("global"), "AC8 T220 scope");
+    assert!(v.get("pinned").is_some(), "AC8 T220 pinned");
+    assert_ne!(
+        v["next_step"].as_str(),
+        Some(LEFTOVER_NEXT),
+        "AC8 global leftover next must not fire; got {v}"
+    );
 }
 
 #[test]
