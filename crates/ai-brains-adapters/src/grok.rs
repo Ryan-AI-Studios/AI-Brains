@@ -254,6 +254,19 @@ pub fn grok_source_meta_key(path: &Path) -> String {
     format!("source_meta:grok:{}", hex::encode(hasher.finalize()))
 }
 
+/// Load sibling `summary.json` for a `chat_history.jsonl` path (T366 F1).
+///
+/// Fail-open: missing file, unreadable, or invalid JSON → `None`.
+/// Does not open the JSONL body. Callers consume `agent_name` / bind fields only.
+pub fn load_grok_session_summary(history_path: &Path) -> Option<Value> {
+    let summary = history_path.parent()?.join("summary.json");
+    if !summary.is_file() {
+        return None;
+    }
+    let text = std::fs::read_to_string(&summary).ok()?;
+    serde_json::from_str(&text).ok()
+}
+
 /// True when a session path/summary looks like a subagent / worktree session (F12 / AC18).
 pub fn is_subagent_session(path: &Path, summary: Option<&Value>) -> bool {
     let path_s = path.to_string_lossy();
@@ -405,10 +418,7 @@ fn source_from_history_path(history: &Path) -> Option<GrokSessionSource> {
         return None;
     }
     let group_dir = sess_dir.parent();
-    let summary_path = sess_dir.join("summary.json");
-    let summary_val = std::fs::read_to_string(&summary_path)
-        .ok()
-        .and_then(|s| serde_json::from_str::<Value>(&s).ok());
+    let summary_val = load_grok_session_summary(history);
 
     let mut project_hash: Option<String> = None;
     let mut bind_via_summary = false;
@@ -602,16 +612,8 @@ pub fn import_grok_sessions<S: CaptureSink>(
 
     let mut recent: Vec<GrokSessionSource> = Vec::new();
     for source in all_sources {
-        // Subagent skip (F12) — load summary if present
-        let summary_path = source
-            .path
-            .parent()
-            .map(|p| p.join("summary.json"))
-            .filter(|p| p.is_file());
-        let summary_val = summary_path
-            .as_ref()
-            .and_then(|p| std::fs::read_to_string(p).ok())
-            .and_then(|s| serde_json::from_str::<Value>(&s).ok());
+        // Subagent skip (F12 / T366) — sibling summary via shared helper
+        let summary_val = load_grok_session_summary(&source.path);
         if is_subagent_session(&source.path, summary_val.as_ref()) {
             stats.skipped_subagent += 1;
             continue;
@@ -926,6 +928,39 @@ mod tests {
         let found =
             resolve_chat_history_path(&grok, sid, Some(r"C:\no-match"), None).expect("summary");
         assert_eq!(found, hist);
+    }
+
+    #[test]
+    fn load_grok_session_summary__non_main_agent__subagent() {
+        let dir = tempdir().expect("tempdir");
+        let hist = dir.path().join("sid").join("chat_history.jsonl");
+        std::fs::create_dir_all(hist.parent().unwrap()).unwrap();
+        std::fs::write(&hist, "{}\n").unwrap();
+        std::fs::write(
+            hist.parent().unwrap().join("summary.json"),
+            r#"{"agent_name":"Explore"}"#,
+        )
+        .unwrap();
+        let v = load_grok_session_summary(&hist).expect("summary");
+        assert!(is_subagent_session(&hist, Some(&v)));
+    }
+
+    #[test]
+    fn load_grok_session_summary__missing_or_main__not_subagent_by_summary() {
+        let dir = tempdir().expect("tempdir");
+        let hist = dir.path().join("sid").join("chat_history.jsonl");
+        std::fs::create_dir_all(hist.parent().unwrap()).unwrap();
+        std::fs::write(&hist, "{}\n").unwrap();
+        assert!(load_grok_session_summary(&hist).is_none());
+        std::fs::write(
+            hist.parent().unwrap().join("summary.json"),
+            r#"{"agent_name":"main"}"#,
+        )
+        .unwrap();
+        let v = load_grok_session_summary(&hist).expect("summary");
+        assert!(!is_subagent_session(&hist, Some(&v)));
+        let p = Path::new(r"C:\Users\x\.grok\sessions\subagent-worker\sid\chat_history.jsonl");
+        assert!(is_subagent_session(p, None));
     }
 
     #[test]

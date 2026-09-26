@@ -17,6 +17,8 @@ Version banners in documentation are maintained manually from the workspace `Car
 
 ### Changed
 
+- **T366 Grok coverage subagent SoT:** `capture coverage` Grok `disk_eligible` uses the same sibling `summary.json` `agent_name` helper as `grok-import` (path `subagent-`/`worktrees` still skip). JSONL turn bodies stay closed. All-sidechain rows stay `expected_skip`. Remaining `eligible > vault` stays `unverifiable_subagent` + `--dry-run`.
+
 - **T365 Leftover session-card next:** Project-scoped `--summary` leftover (shell `PROJECT_ID` ≠ cwd `.env`) outranks empty-decision T315 and pinned-0 coverage: `next: ai-brains context --show`. Unowned `context` and grants bootstrap still win. `--global` does not take leftover next.
 
 - **T364 Index-shaped FTS authority-only:** Default recall of Index-shaped queries (`decide` / `decision(s)` / `constraint(s)` / `invariant(s)`, including T315 `what did we decide`) skips prefer-authority pass-2 chrome remainder and T105 LIKE, so quoted-command reviews no longer block T346 Index fill. `--symbols` still mixes T260 stubs via pass-2. `search` / `sync query` / daemon inherit.
