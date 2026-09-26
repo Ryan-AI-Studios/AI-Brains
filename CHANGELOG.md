@@ -17,6 +17,8 @@ Version banners in documentation are maintained manually from the workspace `Car
 
 ### Changed
 
+- **T365 Leftover session-card next:** Project-scoped `--summary` leftover (shell `PROJECT_ID` ≠ cwd `.env`) outranks empty-decision T315 and pinned-0 coverage: `next: ai-brains context --show`. Unowned `context` and grants bootstrap still win. `--global` does not take leftover next.
+
 - **T364 Index-shaped FTS authority-only:** Default recall of Index-shaped queries (`decide` / `decision(s)` / `constraint(s)` / `invariant(s)`, including T315 `what did we decide`) skips prefer-authority pass-2 chrome remainder and T105 LIKE, so quoted-command reviews no longer block T346 Index fill. `--symbols` still mixes T260 stubs via pass-2. `search` / `sync query` / daemon inherit.
 
 - **T363 FTS OR-rescue token coverage:** T217 R2 / T312 F8 OR hits on queries with ≥3 contentful tokens are kept only when the row contains ≥2 of those tokens as whole FTS tokens. Single-token dumps (e.g. `zzzz` in a T207 review) no longer fill unmatched 3-token queries, so T361 `query_miss` can fire. Two-token F8 and stopword-reduced 2-contentful queries stay admissible.

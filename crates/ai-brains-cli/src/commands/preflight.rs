@@ -135,6 +135,7 @@ pub(crate) fn build_preflight_summary_json(
 const LAST_DECISION_MAX_BYTES: usize = 100;
 pub(crate) const SUMMARY_NEXT_CONTEXT: &str = "next: ai-brains context";
 pub(crate) const SUMMARY_NEXT_COVERAGE: &str = "next: ai-brains capture coverage";
+pub(crate) const SUMMARY_NEXT_LEFTOVER: &str = "next: ai-brains context --show";
 
 fn truncate_utf8_bytes(s: &str, max_bytes: usize) -> String {
     let end = s.floor_char_boundary(max_bytes.min(s.len()));
@@ -207,20 +208,25 @@ pub(crate) fn format_summary_path_line(bound_compare_path: Option<&str>) -> Stri
     }
 }
 
-/// T345 F7: first match wins. `location_unowned_for_this_pid` is true when the
-/// git toplevel (else cwd) is unbound or owned by another project.
+/// T345 F7 / T361 F5 / T365 F1: first match wins.
+/// `location_unowned_for_this_pid` is true when the git toplevel (else cwd)
+/// is unbound or owned by another project.
 pub(crate) fn select_summary_next_step(
     location_unowned_for_this_pid: bool,
     grants_incomplete: bool,
     decision_count: usize,
     pinned_memories: u64,
     project_scoped: bool,
+    leftover: bool,
 ) -> Option<String> {
     if location_unowned_for_this_pid {
         return Some(SUMMARY_NEXT_CONTEXT.to_string());
     }
     if grants_incomplete {
         return Some(POLICY_BOOTSTRAP_SOOT_SHORT.to_string());
+    }
+    if leftover && project_scoped {
+        return Some(SUMMARY_NEXT_LEFTOVER.to_string());
     }
     if project_scoped && pinned_memories == 0 {
         return Some(SUMMARY_NEXT_COVERAGE.to_string());
@@ -1182,6 +1188,7 @@ fn print_summary(
         decision_count,
         pinned_memories,
         project_scoped,
+        leftover_human.is_some(),
     );
     let capture_vault_sessions = if project_scoped {
         Some(super::capture_coverage::vault_session_total(
@@ -1850,14 +1857,14 @@ mod tests {
         let mut env = build_preflight_summary_json(false, None, None, 0, 0, 0, 0, 0, 0);
         env.grants_status = format_grants_status(0);
         assert!(env.grants_status.is_some());
-        env.next_step = select_summary_next_step(false, true, 0, 0, true);
+        env.next_step = select_summary_next_step(false, true, 0, 0, true, false);
         assert_eq!(
             env.next_step.as_deref(),
             Some(POLICY_BOOTSTRAP_SOOT_SHORT),
             "AC8: T241 bootstrap must not be overwritten by T315"
         );
         assert_eq!(
-            select_summary_next_step(true, true, 0, 0, true).as_deref(),
+            select_summary_next_step(true, true, 0, 0, true, false).as_deref(),
             Some(SUMMARY_NEXT_CONTEXT),
             "T345 F7: unbound beats grants"
         );
@@ -1865,11 +1872,11 @@ mod tests {
 
     #[test]
     fn select_summary_next_step__t315_when_healthy_identity() {
-        let soot = select_summary_next_step(false, false, 0, 1, true).expect("T315");
+        let soot = select_summary_next_step(false, false, 0, 1, true, false).expect("T315");
         assert_eq!(soot, r#"next: ai-brains recall "what did we decide""#);
-        assert!(select_summary_next_step(false, false, 1, 1, true).is_none());
+        assert!(select_summary_next_step(false, false, 1, 1, true, false).is_none());
         assert_eq!(
-            select_summary_next_step(false, false, 0, 0, false).as_deref(),
+            select_summary_next_step(false, false, 0, 0, false, false).as_deref(),
             Some(r#"next: ai-brains recall "what did we decide""#),
             "scope-none empty vault stays T315"
         );
@@ -1878,13 +1885,53 @@ mod tests {
     #[test]
     fn select_summary_next_step__zero_pinned_project_scoped__names_coverage() {
         assert_eq!(
-            select_summary_next_step(false, false, 0, 0, true).as_deref(),
+            select_summary_next_step(false, false, 0, 0, true, false).as_deref(),
             Some(SUMMARY_NEXT_COVERAGE)
         );
         assert_eq!(
-            select_summary_next_step(false, true, 0, 0, true).as_deref(),
+            select_summary_next_step(false, true, 0, 0, true, false).as_deref(),
             Some(POLICY_BOOTSTRAP_SOOT_SHORT),
             "grants still win over pinned-0"
+        );
+    }
+
+    #[test]
+    fn select_summary_next_step__leftover_outranks_t315() {
+        assert_eq!(
+            select_summary_next_step(false, false, 0, 1, true, true).as_deref(),
+            Some(SUMMARY_NEXT_LEFTOVER)
+        );
+    }
+
+    #[test]
+    fn select_summary_next_step__leftover_outranks_coverage() {
+        assert_eq!(
+            select_summary_next_step(false, false, 0, 0, true, true).as_deref(),
+            Some(SUMMARY_NEXT_LEFTOVER)
+        );
+    }
+
+    #[test]
+    fn select_summary_next_step__unowned_outranks_leftover() {
+        assert_eq!(
+            select_summary_next_step(true, false, 0, 1, true, true).as_deref(),
+            Some(SUMMARY_NEXT_CONTEXT)
+        );
+    }
+
+    #[test]
+    fn select_summary_next_step__grants_outranks_leftover() {
+        assert_eq!(
+            select_summary_next_step(false, true, 0, 1, true, true).as_deref(),
+            Some(POLICY_BOOTSTRAP_SOOT_SHORT)
+        );
+    }
+
+    #[test]
+    fn select_summary_next_step__leftover_outranks_nonempty_decisions() {
+        assert_eq!(
+            select_summary_next_step(false, false, 5, 10, true, true).as_deref(),
+            Some(SUMMARY_NEXT_LEFTOVER)
         );
     }
 
@@ -1952,7 +1999,7 @@ mod tests {
             Some("bound"),
             None,
             Some("Foo"),
-            select_summary_next_step(false, false, 0, 1, true),
+            select_summary_next_step(false, false, 0, 1, true, false),
         );
         let joined = lines.join("\n");
         let dec_idx = lines
@@ -1977,7 +2024,7 @@ mod tests {
             Some(r"C:\dev\bound"),
             None,
             None,
-            select_summary_next_step(false, true, 0, 0, true),
+            select_summary_next_step(false, true, 0, 0, true, false),
         );
         let nexts: Vec<_> = lines.iter().filter(|l| l.starts_with("next:")).collect();
         assert_eq!(
@@ -2009,7 +2056,7 @@ mod tests {
             None,
             None,
             None,
-            select_summary_next_step(true, true, 0, 0, true),
+            select_summary_next_step(true, true, 0, 0, true, false),
         );
         assert!(lines.iter().any(|l| l == "path=—"));
         let nexts: Vec<_> = lines.iter().filter(|l| l.starts_with("next:")).collect();
@@ -2058,7 +2105,7 @@ mod tests {
             Some("bound"),
             None,
             None,
-            select_summary_next_step(false, true, 0, 0, true),
+            select_summary_next_step(false, true, 0, 0, true, false),
         );
         let nexts: Vec<_> = lines.iter().filter(|l| l.starts_with("next:")).collect();
         assert_eq!(nexts.len(), 1);
