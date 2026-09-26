@@ -16,17 +16,26 @@ description: "Load at session start, before Rust edits, before conductor work, a
 | `ai-brains-core` | Pure domain model (ids, privacy, session, memory). No external IO. |
 | `ai-brains-events` | Immutable event definitions and the event envelope (hashing, signing). |
 | `ai-brains-contracts` | Shared JSON DTOs for CLI <-> Daemon communication. |
-| `ai-brains-store` | SQLCipher event log, migrations, and read projections. |
+| `ai-brains-control-plane` | Governed-memory control plane ports, adapters, and observation/invalidation workflows. |
+| `ai-brains-sources` | Source fingerprints, connectors, and read adapters (Markdown/Obsidian, Git, Ledgerful, Hermes/Honcho). |
 | `ai-brains-crypto` | Key material management, DPAPI wrappers, and recovery kit logic. |
+| `ai-brains-sync` | Multi-device encrypted event envelope replication (library only; no sockets). |
+| `ai-brains-store` | SQLCipher event log, migrations, and read projections. |
 | `ai-brains-path` | Windows/WSL/UNC path normalization. |
+| `ai-brains-git` | Git automation helpers (timeout, askpass, worktree). |
+| `ai-brains-security` | Secret scan, redaction, embeddability. |
 | `ai-brains-capture` | Converts harness-specific IO into normalized domain events. MUST NOT depend on `ai-brains-models` or `ai-brains-graph`. |
+| `ai-brains-adapters` | Harness adapters (Claude, Codex, Grok, AGY, Cursor, Gemini). |
+| `ai-brains-daemon-api` | Named-pipe daemon JSON protocol. |
+| `ai-brains-api-server` | Authenticated loopback HTTP adapter for ai-brainsd. |
+| `ai-brainsd` | Daemon: single-writer queue, vault unlock. |
+| `ai-brains-cli` | Main CLI binary (`ai-brains` command) + LiveGraphHook (T69). |
 | `ai-brains-retrieval` | FTS5 + semantic search + graph-augmented recall. |
 | `ai-brains-graph` | GraphProjector, SqliteGraphBackend, CozoProxy bridge (feature-gated `--features graph`). Failures non-fatal. |
 | `ai-brains-models` | Local AI provider routing (Ollama, etc.). |
 | `ai-brains-brain` | NightlyService, MemorySynthesizer, EmbeddingService. |
 | `ai-brains-scheduler` | Windows Task Scheduler integration. |
-| `ai-brainsd` | Daemon: single-writer queue, vault unlock. |
-| `ai-brains-cli` | Main CLI binary (`ai-brains` command) + LiveGraphHook (T69). |
+| `apps/desktop/src-tauri` | Desktop thin client (Tauri v2). |
 
 ## Authority Order
 
@@ -41,8 +50,8 @@ description: "Load at session start, before Rust edits, before conductor work, a
 
 ## Current State
 
-- Tracks T61–T71 all complete. See `conductor/conductor.md` for the registry.
-- Graph feature-gated (`--features graph`). Full CI gate reproducible on Windows (T71).
+- Live track registry: `conductor/conductor.md` (do not freeze a completed T-range in this skill).
+- Graph feature-gated (`--features graph`). Full CI gate reproducible on Windows.
 - Deviations documented in `Docs/Deviations.md`.
 
 ## Session Start
@@ -55,7 +64,9 @@ ledgerful index --incremental
 ai-brains recall "what is this project" --semantic
 ```
 
-Then read `conductor/conductor.md` (track registry) and `conductor/deferred.md` (unresolved debt). Map relevant ISSUES items into the current track's plan if scopes overlap. Reconcile dirty ledger/drift before edits unless user says otherwise.
+Then read `conductor/conductor.md` (track registry) and `conductor/deferred.md` (unresolved debt). Map relevant deferred items into the current track's plan if scopes overlap. Reconcile dirty ledger/drift before edits unless user says otherwise.
+
+Additional CLI (see `Docs/CAPABILITIES.md`): `session`, `capture coverage`, `retention plan`, `project detect` / `whoami`, `doctor`, `vault`, `status`, `decision in-force`.
 
 ## Recall & Graph Commands
 
@@ -102,14 +113,17 @@ Required tool versions (install commands in `Docs/ci-tooling.md`):
 
 | Tool | Min Version |
 |------|-------------|
-| `cargo-nextest` | 0.9.137 |
-| `cargo-deny` | 0.19.4 |
-| `cargo-audit` | 0.22.1 |
+| `cargo-nextest` | 0.9.140 |
+| `cargo-deny` | 0.20.2 |
+| `cargo-audit` | 0.22.2 |
+
+Local gate: `.\scripts\dev-check.ps1` (or the cargo line in `AGENTS.md`). Publish gate: GitHub Actions workflow `CI` on the PR (implement-track Phase 6). This clone does not install Ledgerful git hooks (`core.hooksPath` unset; `.git/hooks/` is samples-only).
 
 ### Targeted vs Full Verification
 
-- **During work**: `ledgerful verify --scope fast` (scoped to changed files via `test_mapping`).
-- **Before finalizing**: `ledgerful verify --scope full`.
+- **plan-track / fold-in / review-track**: do **not** run `ledgerful verify` (any scope). Use `ledgerful doctor` + `ledgerful ledger status --compact`.
+- **During implement-track**: `ledgerful verify --scope fast` (scoped to changed files via `test_mapping`).
+- **Before finalizing implement-track**: `ledgerful verify --scope full`.
 - **Targeted**: `cargo nextest run --lib --bins -p <crate>` + `cargo clippy -p <crate> --all-targets -- -D warnings`.
 - **Integration**: `--test-threads=1` if tests share state.
 - **Doctests**: `cargo test --doc -p <crate>` if examples added.
@@ -249,7 +263,7 @@ Then:
 
 ## Tooling
 
-- **Ledgerful**: `ledgerful scan --impact`, `ledgerful search`, `ledgerful ask`, `ledgerful ledger start/commit/atomic`, `ledgerful verify --scope fast|full`, `ledgerful dead-code --threshold 0.75`. See the `ledgerful` skill (in .claude/skills/changeguard/) for full reference.
+- **Ledgerful**: `ledgerful scan --impact`, `ledgerful search`, `ledgerful ask`, `ledgerful ledger start/commit/atomic`, `ledgerful verify --scope fast|full` (implement-track only), `ledgerful dead-code --threshold 0.75`. See the `ledgerful` skill in `.claude/skills/ledgerful/` for the Daily 5 card.
 - **GitHub CLI**: `gh run list` (CI), `gh run view` (details), `gh pr diff` (review), `gh pr status`.
 - **Dependency alerts**: `cargo tree -i <crate>@<version>` to find direct vs transitive. If transitive, upgrade the direct dep. If via git dep, verify upstream fix visibility. Record external handoffs in a conductor track. Run focused checks + `ledgerful verify` after dep changes.
 

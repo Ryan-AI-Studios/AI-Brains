@@ -56,7 +56,7 @@
 ## Git
 - **Forbid**: `git push origin main`/`master`, force-push without explicit approval, destructive operations without explicit approval, committing secrets/`.env`.
 - **Require**: inspect diff before commit, commit only intentional files, keep unrelated fixes separate where practical, clear ledger status before push.
-  - **Push Hygiene**: `git fetch --all --prune` before staging; reconcile if `origin/main` moved; stage only intended scope; prune conservatively. The pre-push hook runs `ledgerful verify --scope fast` + `ledgerful ledger status` — treat it as the authoritative publish gate.
+  - **Push Hygiene**: `git fetch --all --prune` before staging; reconcile if `origin/main` moved; stage only intended scope; prune conservatively. Local gate: `.\scripts\dev-check.ps1` (or the CI Gate cargo line above). Publish gate: GitHub Actions workflow `CI` on the PR (implement-track Phase 6: `gh run watch --exit-status`). This clone does not install Ledgerful git hooks (`core.hooksPath` unset; `.git/hooks/` is samples-only). Optional later: `ledgerful update --repair-hooks` — not this track.
   - **Implement-track publish (always):** `/implement-track` / go / execute is standing approval. **Do not ask.** A local Completed is not done. Always: push `track/T<NN>-*`, open a PR to `main` if none, **watch GHA workflow `CI` until every job is green** (`gh run watch --exit-status`), `gh pr merge --squash --delete-branch`, `git fetch --all --prune`, point local `main` at `origin/main`, delete merged local `track/T*` only. Never `git push origin main`. Never force-push. Never delete Dependabot remotes/PRs. Procedure: `.agents/skills/implement-track/SKILL.md` Phase 6.
 
 ## Stop-Before
@@ -83,8 +83,8 @@ Halt and ask the user before proceeding with any of:
 ## Review & Severity
 - **Review Log**: `conductor/<track>/review.md` (the review log is NOT the ledgerful ledger).
 - **Critical/High**: MUST be `verified_fixed` before clearance. Regression caused by this work is always high; never deferrable.
-- **Medium**: Fix by default. Defer only if not a regression, one-line justification in `review.md`, tracked follow-up, cap ≤3 deferred mediums per track, and appended to `conductor/ISSUES.md`.
-- **Low-info**: Defer freely; MUST append to `conductor/ISSUES.md`.
+- **Medium**: Fix by default. Defer only if not a regression, one-line justification in `review.md`, tracked follow-up, cap ≤3 deferred mediums per track, and appended to `conductor/deferred.md`.
+- **Low-info**: Defer freely; MUST append to `conductor/deferred.md`.
 - **Closure**: Code change alone is not closure. Implementer may mark `fixed_pending_verification`; reviewer/cross-model may mark `verified_fixed`. New findings enter the same log; the loop continues until clean.
 - **Cross-Model Review**: For high-risk diffs (ARCHITECTURE, FEATURE, SECURITY categories), run a read-only cross-model review before final verification. See the `codex-review` skill.
 
