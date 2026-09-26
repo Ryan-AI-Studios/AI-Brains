@@ -17,6 +17,8 @@ Version banners in documentation are maintained manually from the workspace `Car
 
 ### Changed
 
+- **T363 FTS OR-rescue token coverage:** T217 R2 / T312 F8 OR hits on queries with ≥3 contentful tokens are kept only when the row contains ≥2 of those tokens as whole FTS tokens. Single-token dumps (e.g. `zzzz` in a T207 review) no longer fill unmatched 3-token queries, so T361 `query_miss` can fire. Two-token F8 and stopword-reduced 2-contentful queries stay admissible.
+
 - **T362 Index-fill query gate:** T346 Index fill runs only when a contentful token is in `decide` / `decision(s)` / `constraint(s)` / `invariant(s)` (T315 `what did we decide` still fills). Unmatched FTS-empty queries stay T361 `query_miss`. Fill JSON adds omit-if-none `fill_kind: "index"` and `hint` = `No FTS hits; showing in-scope pins`. `chose` / `decided` / `constrained` do not fill (Porter declined). `sync query` and daemon `query_memories` inherit the gate.
 
 - **T361 Consumer freshness:** `project detect` human/`--export` and JSON `label` use `detect_lead_label` (human alias wins; path-like alias keeps a human name). Empty `recall` JSON adds omit-if-none `empty_kind` (`empty_scope` / `query_miss` / `scope_unowned`) and `project_memory_count`. Project-scoped `--summary` with 0 pins next-steps `capture coverage` (grants still win; scope-none stays T315).

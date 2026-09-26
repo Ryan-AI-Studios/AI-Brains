@@ -3,7 +3,7 @@ use crate::privacy_filter::is_injectable_privacy;
 use crate::session_chrome::{index_pass1_glob_sql, is_authority_pin_content};
 use ai_brains_core::{
     LEXICAL_MATCH_HARD_CAP, contentful_tokens, extract_fts_tokens, is_contentless_query, match_and,
-    match_or, select_or_tokens,
+    match_or, or_rescue_hit_admissible, select_or_tokens,
 };
 use ai_brains_store::VaultConnection;
 use rusqlite::params_from_iter;
@@ -141,9 +141,34 @@ pub fn lexical_search(
             opts.prefer_authority,
             raw_query,
         )?;
+        // T363 F2(a): load-bearing coverage retain at the R2 caller.
+        results.retain(|memory| or_rescue_hit_admissible(&memory.content, &contentful));
     }
 
     Ok(results)
+}
+
+/// SQL LIMIT for an OR MATCH that will be coverage-filtered (T363 F8).
+fn or_match_sql_limit(match_expr: &str, contentful: &[String], caller_limit: usize) -> usize {
+    if contentful.len() >= 3 && match_expr.contains(" OR ") {
+        match_limit_bound(LEXICAL_MATCH_HARD_CAP)
+    } else {
+        caller_limit
+    }
+}
+
+/// Keep OR-admitted rows with ≥2 whole contentful tokens; truncate to caller limit.
+fn apply_or_coverage_retain(
+    mut rows: Vec<RetrievalMemory>,
+    contentful: &[String],
+    match_expr: &str,
+    caller_limit: usize,
+) -> Vec<RetrievalMemory> {
+    if contentful.len() >= 3 && match_expr.contains(" OR ") {
+        rows.retain(|memory| or_rescue_hit_admissible(&memory.content, contentful));
+        rows.truncate(caller_limit);
+    }
+    rows
 }
 
 enum AuthorityFilter {
@@ -180,13 +205,15 @@ fn match_query(
     if match_expr.is_empty() {
         return Ok(Vec::new());
     }
+    let contentful = contentful_tokens(&extract_fts_tokens(raw_query));
+    let sql_limit = or_match_sql_limit(match_expr, &contentful, limit);
     if prefer_authority {
         let sql_pass1 = match_query_filtered(
             conn,
             match_expr,
             project_id,
             session_id,
-            limit,
+            sql_limit,
             exclude_symbol_stubs,
             AuthorityFilter::Prefer,
         )?;
@@ -194,6 +221,7 @@ fn match_query(
             .into_iter()
             .filter(|m| crate::session_chrome::is_authority_pin_content(&m.content))
             .collect();
+        retain = apply_or_coverage_retain(retain, &contentful, match_expr, limit);
         if retain.len() >= limit {
             return Ok(retain);
         }
@@ -203,7 +231,7 @@ fn match_query(
                 match_expr,
                 project_id,
                 session_id,
-                limit,
+                sql_limit,
                 exclude_symbol_stubs,
                 AuthorityFilter::PreferRecency,
             )?;
@@ -211,6 +239,7 @@ fn match_query(
                 .into_iter()
                 .filter(|m| crate::session_chrome::is_authority_pin_content(&m.content))
                 .collect();
+            retain = apply_or_coverage_retain(retain, &contentful, match_expr, limit);
             if retain.len() >= limit {
                 return Ok(retain);
             }
@@ -220,60 +249,60 @@ fn match_query(
         // empty whenever Prefer-AND was empty (T260 `--symbols` mix; live dumps
         // still OR-match either token).
         let mut pass2_expr = match_expr.to_string();
-        if retain.is_empty() {
-            let contentful = contentful_tokens(&extract_fts_tokens(raw_query));
-            if contentful.len() >= 2 {
-                let or_tokens = select_or_tokens(&contentful);
-                let or_expr = match_or(&or_tokens);
-                if !or_expr.is_empty() {
+        if retain.is_empty() && contentful.len() >= 2 {
+            let or_tokens = select_or_tokens(&contentful);
+            let or_expr = match_or(&or_tokens);
+            if !or_expr.is_empty() {
+                tracing::debug!(
+                    stage = "prefer_or",
+                    or_token_count = or_tokens.len(),
+                    "FTS authority-OR fill after empty AND retain"
+                );
+                let or_sql_limit = or_match_sql_limit(&or_expr, &contentful, limit);
+                let or_pass = match_query_filtered(
+                    conn,
+                    &or_expr,
+                    project_id,
+                    session_id,
+                    or_sql_limit,
+                    exclude_symbol_stubs,
+                    AuthorityFilter::Prefer,
+                )?;
+                retain = or_pass
+                    .into_iter()
+                    .filter(|m| crate::session_chrome::is_authority_pin_content(&m.content))
+                    .collect();
+                retain = apply_or_coverage_retain(retain, &contentful, &or_expr, limit);
+                if retain.len() >= limit {
+                    return Ok(retain);
+                }
+                // T325: PreferRecency on OR when Prefer-OR retain empty
+                // (TAGS-not-authority flood fills BM25 LIMIT; mirrors AND).
+                if retain.is_empty() {
                     tracing::debug!(
-                        stage = "prefer_or",
-                        or_token_count = or_tokens.len(),
-                        "FTS authority-OR fill after empty AND retain"
+                        stage = "prefer_or_recency",
+                        "FTS authority-OR recency retry after empty Prefer-OR retain"
                     );
-                    let or_pass = match_query_filtered(
+                    let retry = match_query_filtered(
                         conn,
                         &or_expr,
                         project_id,
                         session_id,
-                        limit,
+                        or_sql_limit,
                         exclude_symbol_stubs,
-                        AuthorityFilter::Prefer,
+                        AuthorityFilter::PreferRecency,
                     )?;
-                    retain = or_pass
+                    retain = retry
                         .into_iter()
                         .filter(|m| crate::session_chrome::is_authority_pin_content(&m.content))
                         .collect();
+                    retain = apply_or_coverage_retain(retain, &contentful, &or_expr, limit);
                     if retain.len() >= limit {
                         return Ok(retain);
                     }
-                    // T325: PreferRecency on OR when Prefer-OR retain empty
-                    // (TAGS-not-authority flood fills BM25 LIMIT; mirrors AND).
-                    if retain.is_empty() {
-                        tracing::debug!(
-                            stage = "prefer_or_recency",
-                            "FTS authority-OR recency retry after empty Prefer-OR retain"
-                        );
-                        let retry = match_query_filtered(
-                            conn,
-                            &or_expr,
-                            project_id,
-                            session_id,
-                            limit,
-                            exclude_symbol_stubs,
-                            AuthorityFilter::PreferRecency,
-                        )?;
-                        retain = retry
-                            .into_iter()
-                            .filter(|m| crate::session_chrome::is_authority_pin_content(&m.content))
-                            .collect();
-                        if retain.len() >= limit {
-                            return Ok(retain);
-                        }
-                    }
-                    if !retain.is_empty() {
-                        pass2_expr = or_expr;
-                    }
+                }
+                if !retain.is_empty() {
+                    pass2_expr = or_expr;
                 }
             }
         }
@@ -282,27 +311,35 @@ fn match_query(
             return Ok(retain);
         }
         let ids: Vec<String> = retain.iter().map(|m| m.memory_id.clone()).collect();
+        let pass2_sql_limit = or_match_sql_limit(&pass2_expr, &contentful, remainder);
         let pass2 = match_query_filtered(
             conn,
             &pass2_expr,
             project_id,
             session_id,
-            remainder,
+            pass2_sql_limit,
             exclude_symbol_stubs,
             AuthorityFilter::ExcludeIds(ids),
         )?;
+        let pass2 = apply_or_coverage_retain(pass2, &contentful, &pass2_expr, remainder);
         retain.extend(pass2);
         return Ok(retain);
     }
-    match_query_filtered(
+    let rows = match_query_filtered(
         conn,
         match_expr,
         project_id,
         session_id,
-        limit,
+        sql_limit,
         exclude_symbol_stubs,
         AuthorityFilter::None,
-    )
+    )?;
+    Ok(apply_or_coverage_retain(
+        rows,
+        &contentful,
+        match_expr,
+        limit,
+    ))
 }
 
 fn match_query_filtered(

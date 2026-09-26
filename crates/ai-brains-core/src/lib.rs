@@ -29,6 +29,6 @@ pub mod validation;
 
 pub use fts::{
     LEXICAL_MATCH_HARD_CAP, contentful_tokens, extract_fts_tokens, index_fill_eligible,
-    is_contentless_query, is_english_stopword, match_and, match_or, sanitize_fts_query,
-    select_or_tokens, should_suggest_fewer_keywords,
+    is_contentless_query, is_english_stopword, match_and, match_or, or_hit_token_coverage,
+    or_rescue_hit_admissible, sanitize_fts_query, select_or_tokens, should_suggest_fewer_keywords,
 };

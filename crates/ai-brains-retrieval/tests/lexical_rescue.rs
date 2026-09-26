@@ -279,6 +279,120 @@ fn lexical_rescue__r2_or_respects_limit_and_excludes_sealed()
     Ok(())
 }
 
+#[test]
+fn lexical_rescue__single_token_or_dump__empty() -> Result<(), Box<dyn std::error::Error>> {
+    let store = common::store_with_memory("ASSISTANT: review note zzzz only", Privacy::CloudOk)?;
+
+    let results = lexical_search(
+        store.connection(),
+        "zzzz-t363-nohit",
+        None,
+        None,
+        LexicalSearchOptions {
+            rescue: true,
+            limit: 15,
+            exclude_symbol_stubs: false,
+            prefer_authority: true,
+        },
+    )?;
+    assert!(
+        results.is_empty(),
+        "AC3: single-token zzzz dump must not fill OR-rescue; got {:?}",
+        results
+            .iter()
+            .map(|h| h.content.as_str())
+            .collect::<Vec<_>>()
+    );
+    Ok(())
+}
+
+#[test]
+fn lexical_rescue__two_of_three_or__hits() -> Result<(), Box<dyn std::error::Error>> {
+    let store = common::store_with_memory("DECISION: brittle hotspot shipped", Privacy::CloudOk)?;
+    pin_extra(
+        store.connection(),
+        "DECISION: brittle only",
+        Privacy::CloudOk,
+    )?;
+
+    let results = lexical_search(
+        store.connection(),
+        "brittle hotspot fix",
+        None,
+        None,
+        LexicalSearchOptions {
+            rescue: true,
+            limit: 15,
+            exclude_symbol_stubs: false,
+            prefer_authority: true,
+        },
+    )?;
+    assert!(
+        results
+            .iter()
+            .any(|h| h.content.contains("brittle hotspot shipped")),
+        "AC4: coverage-2 pin must hit; got {:?}",
+        results
+            .iter()
+            .map(|h| h.content.as_str())
+            .collect::<Vec<_>>()
+    );
+    assert!(
+        results.iter().all(|h| !h.content.contains("brittle only")),
+        "AC4: coverage-1 sibling must drop; got {:?}",
+        results
+            .iter()
+            .map(|h| h.content.as_str())
+            .collect::<Vec<_>>()
+    );
+    Ok(())
+}
+
+#[test]
+fn lexical_rescue__or_limit_window__keeps_two_token_hit() -> Result<(), Box<dyn std::error::Error>>
+{
+    let store = common::store_with_memory("DECISION: zzzz t363 shipped", Privacy::CloudOk)?;
+    for i in 0..15 {
+        pin_extra(
+            store.connection(),
+            &format!("DECISION: zzzz dump {i}"),
+            Privacy::CloudOk,
+        )?;
+    }
+
+    let results = lexical_search(
+        store.connection(),
+        "zzzz-t363-nohit",
+        None,
+        None,
+        LexicalSearchOptions {
+            rescue: true,
+            limit: 15,
+            exclude_symbol_stubs: false,
+            prefer_authority: true,
+        },
+    )?;
+    assert!(
+        results
+            .iter()
+            .any(|h| h.content.contains("zzzz t363 shipped")),
+        "AC12: coverage-2 pin must survive OR LIMIT window; got {:?}",
+        results
+            .iter()
+            .map(|h| h.content.as_str())
+            .collect::<Vec<_>>()
+    );
+    assert!(
+        results.iter().all(|h| !h.content.contains("zzzz dump")),
+        "AC12: single-token dumps must drop; got {:?}",
+        results
+            .iter()
+            .map(|h| h.content.as_str())
+            .collect::<Vec<_>>()
+    );
+    Ok(())
+}
+
 fn pin_extra(
     conn: &ai_brains_store::VaultConnection,
     content: &str,
