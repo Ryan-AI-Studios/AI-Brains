@@ -668,6 +668,7 @@ pub(crate) fn unowned_from_probe(probe: Result<Option<&str>, ()>, pid: Option<&P
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn classify_recall_empty(
     query: &str,
     semantic: bool,
