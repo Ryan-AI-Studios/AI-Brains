@@ -17,6 +17,7 @@ use ai_brains_events::constructors::EventBuilder;
 use ai_brains_events::{
     Actor, AggregateType, Payload, ProjectAliasAddedPayload, ProjectRegisteredPayload,
 };
+use ai_brains_path::paths_refer_to_same_location;
 use serde_json::Value;
 use std::collections::{BTreeSet, HashMap};
 use std::io::Read;
@@ -364,6 +365,9 @@ pub struct OpenCodeImportOptions {
     pub bin_override: Option<PathBuf>,
     /// Override list cap for AC23 tests (default [`OPENCODE_LIST_DEFAULT_CAP`]).
     pub list_cap: usize,
+    /// `None` = unfiltered vendor list (nightly / `--global` / missing project id).
+    /// `Some(paths)` = keep rows whose worktree (else directory) location-compares.
+    pub scope_paths: Option<Vec<String>>,
 }
 
 impl OpenCodeImportOptions {
@@ -382,7 +386,38 @@ impl OpenCodeImportOptions {
             force_missing_binary: false,
             bin_override: None,
             list_cap: OPENCODE_LIST_DEFAULT_CAP,
+            scope_paths: None,
         }
+    }
+}
+
+/// Keep a listed session when worktree (non-empty) or directory location-compares to any scope path.
+pub fn opencode_source_matches_scope(source: &OpenCodeSessionSource, paths: &[String]) -> bool {
+    let bind = source
+        .worktree
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .or_else(|| {
+            source
+                .directory
+                .as_deref()
+                .map(str::trim)
+                .filter(|s| !s.is_empty())
+        });
+    match bind {
+        Some(raw) => paths.iter().any(|p| paths_refer_to_same_location(raw, p)),
+        None => false,
+    }
+}
+
+fn eprint_opencode_scope(options: &OpenCodeImportOptions) {
+    match options.scope_paths.as_ref() {
+        Some(paths) => eprintln!(
+            "[OpenCode] scope=this-project ({} path(s)); use --global for unfiltered vendor list",
+            paths.len()
+        ),
+        None => eprintln!("[OpenCode] scope=unfiltered vendor list"),
     }
 }
 
@@ -849,6 +884,7 @@ fn run_opencode_command_blocking(
     args: &[&str],
     timeout: Duration,
     config_dir: Option<&Path>,
+    current_dir: Option<&Path>,
 ) -> std::result::Result<String, ExportErr> {
     let mut cmd = Command::new(bin);
     cmd.args(args)
@@ -857,6 +893,9 @@ fn run_opencode_command_blocking(
         .stderr(Stdio::piped());
     if let Some(dir) = config_dir {
         cmd.env("OPENCODE_CONFIG_DIR", dir);
+    }
+    if let Some(dir) = current_dir {
+        cmd.current_dir(dir);
     }
 
     let mut child = cmd.spawn().map_err(|e| {
@@ -927,13 +966,14 @@ fn run_opencode_export_blocking(
     timeout: Duration,
     config_dir: Option<&Path>,
 ) -> std::result::Result<String, ExportErr> {
-    run_opencode_command_blocking(bin, &["export", session_id], timeout, config_dir)
+    run_opencode_command_blocking(bin, &["export", session_id], timeout, config_dir, None)
 }
 
 fn run_opencode_list(
     bin: &Path,
     max_n: usize,
     config_dir: Option<&Path>,
+    current_dir: Option<&Path>,
 ) -> std::result::Result<String, ExportErr> {
     let n = max_n.to_string();
     run_opencode_command_blocking(
@@ -941,7 +981,24 @@ fn run_opencode_list(
         &["session", "list", "--format", "json", "-n", &n],
         Duration::from_secs(OPENCODE_EXPORT_TIMEOUT_SECS),
         config_dir,
+        current_dir,
     )
+}
+
+/// List-only spawn (coverage + import). Never `export`. Never opens `opencode.db`.
+pub fn list_opencode_sessions_json(
+    bin: &Path,
+    cap: usize,
+    config_dir: Option<&Path>,
+    current_dir: Option<&Path>,
+) -> Result<String> {
+    let n = cap.max(1);
+    run_opencode_list(bin, n, config_dir, current_dir).map_err(|e| match e {
+        ExportErr::Timeout => AdapterError::Other("opencode session list timed out".into()),
+        ExportErr::Binary => AdapterError::Other("opencode binary missing".into()),
+        ExportErr::Io(s) | ExportErr::Parse(s) | ExportErr::NonZero(s) => AdapterError::Other(s),
+        ExportErr::MissingFixture(s) => AdapterError::Other(s),
+    })
 }
 
 // ---------------------------------------------------------------------------
@@ -958,6 +1015,12 @@ pub fn import_opencode_sessions<S: CaptureSink>(
     options: OpenCodeImportOptions,
 ) -> Result<OpenCodeImportStats> {
     let mut stats = OpenCodeImportStats::default();
+    eprint_opencode_scope(&options);
+
+    let list_cwd = options
+        .scope_paths
+        .as_ref()
+        .and_then(|paths| paths.iter().map(PathBuf::from).find(|p| p.is_dir()));
 
     // Discovery
     let list_raw = if let Some(ref injected) = options.list_json_override {
@@ -975,6 +1038,7 @@ pub fn import_opencode_sessions<S: CaptureSink>(
                     &bin,
                     options.max_sessions.max(1),
                     options.config_dir_override.as_deref(),
+                    list_cwd.as_deref(),
                 ) {
                     Ok(s) => s,
                     Err(ExportErr::Binary) => {
@@ -1012,6 +1076,9 @@ pub fn import_opencode_sessions<S: CaptureSink>(
     };
 
     let mut sources = parse_session_list_json(&list_raw)?;
+    if let Some(paths) = options.scope_paths.as_deref() {
+        sources.retain(|src| opencode_source_matches_scope(src, paths));
+    }
 
     // AC23: list length at user cap OR vendor default hard cap (100) → warn.
     // Even when --max-sessions > 100, a 100-row result may be vendor-capped.
@@ -1053,36 +1120,24 @@ pub fn import_opencode_sessions<S: CaptureSink>(
         .map(|p| load_cursor(p))
         .unwrap_or_default();
 
-    // Filter days / child / watermark
-    let mut eligible: Vec<OpenCodeSessionSource> = Vec::new();
+    // Child + days first; `found` is that set (watermark does not reduce found).
+    let mut in_window: Vec<OpenCodeSessionSource> = Vec::new();
     for src in sources {
         if src.parent_id.is_some() {
             stats.skipped_child_session += 1;
             continue;
         }
-        if let Some(updated) = src.updated_ms {
-            if updated < cutoff_ms && !options.force {
-                stats.skipped_days += 1;
-                continue;
-            }
-            if !options.force
-                && let Some(&prev) = cursor.sessions.get(&src.id)
-                && updated <= prev
-            {
-                stats.skipped_watermark += 1;
-                continue;
-            }
-        } else if !options.force {
-            // No updated field: still process unless watermark says we saw it with 0
-            if cursor.sessions.contains_key(&src.id) && !options.force {
-                stats.skipped_watermark += 1;
-                continue;
-            }
+        if let Some(updated) = src.updated_ms
+            && updated < cutoff_ms
+            && !options.force
+        {
+            stats.skipped_days += 1;
+            continue;
         }
-        eligible.push(src);
+        in_window.push(src);
     }
 
-    stats.found = eligible.len();
+    stats.found = in_window.len();
     if stats.found == 0 {
         return Ok(stats);
     }
@@ -1093,6 +1148,25 @@ pub fn import_opencode_sessions<S: CaptureSink>(
     );
     if options.dry_run {
         eprintln!("[OpenCode] dry-run mode: scanning only — no vault writes.");
+        return Ok(stats);
+    }
+
+    let mut eligible: Vec<OpenCodeSessionSource> = Vec::new();
+    for src in in_window {
+        if !options.force {
+            if let Some(updated) = src.updated_ms {
+                if let Some(&prev) = cursor.sessions.get(&src.id)
+                    && updated <= prev
+                {
+                    stats.skipped_watermark += 1;
+                    continue;
+                }
+            } else if cursor.sessions.contains_key(&src.id) {
+                stats.skipped_watermark += 1;
+                continue;
+            }
+        }
+        eligible.push(src);
     }
 
     let oc_harness = HarnessId::from_str(OPENCODE_HARNESS_UUID)
@@ -1451,5 +1525,25 @@ mod tests {
             loaded.last_msg_ids.get("ses_a").map(String::as_str),
             Some("msg_last")
         );
+    }
+
+    #[test]
+    fn opencode_source_matches_scope__uses_list_directory_not_export_body() {
+        let src = OpenCodeSessionSource {
+            id: "ses_a".into(),
+            directory: Some(r"C:\dev\AI-Brains".into()),
+            worktree: Some("".into()),
+            project_id_field: None,
+            updated_ms: Some(1),
+            parent_id: None,
+        };
+        let paths = [r"C:\dev\ai-brains".to_string()];
+        assert!(opencode_source_matches_scope(&src, &paths));
+        let sibling = OpenCodeSessionSource {
+            directory: Some(r"C:\dev\other".into()),
+            worktree: None,
+            ..src.clone()
+        };
+        assert!(!opencode_source_matches_scope(&sibling, &paths));
     }
 }

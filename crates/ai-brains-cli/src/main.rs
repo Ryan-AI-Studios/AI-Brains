@@ -2649,8 +2649,19 @@ enum Commands {
         #[arg(long, default_value_t = false)]
         force: bool,
         /// Discover and report what would be imported without writing to the vault
-        #[arg(long, default_value_t = false)]
+        #[arg(
+            long,
+            default_value_t = false,
+            help = "Inventory listed sessions without export or vault writes"
+        )]
         dry_run: bool,
+        /// Skip the this-project directory filter (vendor list remains instance-scoped)
+        #[arg(
+            long,
+            default_value_t = false,
+            help = "Skip the directory filter; vendor list stays instance-scoped (does not open opencode.db)"
+        )]
+        global: bool,
         /// Max sessions to list/process (OpenCode list default cap is 100)
         #[arg(long, default_value_t = 100)]
         max_sessions: usize,
@@ -6108,6 +6119,7 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                         project_id: effective_project_id,
                         home_override: None,
                         cwd_override: None,
+                        opencode_list_json_override: None,
                     },
                 )
             }
@@ -6286,7 +6298,8 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
             force,
             dry_run,
             max_sessions,
-        } => commands::opencode_import::run(&ctx, *days, *force, *dry_run, *max_sessions),
+            global,
+        } => commands::opencode_import::run(&ctx, *days, *force, *dry_run, *max_sessions, *global),
         Commands::AgyHook { payload, schema } => {
             if *schema {
                 print_schema(SCHEMA_AGY_HOOK, "AI-Brains agy-hook payload")

@@ -92,8 +92,9 @@ pub use opencode::{
     OPENCODE_LIST_DEFAULT_CAP, OPENCODE_UNBOUND_ALIAS, OPENCODE_UNBOUND_DISPLAY_NAME,
     OpenCodeBindKind, OpenCodeImportOptions, OpenCodeImportStats, OpenCodeSessionSource,
     ResolveOutcome, append_opencode_turns, export_session_via_cli, generate_opencode_turn_id,
-    import_opencode_sessions, normalize_opencode_project_hash, opencode_capability,
-    opencode_env_fallback_allowed, opencode_source_meta_key, parse_export_file, parse_export_json,
+    import_opencode_sessions, list_opencode_sessions_json, normalize_opencode_project_hash,
+    opencode_capability, opencode_env_fallback_allowed, opencode_source_matches_scope,
+    opencode_source_meta_key, parse_export_file, parse_export_json, parse_session_list_json,
     print_opencode_import_stats, resolve_opencode_bin, resolve_opencode_config_dir,
     resolve_opencode_project, session_id_from_opencode,
 };

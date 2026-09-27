@@ -432,6 +432,7 @@ fn run_opencode_source(
         force_missing_binary: false,
         bin_override: None,
         list_cap: max_sessions,
+        scope_paths: None,
     };
 
     match import_opencode_sessions(query_store.as_ref(), service, &mut sink, options) {

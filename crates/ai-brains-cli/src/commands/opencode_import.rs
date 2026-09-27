@@ -3,9 +3,12 @@
 use crate::context::{AppContext, StoreSink};
 use ai_brains_adapters::{
     OpenCodeImportOptions, import_opencode_sessions, print_opencode_import_stats,
+    resolve_claude_import_scope_paths,
 };
 use ai_brains_capture::CaptureService;
 use ai_brains_core::ids::ProjectId;
+use ai_brains_path::normalize_for_location_compare;
+use ai_brains_store::QueryStore;
 use std::str::FromStr;
 
 pub fn run(
@@ -14,6 +17,7 @@ pub fn run(
     force: bool,
     dry_run: bool,
     max_sessions: usize,
+    global: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
     if dry_run {
         eprintln!("Scanning for OpenCode sessions (dry-run — no vault writes)...");
@@ -33,11 +37,25 @@ pub fn run(
         )),
     };
 
-    // Default project id from env is only used when allow_default_project is true.
-    let project_id = std::env::var("AI_BRAINS_PROJECT_ID")
+    let parsed_pid = std::env::var("AI_BRAINS_PROJECT_ID")
         .ok()
-        .and_then(|s| ProjectId::from_str(&s).ok())
-        .unwrap_or_default();
+        .and_then(|s| ProjectId::from_str(&s).ok());
+    let project_id = parsed_pid.unwrap_or_default();
+
+    let query_store = ctx.conn.clone() as std::sync::Arc<dyn QueryStore>;
+    let scope_paths = if global {
+        None
+    } else {
+        let aliases = query_store.list_path_aliases()?;
+        let fallback = std::env::current_dir().ok().map(|cwd| {
+            let use_path = super::project::collect_git_identity(&cwd)
+                .ok()
+                .and_then(|g| g.toplevel)
+                .unwrap_or(cwd);
+            normalize_for_location_compare(&use_path.to_string_lossy())
+        });
+        resolve_claude_import_scope_paths(&aliases, parsed_pid, fallback.as_deref())
+    };
 
     let options = OpenCodeImportOptions {
         days,
@@ -53,9 +71,9 @@ pub fn run(
         force_missing_binary: false,
         bin_override: None,
         list_cap: max_sessions,
+        scope_paths,
     };
 
-    let query_store = ctx.conn.clone() as std::sync::Arc<dyn ai_brains_store::QueryStore>;
     let stats = import_opencode_sessions(query_store.as_ref(), &service, &mut sink, options)?;
 
     if let Some(err) = sink.last_error {

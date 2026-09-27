@@ -149,6 +149,7 @@ fn base_opts(
         force_missing_binary: false,
         bin_override: None,
         list_cap: 100,
+        scope_paths: None,
     }
 }
 
@@ -440,6 +441,7 @@ fn import_opencode__missing_binary__soft_skip() {
         force_missing_binary: true,
         bin_override: None,
         list_cap: 100,
+        scope_paths: None,
     };
     let stats = import_opencode_sessions(&conn, &service, &mut sink, options).expect("import");
     assert_eq!(stats.skipped_missing_binary, 1);
@@ -700,4 +702,164 @@ fn parse_export__source_has_no_db_open() {
     let src = include_str!("../src/opencode.rs");
     assert!(src.contains("OPENCODE_EXPORT_TIMEOUT_SECS"));
     assert!(src.contains("120"));
+}
+
+#[test]
+fn import_opencode__scope_paths_directory__found_only_matching() {
+    let root = tempdir().unwrap();
+    let vault_dir = root.path().join("vault");
+    let export_dir = root.path().join("exports");
+    let cursor = root.path().join("cursor.json");
+    fs::create_dir_all(&vault_dir).unwrap();
+    let sid_a = "ses_scope_a";
+    let sid_b = "ses_scope_b";
+    write_export(
+        &export_dir,
+        sid_a,
+        &sample_export(sid_a, r"C:\dev\AI-Brains", "keep-a", "asst-a"),
+    );
+    write_export(
+        &export_dir,
+        sid_b,
+        &sample_export(sid_b, r"C:\dev\other", "keep-b", "asst-b"),
+    );
+    let list = list_json(&[
+        ListRow {
+            id: sid_a,
+            directory: r"C:\dev\AI-Brains",
+            worktree: None,
+            updated_ms: now_ms(),
+            parent_id: None,
+        },
+        ListRow {
+            id: sid_b,
+            directory: r"C:\dev\other",
+            worktree: None,
+            updated_ms: now_ms(),
+            parent_id: None,
+        },
+    ]);
+    let (conn, store) = open_vault(&vault_dir);
+    let mut sink = TestSink {
+        store,
+        last_error: None,
+    };
+    let service = CaptureService::new();
+    let mut options = base_opts(30, true, true, list, export_dir, cursor);
+    options.scope_paths = Some(vec![r"C:\dev\ai-brains".into()]);
+    let stats = import_opencode_sessions(&conn, &service, &mut sink, options).expect("import");
+    assert_eq!(stats.found, 1);
+    assert_eq!(stats.exported, 0);
+    assert_eq!(stats.imported_turns, 0);
+    assert_eq!(
+        conn.count_sessions_started_by_harness(&[OPENCODE_HARNESS_UUID], None)
+            .expect("count"),
+        0
+    );
+}
+
+#[test]
+fn import_opencode__scope_paths_none__found_both_no_export_on_dry_run() {
+    let root = tempdir().unwrap();
+    let vault_dir = root.path().join("vault");
+    let export_dir = root.path().join("exports");
+    let cursor = root.path().join("cursor.json");
+    fs::create_dir_all(&vault_dir).unwrap();
+    let sid_a = "ses_unscoped_a";
+    let sid_b = "ses_unscoped_b";
+    write_export(
+        &export_dir,
+        sid_a,
+        &sample_export(sid_a, r"C:\dev\AI-Brains", "keep-a", "asst-a"),
+    );
+    write_export(
+        &export_dir,
+        sid_b,
+        &sample_export(sid_b, r"C:\dev\other", "keep-b", "asst-b"),
+    );
+    let list = list_json(&[
+        ListRow {
+            id: sid_a,
+            directory: r"C:\dev\AI-Brains",
+            worktree: None,
+            updated_ms: now_ms(),
+            parent_id: None,
+        },
+        ListRow {
+            id: sid_b,
+            directory: r"C:\dev\other",
+            worktree: None,
+            updated_ms: now_ms(),
+            parent_id: None,
+        },
+    ]);
+    let (conn, store) = open_vault(&vault_dir);
+    let mut sink = TestSink {
+        store,
+        last_error: None,
+    };
+    let service = CaptureService::new();
+    let options = base_opts(30, true, true, list, export_dir, cursor);
+    let stats = import_opencode_sessions(&conn, &service, &mut sink, options).expect("import");
+    assert_eq!(stats.found, 2);
+    assert_eq!(stats.exported, 0);
+}
+
+#[test]
+fn import_opencode__scope_paths_directory__dry_run_false__imports_only_matching() {
+    let root = tempdir().unwrap();
+    let vault_dir = root.path().join("vault");
+    let export_dir = root.path().join("exports");
+    let cursor = root.path().join("cursor.json");
+    fs::create_dir_all(&vault_dir).unwrap();
+    let sid_a = "ses_live_a";
+    let sid_b = "ses_live_b";
+    write_export(
+        &export_dir,
+        sid_a,
+        &sample_export(sid_a, r"C:\dev\AI-Brains", "keep-a", "asst-a"),
+    );
+    write_export(
+        &export_dir,
+        sid_b,
+        &sample_export(sid_b, r"C:\dev\other", "keep-b", "asst-b"),
+    );
+    let list = list_json(&[
+        ListRow {
+            id: sid_a,
+            directory: r"C:\dev\AI-Brains",
+            worktree: None,
+            updated_ms: now_ms(),
+            parent_id: None,
+        },
+        ListRow {
+            id: sid_b,
+            directory: r"C:\dev\other",
+            worktree: None,
+            updated_ms: now_ms(),
+            parent_id: None,
+        },
+    ]);
+    let (conn, store) = open_vault(&vault_dir);
+    let mut sink = TestSink {
+        store,
+        last_error: None,
+    };
+    let service = CaptureService::new();
+    let mut options = base_opts(30, true, false, list, export_dir, cursor);
+    options.scope_paths = Some(vec![r"C:\dev\ai-brains".into()]);
+    let stats = import_opencode_sessions(&conn, &service, &mut sink, options).expect("import");
+    assert_eq!(stats.found, 1);
+    assert_eq!(stats.exported, 1);
+    assert!(stats.imported_turns > 0);
+    let sid_a_id = session_id_from_opencode(sid_a);
+    let sid_b_id = session_id_from_opencode(sid_b);
+    let turns_a = conn
+        .get_session_turns(&sid_a_id.to_string())
+        .expect("turns a");
+    let turns_b = conn
+        .get_session_turns(&sid_b_id.to_string())
+        .expect("turns b");
+    assert!(!turns_a.is_empty(), "cid-A turns={turns_a:?}");
+    assert!(turns_b.is_empty(), "cid-B turns={turns_b:?}");
 }

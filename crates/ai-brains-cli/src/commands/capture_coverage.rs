@@ -4,7 +4,9 @@
 //! `summary.json` is opened fail-open for `agent_name` classification only (T366;
 //! same SoT as `grok-import`). This-project Codex streams `type=session_meta` for
 //! `cwd` only (T369). This-project AGY reads `history.jsonl` `workspace`+`conversationId`
-//! only (T370). Never imports. Never adds a doctor check.
+//! only (T370). This-project OpenCode reads `opencode session list` JSON
+//! (`directory`/`worktree`/`updated`/`parentID`) only (T371) — never `export`,
+//! never `opencode.db`. Never imports. Never adds a doctor check.
 
 use crate::commands::governed_common::fail_usage;
 use crate::commands::multi_import::{
@@ -13,12 +15,14 @@ use crate::commands::multi_import::{
 use crate::context::AppContext;
 use ai_brains_adapters::{
     CLAUDE_HARNESS_UUID, CODEX_HARNESS_UUID, CURSOR_HARNESS_UUID, GROK_HARNESS_UUID,
-    OPENCODE_HARNESS_UUID, agy_source_matches_scope, claude_project_folder_matches_path,
-    cursor_project_slug, cursor_project_slug_candidates, discover_cursor_sessions,
-    discover_sessions_from_home, is_claude_sidechain_path, is_cursor_sidechain_path,
-    is_subagent_session, load_agy_history_index_from_home, load_grok_session_summary,
-    peek_codex_session_meta, percent_encode_path_component, resolve_claude_home,
-    resolve_codex_home, resolve_cursor_home, resolve_grok_home,
+    OPENCODE_HARNESS_UUID, OPENCODE_LIST_DEFAULT_CAP, agy_source_matches_scope,
+    claude_project_folder_matches_path, cursor_project_slug, cursor_project_slug_candidates,
+    discover_cursor_sessions, discover_sessions_from_home, is_claude_sidechain_path,
+    is_cursor_sidechain_path, is_subagent_session, list_opencode_sessions_json,
+    load_agy_history_index_from_home, load_grok_session_summary, opencode_source_matches_scope,
+    parse_session_list_json, peek_codex_session_meta, percent_encode_path_component,
+    resolve_claude_home, resolve_codex_home, resolve_cursor_home, resolve_grok_home,
+    resolve_opencode_bin,
 };
 use ai_brains_core::ids::ProjectId;
 use ai_brains_path::{normalize_for_location_compare, paths_refer_to_same_location};
@@ -63,6 +67,8 @@ pub struct CoverageOptions {
     pub home_override: Option<PathBuf>,
     /// Hermetic tests: pretend cwd (no `#[serial(cwd)]`). Production leaves this `None`.
     pub cwd_override: Option<PathBuf>,
+    /// Hermetic tests: inject `opencode session list` JSON (never spawn).
+    pub opencode_list_json_override: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, PartialEq)]
@@ -223,7 +229,14 @@ pub fn build_report(
         grok_vault,
         opts.days,
     );
-    let opencode = classify_opencode(opencode_vault, opencode_missing);
+    let opencode = classify_opencode_row(
+        opts,
+        disk_scope.paths.as_deref(),
+        cutoff,
+        opencode_vault,
+        opencode_missing,
+        &mut warnings,
+    );
     let mut claude = classify_source(
         "claude",
         "hook+import",
@@ -576,6 +589,102 @@ fn classify_opencode(vault_sessions: u64, missing_binary: bool) -> SourceCoverag
         );
     }
     row
+}
+
+fn classify_opencode_row(
+    opts: &CoverageOptions,
+    project_paths: Option<&[String]>,
+    cutoff: SystemTime,
+    vault_sessions: u64,
+    last_import_missing: bool,
+    warnings: &mut Vec<String>,
+) -> SourceCoverage {
+    if opts.global {
+        return classify_opencode(vault_sessions, last_import_missing);
+    }
+
+    let list_raw = if let Some(injected) = opts.opencode_list_json_override.as_deref() {
+        Some(injected.to_string())
+    } else if opts.home_override.is_some() {
+        None
+    } else {
+        let resolved = resolve_opencode_bin(None);
+        match resolved.path {
+            Some(bin) => {
+                let cwd = project_paths.and_then(|paths| {
+                    paths
+                        .iter()
+                        .map(std::path::PathBuf::from)
+                        .find(|p| p.is_dir())
+                });
+                match list_opencode_sessions_json(
+                    &bin,
+                    OPENCODE_LIST_DEFAULT_CAP,
+                    None,
+                    cwd.as_deref(),
+                ) {
+                    Ok(raw) => Some(raw),
+                    Err(e) => {
+                        tracing::warn!(error = %e, "opencode session list failed");
+                        None
+                    }
+                }
+            }
+            None => None,
+        }
+    };
+
+    let Some(raw) = list_raw else {
+        return classify_opencode(vault_sessions, last_import_missing);
+    };
+
+    let counts = count_opencode_from_list(&raw, cutoff, project_paths, warnings);
+    classify_source(
+        "opencode",
+        "hook+import",
+        Some(counts.eligible),
+        counts.sidechain,
+        vault_sessions,
+        opts.days,
+        false,
+        "opencode-import",
+    )
+}
+
+fn count_opencode_from_list(
+    raw: &str,
+    cutoff: SystemTime,
+    project_paths: Option<&[String]>,
+    warnings: &mut Vec<String>,
+) -> DiskCounts {
+    let mut counts = DiskCounts::default();
+    let Ok(mut sources) = parse_session_list_json(raw) else {
+        counts.unreadable = true;
+        return counts;
+    };
+    if sources.len() >= OPENCODE_LIST_DEFAULT_CAP {
+        push_warn(warnings, "opencode_list_capped");
+    }
+    let cutoff_ms = cutoff
+        .duration_since(SystemTime::UNIX_EPOCH)
+        .map(|d| d.as_millis() as i64)
+        .unwrap_or(0);
+    for src in sources.drain(..) {
+        if src.parent_id.is_some() {
+            counts.sidechain += 1;
+            continue;
+        }
+        if let Some(paths) = project_paths
+            && !opencode_source_matches_scope(&src, paths)
+        {
+            continue;
+        }
+        match src.updated_ms {
+            Some(ms) if ms < cutoff_ms => {}
+            _ => counts.eligible += 1,
+        }
+    }
+    counts
 }
 
 fn count_agy_disk(
@@ -1059,6 +1168,7 @@ mod tests {
             project_id: Some(project_id),
             home_override: Some(home.to_path_buf()),
             cwd_override: None,
+            opencode_list_json_override: None,
         }
     }
 
@@ -1070,6 +1180,7 @@ mod tests {
             project_id: Some(project_id),
             home_override: Some(home.to_path_buf()),
             cwd_override: None,
+            opencode_list_json_override: None,
         }
     }
 
@@ -2401,6 +2512,37 @@ mod tests {
                 .contains_key("disk_eligible")
         );
         assert_eq!(json["sources"][0]["disk_eligible"].as_u64(), Some(0));
+    }
+
+    #[test]
+    fn capture_coverage__opencode_this_project_disk__counts_list_directory() {
+        let home = tempfile::tempdir().expect("home");
+        let (_vdir, store) = open_store();
+        let project_id = ProjectId::new();
+        register_project(&store, project_id);
+        add_path_alias(&store, project_id, r"C:\dev\ai-brains");
+        let now_ms = SystemTime::now()
+            .duration_since(SystemTime::UNIX_EPOCH)
+            .expect("epoch")
+            .as_millis();
+        let list = format!(
+            r#"[{{"id":"ses_a","directory":"C:\\dev\\AI-Brains","updated":{now_ms}}},{{"id":"ses_b","directory":"C:\\dev\\other"}}]"#
+        );
+        let mut opts = coverage_opts(home.path(), project_id, 30);
+        opts.opencode_list_json_override = Some(list.clone());
+        let report = build_report(store.connection(), &opts).expect("report");
+        let oc = source(&report, "opencode");
+        assert_eq!(oc.disk_eligible, Some(1), "oc={oc:?}");
+        assert_eq!(oc.disk_note, None);
+        assert_eq!(source(&report, "agy").disk_eligible, Some(0));
+
+        let mut global = coverage_opts_global(home.path(), project_id, 30);
+        global.opencode_list_json_override = Some(list);
+        let g = build_report(store.connection(), &global).expect("global");
+        let goc = source(&g, "opencode");
+        assert_eq!(goc.disk_eligible, None);
+        assert_eq!(goc.disk_note.as_deref(), Some("requires_opencode_bin"));
+        assert!(!goc.next_step.contains("--global"), "{}", goc.next_step);
     }
 
     #[test]

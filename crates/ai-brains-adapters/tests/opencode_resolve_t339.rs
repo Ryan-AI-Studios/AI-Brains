@@ -81,6 +81,7 @@ fn open_import_pair(
         force_missing_binary: false,
         bin_override: None,
         list_cap: 10,
+        scope_paths: None,
     };
     (conn, CaptureService::new(), sink, options)
 }
