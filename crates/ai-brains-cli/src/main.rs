@@ -2586,6 +2586,12 @@ enum Commands {
         /// Skip the 5-minute quiescence window (import even if file was modified recently)
         #[arg(long, default_value_t = false)]
         force: bool,
+        /// Discover and report what would be imported without writing to the vault
+        #[arg(long, default_value_t = false)]
+        dry_run: bool,
+        /// Restore the T236 machine-wide walk (every in-window brain).
+        #[arg(long, default_value_t = false)]
+        global: bool,
     },
     /// Process an Antigravity CLI (agy) hook payload
     #[command(display_order = 52)]
@@ -6264,9 +6270,12 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                 .await
             }
         },
-        Commands::AntigravityImport { days, force } => {
-            commands::antigravity_import::run(&ctx, *days, *force)
-        }
+        Commands::AntigravityImport {
+            days,
+            force,
+            dry_run,
+            global,
+        } => commands::antigravity_import::run(&ctx, *days, *force, *dry_run, *global),
         Commands::GrokImport {
             days,
             force,

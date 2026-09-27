@@ -315,6 +315,8 @@ fn run_agy_source(
         allow_default_project: false,
         force: opts.force,
         home_override: opts.agy_home_override.clone(),
+        dry_run: false,
+        scope_paths: None,
     };
 
     match import_antigravity_sessions(query_store.as_ref(), service, &mut sink, options) {

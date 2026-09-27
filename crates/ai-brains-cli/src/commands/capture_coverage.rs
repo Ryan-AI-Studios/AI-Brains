@@ -3,7 +3,8 @@
 //! Inventory + event-log query only. Never opens JSONL turn bodies. Grok sibling
 //! `summary.json` is opened fail-open for `agent_name` classification only (T366;
 //! same SoT as `grok-import`). This-project Codex streams `type=session_meta` for
-//! `cwd` only (T369). Never imports. Never adds a doctor check.
+//! `cwd` only (T369). This-project AGY reads `history.jsonl` `workspace`+`conversationId`
+//! only (T370). Never imports. Never adds a doctor check.
 
 use crate::commands::governed_common::fail_usage;
 use crate::commands::multi_import::{
@@ -12,11 +13,12 @@ use crate::commands::multi_import::{
 use crate::context::AppContext;
 use ai_brains_adapters::{
     CLAUDE_HARNESS_UUID, CODEX_HARNESS_UUID, CURSOR_HARNESS_UUID, GROK_HARNESS_UUID,
-    OPENCODE_HARNESS_UUID, claude_project_folder_matches_path, cursor_project_slug,
-    cursor_project_slug_candidates, discover_cursor_sessions, discover_sessions_from_home,
-    is_claude_sidechain_path, is_cursor_sidechain_path, is_subagent_session,
-    load_grok_session_summary, peek_codex_session_meta, percent_encode_path_component,
-    resolve_claude_home, resolve_codex_home, resolve_cursor_home, resolve_grok_home,
+    OPENCODE_HARNESS_UUID, agy_source_matches_scope, claude_project_folder_matches_path,
+    cursor_project_slug, cursor_project_slug_candidates, discover_cursor_sessions,
+    discover_sessions_from_home, is_claude_sidechain_path, is_cursor_sidechain_path,
+    is_subagent_session, load_agy_history_index_from_home, load_grok_session_summary,
+    peek_codex_session_meta, percent_encode_path_component, resolve_claude_home,
+    resolve_codex_home, resolve_cursor_home, resolve_grok_home,
 };
 use ai_brains_core::ids::ProjectId;
 use ai_brains_path::{normalize_for_location_compare, paths_refer_to_same_location};
@@ -162,11 +164,16 @@ pub fn build_report(
         .as_ref()
         .is_some_and(|r| r.opencode.skipped_missing_binary.unwrap_or(0) > 0);
 
-    let agy_disk = if opts.global {
-        count_agy_disk(dirs_home.as_deref(), cutoff, include_wsl_agy)
-    } else {
-        DiskCounts::default()
-    };
+    let agy_disk = count_agy_disk(
+        dirs_home.as_deref(),
+        cutoff,
+        include_wsl_agy,
+        if opts.global {
+            None
+        } else {
+            disk_scope.paths.as_deref()
+        },
+    );
     let grok_disk = count_grok_disk(harness_override, cutoff, disk_scope.paths.as_deref());
     let claude_disk = count_claude_disk(harness_override, cutoff, disk_scope.paths.as_deref());
     let codex_disk = count_codex_disk(
@@ -197,26 +204,19 @@ pub fn build_report(
     let cursor_vault =
         query_store.count_sessions_started_by_harness(&[CURSOR_HARNESS_UUID], project)?;
 
-    let agy = if opts.global {
-        classify_source(
-            "agy",
-            "hook+import",
-            Some(agy_disk.eligible),
-            agy_disk.sidechain,
-            agy_vault,
-            opts.days,
-            false,
-            "antigravity-import",
-        )
-    } else {
-        classify_project_unscoped_disk(
-            "agy",
-            "hook+import",
-            agy_vault,
-            opts.days,
-            "antigravity-import",
-        )
-    };
+    let mut agy = classify_source(
+        "agy",
+        "hook+import",
+        Some(agy_disk.eligible),
+        agy_disk.sidechain,
+        agy_vault,
+        opts.days,
+        false,
+        "antigravity-import",
+    );
+    if opts.global && !agy.next_step.is_empty() && agy.next_step.contains("antigravity-import") {
+        agy.next_step = clip_next_step(format!("{} --global", agy.next_step));
+    }
     let grok = classify_grok(
         grok_disk.eligible,
         grok_disk.sidechain,
@@ -408,22 +408,6 @@ fn claude_folder_matches(folder: &str, paths: &[String]) -> bool {
         .any(|p| claude_project_folder_matches_path(folder, p))
 }
 
-fn classify_project_unscoped_disk(
-    name: &str,
-    mode: &str,
-    vault_sessions: u64,
-    days: usize,
-    import_cmd: &str,
-) -> SourceCoverage {
-    let mut row = classify_source(name, mode, None, 0, vault_sessions, days, false, import_cmd);
-    row.disk_note = Some("project_disk_unscoped".to_string());
-    if vault_sessions == 0 {
-        row.status = "never_exercised".to_string();
-        row.next_step = clip_next_step("ai-brains capture coverage --global".to_string());
-    }
-    row
-}
-
 fn push_warn(warnings: &mut Vec<String>, code: &str) {
     if !warnings.iter().any(|w| w == code) {
         warnings.push(code.to_string());
@@ -594,11 +578,24 @@ fn classify_opencode(vault_sessions: u64, missing_binary: bool) -> SourceCoverag
     row
 }
 
-fn count_agy_disk(home: Option<&Path>, cutoff: SystemTime, include_wsl: bool) -> DiskCounts {
+fn count_agy_disk(
+    home: Option<&Path>,
+    cutoff: SystemTime,
+    include_wsl: bool,
+    project_paths: Option<&[String]>,
+) -> DiskCounts {
     match discover_sessions_from_home(home, include_wsl) {
         Ok(sources) => {
+            let history = home
+                .map(load_agy_history_index_from_home)
+                .unwrap_or_default();
             let mut counts = DiskCounts::default();
             for src in sources {
+                if let Some(paths) = project_paths
+                    && !agy_source_matches_scope(&src, &history, paths)
+                {
+                    continue;
+                }
                 if mtime_in_window(&src.path, cutoff, &mut counts) {
                     counts.eligible += 1;
                 }
@@ -1355,6 +1352,38 @@ mod tests {
         );
     }
 
+    fn write_agy_brain_fixture(home: &Path, cid: &str, workspace: &str) {
+        write_file(
+            &home
+                .join(".gemini")
+                .join("antigravity-cli")
+                .join("brain")
+                .join(cid)
+                .join(".system_generated")
+                .join("logs")
+                .join("transcript.jsonl"),
+            "{}\n",
+        );
+        let hist = home
+            .join(".gemini")
+            .join("antigravity-cli")
+            .join("history.jsonl");
+        let ws_json = serde_json::to_string(workspace).expect("ws");
+        let line = format!(
+            "{{\"display\":\"t\",\"timestamp\":1000,\"workspace\":{ws_json},\"conversationId\":\"{cid}\"}}\n"
+        );
+        if let Some(parent) = hist.parent() {
+            fs::create_dir_all(parent).expect("mkdir hist");
+        }
+        fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(&hist)
+            .expect("open hist")
+            .write_all(line.as_bytes())
+            .expect("write hist");
+    }
+
     fn write_codex_rollout_fixture(home: &Path, sid: &str, cwd: &str) {
         let cwd_json = cwd.replace('\\', r"\\");
         write_file(
@@ -1395,11 +1424,8 @@ mod tests {
         .expect("report");
         let codex = source(&report, "codex");
         assert_eq!(codex.disk_eligible, Some(1), "codex={codex:?}");
-        assert_eq!(source(&report, "agy").disk_eligible, None);
-        assert_eq!(
-            source(&report, "agy").disk_note.as_deref(),
-            Some("project_disk_unscoped")
-        );
+        assert_eq!(source(&report, "agy").disk_eligible, Some(0));
+        assert_eq!(source(&report, "agy").disk_note, None);
         assert_eq!(codex.status, "deficit");
         assert!(
             codex.next_step.contains("codex-import"),
@@ -1445,6 +1471,83 @@ mod tests {
             codex.next_step.contains("--global"),
             "next_step={}",
             codex.next_step
+        );
+    }
+
+    #[test]
+    fn capture_coverage__agy_this_project_disk__counts_history_workspace() {
+        let home = tempfile::tempdir().expect("home");
+        let (_vdir, store) = open_store();
+        let project_id = ProjectId::new();
+        register_project(&store, project_id);
+        add_path_alias(&store, project_id, r"C:\dev\ai-brains");
+        write_agy_brain_fixture(
+            home.path(),
+            "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaa51",
+            r"C:\dev\AI-Brains",
+        );
+        write_agy_brain_fixture(
+            home.path(),
+            "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaa52",
+            r"C:\dev\other",
+        );
+        let report = build_report(
+            store.connection(),
+            &coverage_opts(home.path(), project_id, 30),
+        )
+        .expect("report");
+        let agy = source(&report, "agy");
+        assert_eq!(agy.disk_eligible, Some(1), "agy={agy:?}");
+        assert_eq!(source(&report, "opencode").disk_eligible, None);
+        assert_eq!(
+            source(&report, "opencode").disk_note.as_deref(),
+            Some("requires_opencode_bin")
+        );
+        assert_eq!(agy.status, "deficit");
+        assert!(
+            agy.next_step.contains("antigravity-import"),
+            "next_step={}",
+            agy.next_step
+        );
+        assert!(
+            !agy.next_step.contains("--global"),
+            "next_step={}",
+            agy.next_step
+        );
+    }
+
+    #[test]
+    fn capture_coverage__agy_deficit_next__global_appends_global_flag() {
+        let home = tempfile::tempdir().expect("home");
+        let (_vdir, store) = open_store();
+        let project_id = ProjectId::new();
+        register_project(&store, project_id);
+        write_agy_brain_fixture(
+            home.path(),
+            "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaa53",
+            r"C:\dev\AI-Brains",
+        );
+        write_agy_brain_fixture(
+            home.path(),
+            "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaa54",
+            r"C:\dev\other",
+        );
+        let report = build_report(
+            store.connection(),
+            &coverage_opts_global(home.path(), project_id, 30),
+        )
+        .expect("report");
+        let agy = source(&report, "agy");
+        assert_eq!(agy.status, "deficit");
+        assert!(
+            agy.next_step.contains("antigravity-import"),
+            "next_step={}",
+            agy.next_step
+        );
+        assert!(
+            agy.next_step.contains("--global"),
+            "next_step={}",
+            agy.next_step
         );
     }
 
@@ -1590,16 +1693,6 @@ mod tests {
         );
         assert_eq!(row.status, "ok");
         assert!(row.next_step.is_empty());
-    }
-
-    #[test]
-    fn classify_project_unscoped__vault_zero__never_exercised_names_global() {
-        let zero =
-            classify_project_unscoped_disk("agy", "hook+import", 0, 30, "antigravity-import");
-        assert_eq!(zero.status, "never_exercised");
-        assert!(zero.next_step.contains("--global"), "{}", zero.next_step);
-        let ok = classify_project_unscoped_disk("agy", "hook+import", 3, 30, "antigravity-import");
-        assert_eq!(ok.status, "ok");
     }
 
     #[test]
@@ -1938,9 +2031,10 @@ mod tests {
         assert_eq!(json["scope"], "project");
         assert!(json.get("slug").is_some(), "AC6: slug key present");
         assert!(json["slug"].is_null(), "AC6: no candidates → null");
-        assert!(
-            json["sources"][0]["disk_eligible"].is_null(),
-            "AC7: agy null"
+        assert_eq!(
+            json["sources"][0]["disk_eligible"].as_u64(),
+            Some(0),
+            "T370: this-project AGY is numbered (empty home → 0)"
         );
         assert_eq!(
             json["sources"][4]["disk_eligible"].as_u64(),
@@ -2282,7 +2376,7 @@ mod tests {
     }
 
     #[test]
-    fn capture_coverage__project_scope__agy_disk_null() {
+    fn capture_coverage__project_scope__opencode_disk_null() {
         let home = tempfile::tempdir().expect("home");
         let (_vdir, store) = open_store();
         let project_id = ProjectId::new();
@@ -2292,11 +2386,12 @@ mod tests {
             &coverage_opts(home.path(), project_id, 30),
         )
         .expect("report");
-        assert_eq!(source(&report, "agy").disk_eligible, None);
+        assert_eq!(source(&report, "agy").disk_eligible, Some(0));
         assert_eq!(source(&report, "codex").disk_eligible, Some(0));
+        assert_eq!(source(&report, "opencode").disk_eligible, None);
         assert_eq!(
-            source(&report, "agy").disk_note.as_deref(),
-            Some("project_disk_unscoped")
+            source(&report, "opencode").disk_note.as_deref(),
+            Some("requires_opencode_bin")
         );
         let json = serde_json::to_value(&report).expect("json");
         assert!(
@@ -2305,7 +2400,7 @@ mod tests {
                 .expect("agy")
                 .contains_key("disk_eligible")
         );
-        assert!(json["sources"][0]["disk_eligible"].is_null());
+        assert_eq!(json["sources"][0]["disk_eligible"].as_u64(), Some(0));
     }
 
     #[test]

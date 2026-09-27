@@ -28,6 +28,8 @@ ai-brains harness install --harness agy --yes
 
 ```powershell
 ai-brains antigravity-import --days 7
+ai-brains antigravity-import --days 30 --dry-run
+ai-brains antigravity-import --days 30 --global --dry-run
 ai-brains antigravity-import --days 30 --force   # skip 5-minute quiescence
 ```
 
@@ -67,7 +69,8 @@ ai-brains safety sync --dry-run
 | Install Stop hook | `ai-brains harness install --harness agy --yes` | Reinstall after T236 for wrapper stdout SOOT |
 | Status | `ai-brains harness status` | Detect + wiring |
 | Real-time hook | `agy-hook --payload '{…}'` | Prefer install wrapper; diagnostics on stderr |
-| Import recent | `ai-brains antigravity-import --days 7` | History bind + message-only |
+| Import recent | `ai-brains antigravity-import --days 7` | This-project history bind + message-only; `--global` for machine-wide |
+| Dry-run | `ai-brains antigravity-import --days 30 --dry-run` | Inventory without vault writes |
 | Force import | `ai-brains antigravity-import --force` | Skip 5-minute quiescence |
 | Nightly | `ai-brains nightly` | Multi-harness import (agy→grok→opencode) unless `--skip-import` |
 | Pin | `ai-brains pin "…"` | Mid-session decisions |
