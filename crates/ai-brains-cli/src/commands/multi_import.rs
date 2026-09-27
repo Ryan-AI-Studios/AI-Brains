@@ -608,6 +608,7 @@ fn run_cursor_source(
         force: opts.force,
         home_override: opts.cursor_home_override.clone(),
         dry_run: false,
+        scope_paths: None,
     };
 
     match import_cursor_sessions(query_store.as_ref(), service, &mut sink, options) {

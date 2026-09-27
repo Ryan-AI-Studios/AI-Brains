@@ -78,6 +78,22 @@ ai-brains capture coverage --global
 - Pre-T334 three-source `last_multi_import` blobs warn `stale_multi_import` (`skip_reason=absent_pre_t334`). PATH may still lack `cursor-import` until the owner installs the T334 binary.
 - `preflight --summary` `capture: this-project vault sessions=0` with `Pinned memories: N>0` means this project has imported (or otherwise pinned) memories and no this-project `SessionStarted` capture — it is **not** an empty project. Empty recall names the pin census; a project-scoped empty vault's next step is `ai-brains capture coverage`.
 
+### Cursor Import
+Bulk-import Cursor IDE agent-transcripts JSONL from `~/.cursor/projects/<slug>/agent-transcripts`.
+```powershell
+ai-brains cursor-import --days 30
+ai-brains cursor-import --days 30 --dry-run
+ai-brains cursor-import --days 30 --global --dry-run
+ai-brains cursor-import --days 30 --force
+```
+- `--days <N>`: only import sessions modified in the last N days (default 30).
+- With a parsed project id, keeps folders whose slug matches `cursor_project_slug_candidates` of this project's path aliases (empty aliases fall back to git toplevel/cwd). `--global` restores the T334 machine-wide walk. `--dry-run` inventories without vault writes.
+- `--force`: skip the 5-minute quiescence window for recently modified files.
+- Bind is case-insensitive slug of `list_path_aliases` (T341/T342 twins). Missing match → stable `cursor-unbound` / `(unbound Cursor)`. Nightly sixth source stays unscoped.
+- Skips `subagents/`. Does **not** open Composer `state.vscdb`.
+- Idempotent: path-keyed `source_meta` + delta turn index; message-only SOOT.
+- Human stats on **stderr**. Not a JSON status object.
+
 ### Antigravity Import
 Bulk-import Antigravity conversation logs from local tool-specific brain dirs.
 ```powershell
