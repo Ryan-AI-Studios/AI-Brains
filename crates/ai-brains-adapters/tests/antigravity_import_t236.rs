@@ -116,6 +116,8 @@ fn import_antigravity__history_bind__project_matches_workspace() {
         allow_default_project: false,
         force: true,
         home_override: Some(home.clone()),
+        dry_run: false,
+        scope_paths: None,
     };
 
     let stats = import_antigravity_sessions(&conn, &service, &mut sink, options).expect("import");
@@ -191,6 +193,8 @@ fn import_antigravity__no_history__unbound_not_cwd_env() {
         allow_default_project: false,
         force: true,
         home_override: Some(home),
+        dry_run: false,
+        scope_paths: None,
     };
 
     let stats = import_antigravity_sessions(&conn, &service, &mut sink, options).expect("import");
@@ -242,6 +246,8 @@ fn import_antigravity__force__skips_quiescence() {
             allow_default_project: false,
             force: false,
             home_override: Some(home.clone()),
+            dry_run: false,
+            scope_paths: None,
         },
     )
     .expect("import skip");
@@ -259,9 +265,107 @@ fn import_antigravity__force__skips_quiescence() {
             allow_default_project: false,
             force: true,
             home_override: Some(home),
+            dry_run: false,
+            scope_paths: None,
         },
     )
     .expect("import force");
     assert_eq!(stats_force.sessions, 1);
     assert!(stats_force.imported_turns >= 2);
+}
+
+fn write_history(home: &Path, cid: &str, workspace: &str) {
+    let hist_dir = home.join(".gemini").join("antigravity-cli");
+    fs::create_dir_all(&hist_dir).expect("hist dir");
+    let hist = hist_dir.join("history.jsonl");
+    let mut f = fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&hist)
+        .expect("open hist");
+    writeln!(
+        f,
+        r#"{{"display":"t","timestamp":1000,"workspace":{},"conversationId":"{}"}}"#,
+        serde_json::to_string(workspace).expect("ws json"),
+        cid
+    )
+    .expect("write hist");
+}
+
+const CID_A: &str = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaa41";
+const CID_B: &str = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaa42";
+const BRAIN_BODY: &str = r#"{"step_index":0,"source":"USER_EXPLICIT","type":"USER_INPUT","content":"<USER_REQUEST>\nkeep-me\n</USER_REQUEST>","tool_calls":[]}
+{"step_index":1,"source":"MODEL","type":"PLANNER_RESPONSE","content":"ok","tool_calls":[]}
+"#;
+
+#[test]
+fn import_antigravity__scope_paths_history__found_only_matching() {
+    let root = tempdir().unwrap();
+    let home = root.path().join("home");
+    let vault_dir = root.path().join("vault");
+    fs::create_dir_all(&home).unwrap();
+    fs::create_dir_all(&vault_dir).unwrap();
+
+    write_brain_transcript(&home, CID_A, BRAIN_BODY);
+    write_brain_transcript(&home, CID_B, BRAIN_BODY);
+    write_history(&home, CID_A, r"C:\dev\AI-Brains");
+    write_history(&home, CID_B, r"C:\dev\other");
+
+    let (conn, store) = open_vault(&vault_dir);
+    let mut sink = TestSink {
+        store,
+        last_error: None,
+    };
+    let service = CaptureService::new();
+    let options = AntigravityImportOptions {
+        days: 30,
+        default_project_id: ProjectId::new(),
+        allow_default_project: false,
+        force: true,
+        home_override: Some(home),
+        dry_run: false,
+        scope_paths: Some(vec![r"C:\dev\ai-brains".into()]),
+    };
+    let stats = import_antigravity_sessions(&conn, &service, &mut sink, options).expect("import");
+    assert!(sink.last_error.is_none(), "{:?}", sink.last_error);
+    assert_eq!(stats.found, 1);
+    let turns_a = conn.get_session_turns(CID_A).expect("turns a");
+    assert!(
+        turns_a.iter().any(|(_, c)| c.contains("keep-me")),
+        "cid-A must be kept: {turns_a:?}"
+    );
+    let turns_b = conn.get_session_turns(CID_B).expect("turns b");
+    assert!(turns_b.is_empty(), "cid-B must be dropped: {turns_b:?}");
+}
+
+#[test]
+fn import_antigravity__scope_paths_none__finds_sibling() {
+    let root = tempdir().unwrap();
+    let home = root.path().join("home");
+    let vault_dir = root.path().join("vault");
+    fs::create_dir_all(&home).unwrap();
+    fs::create_dir_all(&vault_dir).unwrap();
+
+    write_brain_transcript(&home, CID_A, BRAIN_BODY);
+    write_brain_transcript(&home, CID_B, BRAIN_BODY);
+    write_history(&home, CID_A, r"C:\dev\AI-Brains");
+    write_history(&home, CID_B, r"C:\dev\other");
+
+    let (conn, store) = open_vault(&vault_dir);
+    let mut sink = TestSink {
+        store,
+        last_error: None,
+    };
+    let service = CaptureService::new();
+    let options = AntigravityImportOptions {
+        days: 30,
+        default_project_id: ProjectId::new(),
+        allow_default_project: false,
+        force: true,
+        home_override: Some(home),
+        dry_run: true,
+        scope_paths: None,
+    };
+    let stats = import_antigravity_sessions(&conn, &service, &mut sink, options).expect("import");
+    assert_eq!(stats.found, 2);
 }

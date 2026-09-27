@@ -57,7 +57,7 @@ Harness importers and hooks must keep **only** user prompts and final assistant 
 
 ### Capture coverage (T337 / T348)
 
-Read-only inventory of on-disk session *files* vs vault `SessionStarted` counts. Does **not** import, open JSONL turn bodies, or add a doctor check. This-project Codex coverage streams only `type=session_meta` for `cwd` (T369); turn lines stay closed.
+Read-only inventory of on-disk session *files* vs vault `SessionStarted` counts. Does **not** import, open JSONL turn bodies, or add a doctor check. This-project Codex coverage streams only `type=session_meta` for `cwd` (T369); turn lines stay closed. This-project AGY coverage reads only `history.jsonl` `workspace` + `conversationId` (T370); transcript bodies stay closed.
 
 ```powershell
 ai-brains capture coverage
@@ -69,11 +69,11 @@ ai-brains capture coverage --global
 - `--global`: today’s **machine** table (all disk walks, all unbound folders, vault across projects). First line stays `Capture coverage (last N days)` with no this-project suffix.
 - `--days <N>`: file mtime window (default **30**).
 - `--format human|json`: default **human**; pipes stay human unless `--format json`.
-- JSON additive: `scope` is `"project"` or `"global"`. Project `slug` is always present (`string` or `null`). `--global` **omits** `slug`. `disk_eligible` is never omitted: OpenCode is `null`; project-scope **agy** is `null` (`disk_note=project_disk_unscoped`); cursor/grok/claude/**codex** are numbers including `0`. There is no `disk_this` / `disk_machine`. `null` ≠ `0` ≠ omit.
+- JSON additive: `scope` is `"project"` or `"global"`. Project `slug` is always present (`string` or `null`). `--global` **omits** `slug`. `disk_eligible` is never omitted: OpenCode is `null`; cursor/grok/claude/codex/**agy** are numbers including `0`. There is no `disk_this` / `disk_machine`. `null` ≠ `0` ≠ omit.
 - `--global`: vault counts across all projects; otherwise `AI_BRAINS_PROJECT_ID` (exit 2 if missing).
 - Status `deficit` means numbered `disk_eligible` is greater than vault `SessionStarted` for that source (including partial capture, not only vault 0). Next step is a copy-paste importer (`cursor-import`, `claude-import`, `codex-import`, `antigravity-import`). Exit **0** (honesty, not a fail).
 - Grok coverage uses the same subagent SoT as `grok-import` (path `subagent-`/`worktrees` **or** sibling `summary.json` `agent_name` ≠ empty/`main`; JSONL turn bodies stay closed). Remaining `eligible > vault` is `unverifiable_subagent`, not `deficit`. Next step is `grok-import --days N --dry-run` (**never** `--force`). All remaining disk as summary/path sidechain (`eligible == 0`, sidechain > 0) is `expected_skip` with empty next. The Sidechain column includes summary-declared subagents, not only path `subagent-`/`worktrees`. `grok_batch_empty_all_subagent` warns only when vault is 0. Live Grok hook JSON is writer evidence, not capture-firing proof.
-- Status `never_exercised` means this-scope disk and vault are both empty (numbered `Some(0)` / 0 / 0, or AGY/OpenCode `disk_eligible=null` with vault 0). Next step names `capture coverage` (project unscoped names `--global`). Install presence stays `harness status`. A project run can be `never_exercised` while `--global` shows sessions. This-project Claude dash folders with hyphenated components (`C--dev-AI-Brains` for `C:\dev\ai-brains`) match by encoding the alias (`:` and `\`/`/` become `-`; interior hyphens stay) — they are not a `never_exercised` empty disk.
+- Status `never_exercised` means this-scope disk and vault are both empty (numbered `Some(0)` / 0 / 0, or OpenCode `disk_eligible=null` with vault 0). Next step names `capture coverage` for that harness (no `--global` token). Install presence stays `harness status`. A project run can be `never_exercised` while `--global` shows sessions. This-project Claude dash folders with hyphenated components (`C--dev-AI-Brains` for `C:\dev\ai-brains`) match by encoding the alias (`:` and `\`/`/` become `-`; interior hyphens stay) — they are not a `never_exercised` empty disk.
 - OpenCode disk cell is `—` / JSON `null` (`requires_opencode_bin`). Missing binary in `last_multi_import` → `expected_skip` with next step `set AI_BRAINS_OPENCODE_BIN`. Binary present and vault 0 → `never_exercised`.
 - Pre-T334 three-source `last_multi_import` blobs warn `stale_multi_import` (`skip_reason=absent_pre_t334`). PATH may still lack `cursor-import` until the owner installs the T334 binary.
 - `preflight --summary` `capture: this-project vault sessions=0` with `Pinned memories: N>0` means this project has imported (or otherwise pinned) memories and no this-project `SessionStarted` capture — it is **not** an empty project. Empty recall names the pin census; a project-scoped empty vault's next step is `ai-brains capture coverage`.
@@ -82,11 +82,14 @@ ai-brains capture coverage --global
 Bulk-import Antigravity conversation logs from local tool-specific brain dirs.
 ```powershell
 ai-brains antigravity-import --days 30
+ai-brains antigravity-import --days 30 --dry-run
+ai-brains antigravity-import --days 30 --global --dry-run
 ai-brains antigravity-import --days 30 --force
 ```
 - `--days <N>`: only import sessions modified in the last N days (default 30).
+- With a parsed project id, keeps brains whose `history.jsonl` workspace location-compares to this project's path aliases (empty aliases fall back to git toplevel/cwd). `--global` restores the T236 machine-wide walk. `--dry-run` inventories without vault writes.
 - `--force`: skip the 5-minute quiescence window for recently modified files.
-- Binds `conversationId` → workspace via `history.jsonl` (normalized path alias). Missing history → stable `agy-unbound` / `(unbound AGY)` — **not** cwd `.env` project by default.
+- Binds `conversationId` → workspace via `history.jsonl` (normalized path alias). Missing history → stable `agy-unbound` / `(unbound AGY)` — **not** cwd `.env` project by default. Nightly first source stays unscoped.
 - Idempotent: path-keyed `source_meta` + delta turn index; message-only SOOT.
 - Human stats on **stderr** (bound/unbound/quiescent/unchanged counters). Not a JSON status object.
 - **Scheduled SYSTEM nightly** keeps `--skip-import` and `--skip-graduation` by default (T239 D12 / T336) — it does **not** run AGY/Grok/OpenCode/Claude/Codex/Cursor batch import under Session 0, and it does **not** graduate pins into the review queue. Manual / user-principal `nightly` without those flags runs six-source multi-harness import and propose-only pin graduation.

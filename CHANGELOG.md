@@ -17,6 +17,8 @@ Version banners in documentation are maintained manually from the workspace `Car
 
 ### Changed
 
+- **T370 BREAKING (0.x) AGY import this-project history workspace scope:** `antigravity-import` with a parsed `AI_BRAINS_PROJECT_ID` discovers brains whose `history.jsonl` workspace location-compares to this project's path aliases (empty aliases fall back to git toplevel/cwd). `--global` restores the T236 machine-wide walk. `--dry-run` inventories without vault writes. Nightly multi-import stays unscoped. This-project `capture coverage` numbers AGY disk from the same history matcher (transcript bodies stay closed). Coverage `--global` next appends `--global`. No `ai-brains-contracts` DTO change.
+
 - **T369 BREAKING (0.x) Codex import this-project cwd scope:** `codex-import` with a parsed `AI_BRAINS_PROJECT_ID` discovers rollouts whose session_meta `cwd` location-compares to this project's path aliases (empty aliases fall back to git toplevel/cwd). `--global` restores the T253 machine-wide walk. Nightly multi-import stays unscoped. This-project `capture coverage` numbers Codex disk from the same cwd matcher (streams `type=session_meta` only). Coverage `--global` next appends `--global`. JSONL turn bodies stay closed on the coverage path.
 
 - **T368 BREAKING (0.x) Claude import this-project folder scope:** `claude-import` with a parsed `AI_BRAINS_PROJECT_ID` discovers the same `projects/<folder>` set as this-project `capture coverage` (T367 encode-compare; empty aliases fall back to git toplevel/cwd). `--global` restores the T253 machine-wide walk. Nightly multi-import stays unscoped. Coverage `--global` next appends `--global`. JSONL turn bodies stay closed on the coverage path.

@@ -25,11 +25,11 @@ pub use agy::{
 };
 pub use antigravity::{
     AgyBindKind, AntigravityFormat, AntigravityImportOptions, AntigravityImportStats,
-    AntigravitySessionSource, AntigravityStep, AntigravityTurn, antigravity_capability,
-    discover_sessions, discover_sessions_from_home, extract_turns, import_antigravity_sessions,
-    load_agy_history_index, load_agy_history_index_from_home, manual_import_instructions,
-    parse_overview_file, parse_project_chat_file, print_import_stats, resolve_agy_project,
-    session_id_from_path, strip_user_xml_tags,
+    AntigravitySessionSource, AntigravityStep, AntigravityTurn, agy_source_matches_scope,
+    antigravity_capability, discover_sessions, discover_sessions_from_home, extract_turns,
+    import_antigravity_sessions, load_agy_history_index, load_agy_history_index_from_home,
+    manual_import_instructions, parse_overview_file, parse_project_chat_file, print_import_stats,
+    resolve_agy_project, session_id_from_path, strip_user_xml_tags,
 };
 pub use capability::{AdapterCapability, CapabilityLevel};
 pub use claude::{

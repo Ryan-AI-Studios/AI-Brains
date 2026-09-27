@@ -135,7 +135,8 @@ and recall from it.
 cd C:\dev\my-project
 ai-brains --vault-path .ai-brains\vault.db init
 
-# 2. Import Antigravity history from the last 30 days.
+# 2. Import Antigravity history from the last 30 days (this-project default).
+ai-brains --vault-path .ai-brains\vault.db antigravity-import --days 30 --dry-run
 ai-brains --vault-path .ai-brains\vault.db antigravity-import --days 30
 
 # 3. Recall across the imported content.
@@ -147,7 +148,9 @@ What you should see:
 - `antigravity-import` prints **human** status lines on **stderr**
   (found / imported_turns / sessions / skipped_quiescent /
   skipped_unchanged_meta / unbound_project / bound_via_history /
-  bound_via_path). It does **not** emit a JSON status object today.
+  bound_via_path). With a project id it scopes to `history.jsonl` workspace
+  (`--global` restores the machine-wide walk; `--dry-run` writes nothing).
+  It does **not** emit a JSON status object today.
   Empty history exits 0 with a no-op message.
 - `recall` ranks user prompts, assistant responses, and pinned
   memories, and the `--format pretty` view shows the top hits in

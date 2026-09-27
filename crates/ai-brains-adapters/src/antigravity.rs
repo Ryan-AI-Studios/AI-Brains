@@ -13,6 +13,7 @@ use ai_brains_events::constructors::EventBuilder;
 use ai_brains_events::{
     Actor, AggregateType, Payload, ProjectAliasAddedPayload, ProjectRegisteredPayload,
 };
+use ai_brains_path::paths_refer_to_same_location;
 use serde::Deserialize;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -77,6 +78,10 @@ pub struct AntigravityImportOptions {
     pub force: bool,
     /// Hermetic tests: discover brains + history under this home instead of dirs::home_dir.
     pub home_override: Option<PathBuf>,
+    pub dry_run: bool,
+    /// `None` = machine-wide discover. `Some` = keep brains whose history
+    /// workspace location-compares to any listed path.
+    pub scope_paths: Option<Vec<String>>,
 }
 
 impl AntigravityImportOptions {
@@ -87,6 +92,8 @@ impl AntigravityImportOptions {
             allow_default_project: false,
             force: false,
             home_override: None,
+            dry_run: false,
+            scope_paths: None,
         }
     }
 }
@@ -418,6 +425,45 @@ fn parse_history_timestamp_ms(v: Option<&serde_json::Value>) -> i64 {
     }
 }
 
+/// Keep a discovered AGY source when its history workspace (or path-like
+/// `project_hash`) location-compares to any scope path. Missing workspace
+/// drops the source when scoped.
+pub fn agy_source_matches_scope(
+    source: &AntigravitySessionSource,
+    history: &HashMap<String, String>,
+    paths: &[String],
+) -> bool {
+    if let Some(ws) = history.get(&source.session_id) {
+        return paths.iter().any(|p| paths_refer_to_same_location(ws, p));
+    }
+    if let Some(hash) = source.project_hash.as_deref() {
+        return paths.iter().any(|p| paths_refer_to_same_location(hash, p));
+    }
+    false
+}
+
+fn resolve_agy_user_home() -> Option<PathBuf> {
+    for key in ["USERPROFILE", "HOME"] {
+        if let Ok(value) = std::env::var(key) {
+            let trimmed = value.trim();
+            if !trimmed.is_empty() {
+                return Some(PathBuf::from(trimmed));
+            }
+        }
+    }
+    dirs::home_dir()
+}
+
+fn eprint_agy_scope(options: &AntigravityImportOptions) {
+    match options.scope_paths.as_ref() {
+        Some(paths) => eprintln!(
+            "[Antigravity] scope=this-project ({} path(s)); use --global for machine-wide",
+            paths.len()
+        ),
+        None => eprintln!("[Antigravity] scope=machine-wide"),
+    }
+}
+
 /// Load history index from AGY2 + optional legacy paths under home.
 pub fn load_agy_history_index_from_home(home: &Path) -> HashMap<String, String> {
     let mut map = HashMap::new();
@@ -561,11 +607,13 @@ pub fn import_antigravity_sessions<S: CaptureSink>(
     sink: &mut S,
     options: AntigravityImportOptions,
 ) -> Result<AntigravityImportStats> {
-    let home = options.home_override.clone().or_else(dirs::home_dir);
+    let mut stats = AntigravityImportStats::default();
+    eprint_agy_scope(&options);
+
+    let home = options.home_override.clone().or_else(resolve_agy_user_home);
     let include_wsl = options.home_override.is_none();
     let all_sources = discover_sessions_from_home(home.as_deref(), include_wsl)?;
 
-    let mut stats = AntigravityImportStats::default();
     if all_sources.is_empty() {
         return Ok(stats);
     }
@@ -576,7 +624,7 @@ pub fn import_antigravity_sessions<S: CaptureSink>(
         .unwrap_or_default();
 
     // Filter by recency
-    let recent_sources: Vec<AntigravitySessionSource> = all_sources
+    let mut recent_sources: Vec<AntigravitySessionSource> = all_sources
         .into_iter()
         .filter(|s| {
             if let Ok(metadata) = std::fs::metadata(&s.path)
@@ -590,6 +638,10 @@ pub fn import_antigravity_sessions<S: CaptureSink>(
         })
         .collect();
 
+    if let Some(paths) = options.scope_paths.as_deref() {
+        recent_sources.retain(|src| agy_source_matches_scope(src, &history, paths));
+    }
+
     stats.found = recent_sources.len();
     if stats.found == 0 {
         return Ok(stats);
@@ -598,6 +650,16 @@ pub fn import_antigravity_sessions<S: CaptureSink>(
         "[Antigravity] Found {} sessions modified in the last {} days. Scanning for new turns...",
         stats.found, options.days
     );
+    if options.dry_run {
+        eprintln!("[Antigravity] dry-run mode: scanning only — no vault writes.");
+        for source in &recent_sources {
+            eprintln!(
+                "[Antigravity] dry-run session {} path={}",
+                source.session_id,
+                source.path.display()
+            );
+        }
+    }
 
     let antigravity_harness = HarnessId::from_str("00000000-0000-0000-0000-000000000001")
         .map_err(|e| crate::errors::AdapterError::Other(format!("Invalid static ID: {}", e)))?;
@@ -690,7 +752,9 @@ pub fn import_antigravity_sessions<S: CaptureSink>(
         };
 
         if turns.is_empty() {
-            update_source_meta(sink, &meta_key, &current_meta);
+            if !options.dry_run {
+                update_source_meta(sink, &meta_key, &current_meta);
+            }
             continue;
         }
 
@@ -698,7 +762,9 @@ pub fn import_antigravity_sessions<S: CaptureSink>(
         let next_index = max_turn.map(|m| m + 1).unwrap_or(0);
 
         if turns.len() <= next_index as usize {
-            update_source_meta(sink, &meta_key, &current_meta);
+            if !options.dry_run {
+                update_source_meta(sink, &meta_key, &current_meta);
+            }
             continue;
         }
 
@@ -739,6 +805,17 @@ pub fn import_antigravity_sessions<S: CaptureSink>(
                     AgyBindKind::Path
                 };
 
+            match final_kind {
+                AgyBindKind::History => stats.bound_via_history += 1,
+                AgyBindKind::Path => stats.bound_via_path += 1,
+                AgyBindKind::Unbound => stats.unbound_project += 1,
+                AgyBindKind::Default => {}
+            }
+
+            if options.dry_run {
+                return Ok(());
+            }
+
             if needs_create {
                 let display = if alias == AGY_UNBOUND_ALIAS {
                     AGY_UNBOUND_DISPLAY_NAME.to_string()
@@ -766,13 +843,6 @@ pub fn import_antigravity_sessions<S: CaptureSink>(
                     };
                     ensure_project_registered(sink, project_id, &alias, &display, query_store)?;
                 }
-            }
-
-            match final_kind {
-                AgyBindKind::History => stats.bound_via_history += 1,
-                AgyBindKind::Path => stats.bound_via_path += 1,
-                AgyBindKind::Unbound => stats.unbound_project += 1,
-                AgyBindKind::Default => {}
             }
 
             let capture_context = CaptureContext {
@@ -865,6 +935,37 @@ mod tests {
 
     use super::*;
     use std::io::Write;
+
+    #[test]
+    fn agy_source_matches_scope__uses_history_not_transcript_body() {
+        let source = AntigravitySessionSource {
+            path: PathBuf::from(r"C:\tmp\transcript.jsonl"),
+            session_id: "cid-a".into(),
+            format: AntigravityFormat::BrainLog,
+            project_hash: None,
+        };
+        let mut history = HashMap::new();
+        history.insert(
+            "cid-a".into(),
+            normalize_agy_project_hash(r"C:\dev\AI-Brains"),
+        );
+        let paths = vec![r"C:\dev\ai-brains".to_string()];
+        assert!(
+            agy_source_matches_scope(&source, &history, &paths),
+            "history workspace must match alias"
+        );
+        let other = AntigravitySessionSource {
+            path: PathBuf::from(r"C:\tmp\other.jsonl"),
+            session_id: "cid-b".into(),
+            format: AntigravityFormat::BrainLog,
+            project_hash: None,
+        };
+        history.insert("cid-b".into(), normalize_agy_project_hash(r"C:\dev\other"));
+        assert!(
+            !agy_source_matches_scope(&other, &history, &paths),
+            "other-workspace history must not match"
+        );
+    }
 
     #[test]
     fn extract_turns_keeps_user_and_assistant_content() {

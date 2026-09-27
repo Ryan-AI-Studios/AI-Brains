@@ -1,13 +1,26 @@
 use crate::context::{AppContext, StoreSink};
 use ai_brains_adapters::{
     AntigravityImportOptions, import_antigravity_sessions, print_import_stats,
+    resolve_claude_import_scope_paths,
 };
 use ai_brains_capture::CaptureService;
 use ai_brains_core::ids::ProjectId;
+use ai_brains_path::normalize_for_location_compare;
+use ai_brains_store::QueryStore;
 use std::str::FromStr;
 
-pub fn run(ctx: &AppContext, days: usize, force: bool) -> Result<(), Box<dyn std::error::Error>> {
-    eprintln!("Scanning for Antigravity sessions...");
+pub fn run(
+    ctx: &AppContext,
+    days: usize,
+    force: bool,
+    dry_run: bool,
+    global: bool,
+) -> Result<(), Box<dyn std::error::Error>> {
+    if dry_run {
+        eprintln!("Scanning for Antigravity sessions (dry-run — no vault writes)...");
+    } else {
+        eprintln!("Scanning for Antigravity sessions...");
+    }
 
     let service = CaptureService::new();
     let event_store = ai_brains_store::SqliteEventStore::new((*ctx.conn).clone());
@@ -24,10 +37,25 @@ pub fn run(ctx: &AppContext, days: usize, force: bool) -> Result<(), Box<dyn std
     // Default project id from env is only used when allow_default_project is true.
     // Normative manual import: allow_default_project = false (F12) — unbound brains
     // go to stable agy-unbound, not cwd .env project.
-    let project_id = std::env::var("AI_BRAINS_PROJECT_ID")
+    let parsed_pid = std::env::var("AI_BRAINS_PROJECT_ID")
         .ok()
-        .and_then(|s| ProjectId::from_str(&s).ok())
-        .unwrap_or_default();
+        .and_then(|s| ProjectId::from_str(&s).ok());
+    let project_id = parsed_pid.unwrap_or_default();
+
+    let query_store = ctx.conn.clone() as std::sync::Arc<dyn QueryStore>;
+    let scope_paths = if global {
+        None
+    } else {
+        let aliases = query_store.list_path_aliases()?;
+        let fallback = std::env::current_dir().ok().map(|cwd| {
+            let use_path = super::project::collect_git_identity(&cwd)
+                .ok()
+                .and_then(|g| g.toplevel)
+                .unwrap_or(cwd);
+            normalize_for_location_compare(&use_path.to_string_lossy())
+        });
+        resolve_claude_import_scope_paths(&aliases, parsed_pid, fallback.as_deref())
+    };
 
     let options = AntigravityImportOptions {
         days,
@@ -35,9 +63,10 @@ pub fn run(ctx: &AppContext, days: usize, force: bool) -> Result<(), Box<dyn std
         allow_default_project: false,
         force,
         home_override: None,
+        dry_run,
+        scope_paths,
     };
 
-    let query_store = ctx.conn.clone() as std::sync::Arc<dyn ai_brains_store::QueryStore>;
     let stats = import_antigravity_sessions(query_store.as_ref(), &service, &mut sink, options)?;
 
     if let Some(err) = sink.last_error {
@@ -46,7 +75,12 @@ pub fn run(ctx: &AppContext, days: usize, force: bool) -> Result<(), Box<dyn std
 
     print_import_stats(&stats);
 
-    if stats.sessions == 0 {
+    if dry_run {
+        eprintln!(
+            "Antigravity dry-run complete. found={} (sessions/imported_turns remain 0 — no writes).",
+            stats.found
+        );
+    } else if stats.sessions == 0 {
         eprintln!("No new Antigravity sessions found to import.");
     } else {
         eprintln!(
