@@ -228,7 +228,7 @@ fn antigravity_import__pid_without_aliases__scopes_cwd_not_global() {
     let pid = register_project(&vault, &work);
 
     let home = root.path().join("user-home");
-    let ws = work.to_string_lossy().replace('/', r"\");
+    let ws = work.to_string_lossy();
     write_brain(&home, CID_A, &ws);
     write_brain(&home, CID_B, r"C:\dev\other");
 
