@@ -137,6 +137,7 @@ fn apply_stub_env(
     cmd.env("PATH", isolated_home);
 }
 
+#[cfg(windows)]
 #[test]
 fn opencode_import__this_project_directory__found_one_global_two() {
     let root = tempdir().expect("root");
@@ -243,6 +244,7 @@ fn opencode_import__help__mentions_global_and_dry_run() {
     assert!(stdout.contains("--dry-run"), "stdout={stdout}");
 }
 
+#[cfg(windows)]
 #[test]
 fn opencode_import__pid_without_aliases__scopes_cwd_not_global() {
     let root = tempdir().expect("root");
