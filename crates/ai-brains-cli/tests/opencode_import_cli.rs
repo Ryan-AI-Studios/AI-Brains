@@ -85,13 +85,32 @@ fn write_stub(dir: &Path, dir_a: &str, dir_b: &str) -> (PathBuf, PathBuf) {
         u = now_ms(),
     );
     fs::write(&list_path, list).expect("list");
-    let stub = dir.join("opencode.cmd");
-    let script = format!(
-        "@echo off\r\n>>\"{argv}\" echo %*\r\nif /I \"%1\"==\"export\" exit /b 1\r\ntype \"{list}\"\r\n",
-        argv = argv_path.display(),
-        list = list_path.display(),
-    );
-    fs::write(&stub, script).expect("stub");
+    #[cfg(windows)]
+    let stub = {
+        let stub = dir.join("opencode.cmd");
+        let script = format!(
+            "@echo off\r\n>>\"{argv}\" echo %*\r\nif /I \"%1\"==\"export\" exit /b 1\r\ntype \"{list}\"\r\n",
+            argv = argv_path.display(),
+            list = list_path.display(),
+        );
+        fs::write(&stub, script).expect("stub");
+        stub
+    };
+    #[cfg(not(windows))]
+    let stub = {
+        let stub = dir.join("opencode");
+        let script = format!(
+            "#!/bin/sh\nprintf '%s\\n' \"$*\" >> \"{argv}\"\nif [ \"$1\" = export ]; then exit 1; fi\ncat \"{list}\"\n",
+            argv = argv_path.display(),
+            list = list_path.display(),
+        );
+        fs::write(&stub, script).expect("stub");
+        use std::os::unix::fs::PermissionsExt;
+        let mut perms = fs::metadata(&stub).expect("meta").permissions();
+        perms.set_mode(0o755);
+        fs::set_permissions(&stub, perms).expect("chmod");
+        stub
+    };
     (stub, argv_path)
 }
 
