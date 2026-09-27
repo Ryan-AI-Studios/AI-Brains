@@ -7,7 +7,7 @@
 use crate::agy::path_derived_display_name;
 use crate::capability::{AdapterCapability, CapabilityLevel, full_harness_governed_reads};
 use crate::errors::{AdapterError, Result};
-use crate::grok::percent_decode_component;
+use crate::grok::{percent_decode_component, percent_encode_path_component};
 use crate::message_only::{
     IngestableTurn, extract_text_from_json_content, extract_user_text, filter_turn,
 };
@@ -21,6 +21,7 @@ use ai_brains_events::constructors::EventBuilder;
 use ai_brains_events::{
     Actor, AggregateType, Payload, ProjectAliasAddedPayload, ProjectRegisteredPayload,
 };
+use ai_brains_path::normalize_for_location_compare;
 use serde::Deserialize;
 use serde_json::Value;
 use std::path::{Path, PathBuf};
@@ -411,11 +412,35 @@ pub fn decode_claude_project_folder(name: &str) -> Option<String> {
     decode_claude_dash_folder(trimmed)
 }
 
+/// Encode a filesystem path the way Claude Code names `projects/<folder>`:
+/// `:` and `\`/`/` become `-`; interior `-` stay (`C:\dev\AI-Brains` →
+/// `C--dev-AI-Brains`). Matching uses this forward encode (T367). Lossy
+/// [`decode_claude_dash_folder`] is not the bind SoT.
+pub fn encode_claude_project_folder(path: &str) -> String {
+    let t = path.trim().trim_end_matches(['/', '\\']);
+    t.replace('/', "\\").replace([':', '\\'], "-")
+}
+
+/// True when a Claude `projects/<folder>` name refers to `path` (percent-encode,
+/// dash-encode, or hyphen-free dash decode + location compare).
+pub fn claude_project_folder_matches_path(folder: &str, path: &str) -> bool {
+    if percent_encode_path_component(path).eq_ignore_ascii_case(folder) {
+        return true;
+    }
+    if encode_claude_project_folder(path).eq_ignore_ascii_case(folder) {
+        return true;
+    }
+    decode_claude_project_folder(folder).is_some_and(|decoded| {
+        normalize_for_location_compare(&decoded) == normalize_for_location_compare(path)
+    })
+}
+
 fn decode_claude_dash_folder(name: &str) -> Option<String> {
     // Claude Code encodes `C:\dev\Foo` as `C--dev-Foo` (`:` and `\` → `-`).
     // Hyphens inside a component (e.g. `AI-Brains`) are ambiguous — prefer
-    // percent-encoded folder names (T237). This heuristic only rewrites the
-    // drive `--` marker and treats remaining `-` as separators.
+    // percent-encoded folder names (T237) or [`encode_claude_project_folder`]
+    // compare (T367). This heuristic only rewrites the drive `--` marker and
+    // treats remaining `-` as separators (lossy).
     if !name.contains("--") {
         return None;
     }
@@ -518,7 +543,13 @@ fn source_from_claude_jsonl(
                 .map(str::to_string)
         })
         .unwrap_or_default();
-    let project_hash = decode_claude_project_folder(&folder);
+    // Dash folders keep the encoded name so encode-compare and F7 unbound
+    // can see `--`. Percent-encoded folders still pass the decoded path.
+    let project_hash = if folder.contains("--") {
+        Some(folder)
+    } else {
+        decode_claude_project_folder(&folder)
+    };
     Some(ClaudeSessionSource {
         path: jsonl.to_path_buf(),
         session_id: stem,
@@ -584,7 +615,74 @@ fn resolve_path_project(
     if let Ok(Some(pid)) = query_store.resolve_project_id_from_alias(&alias) {
         return Ok((pid, alias, false, false));
     }
+
+    let encoded_raw = encode_claude_project_folder(raw);
+    let encoded_alias = encode_claude_project_folder(&alias);
+    if let Ok(paths) = query_store.list_path_aliases() {
+        let mut hits: Vec<(ProjectId, String)> = paths
+            .into_iter()
+            .filter(|(_, p)| {
+                let enc = encode_claude_project_folder(p);
+                enc.eq_ignore_ascii_case(&encoded_raw) || enc.eq_ignore_ascii_case(&encoded_alias)
+            })
+            .collect();
+        hits.sort_by(|a, b| {
+            a.1.cmp(&b.1)
+                .then_with(|| a.0.as_uuid().cmp(&b.0.as_uuid()))
+        });
+        hits.dedup();
+        let mut unique_pids: Vec<ProjectId> = Vec::new();
+        for (pid, _) in &hits {
+            if !unique_pids.contains(pid) {
+                unique_pids.push(*pid);
+            }
+        }
+        match unique_pids.as_slice() {
+            [pid] => {
+                let pid = *pid;
+                let stored = hits
+                    .into_iter()
+                    .find(|(p, _)| *p == pid)
+                    .map(|(_, path)| path)
+                    .unwrap_or(alias);
+                return Ok((pid, stored, false, false));
+            }
+            [] => {}
+            _ => {
+                return unbound_claude_project(
+                    query_store,
+                    unbound_alias,
+                    allow_default_project,
+                    default_project_id,
+                );
+            }
+        }
+    }
+
+    if raw.contains("--") {
+        return unbound_claude_project(
+            query_store,
+            unbound_alias,
+            allow_default_project,
+            default_project_id,
+        );
+    }
     Ok((ProjectId::new(), alias, false, true))
+}
+
+fn unbound_claude_project(
+    query_store: &dyn ai_brains_store::QueryStore,
+    unbound_alias: &str,
+    allow_default_project: bool,
+    default_project_id: ProjectId,
+) -> Result<(ProjectId, String, bool, bool)> {
+    if allow_default_project {
+        return Ok((default_project_id, unbound_alias.to_string(), true, false));
+    }
+    if let Ok(Some(pid)) = query_store.resolve_project_id_from_alias(unbound_alias) {
+        return Ok((pid, unbound_alias.to_string(), true, false));
+    }
+    Ok((ProjectId::new(), unbound_alias.to_string(), true, true))
 }
 
 fn ensure_project_registered<S: CaptureSink>(
@@ -1087,6 +1185,50 @@ mod tests {
         assert!(decoded.to_ascii_lowercase().contains("ai-brains"));
         let dash = decode_claude_project_folder("C--dev-AI-Brains").expect("dash");
         assert!(dash.contains(r"C:\dev"));
+    }
+
+    #[test]
+    fn encode_claude_project_folder__hyphenated_component__keeps_hyphen() {
+        for raw in [
+            r"C:\dev\AI-Brains",
+            r"C:\dev\AI-Brains\",
+            "C:/dev/AI-Brains",
+        ] {
+            assert!(
+                encode_claude_project_folder(raw).eq_ignore_ascii_case("C--dev-AI-Brains"),
+                "raw={raw:?} enc={}",
+                encode_claude_project_folder(raw)
+            );
+        }
+        assert!(
+            encode_claude_project_folder(r"C:\dev\ai-brains")
+                .eq_ignore_ascii_case("C--dev-AI-Brains")
+        );
+        assert_eq!(
+            encode_claude_project_folder("/home/user/AI-Brains"),
+            "-home-user-AI-Brains"
+        );
+    }
+
+    #[test]
+    fn claude_project_folder_matches_path__dash_ai_brains__matches_alias() {
+        assert!(claude_project_folder_matches_path(
+            "C--dev-AI-Brains",
+            r"C:\dev\ai-brains"
+        ));
+        assert!(!claude_project_folder_matches_path(
+            "C--dev-other",
+            r"C:\dev\ai-brains"
+        ));
+    }
+
+    #[test]
+    fn decode_claude_project_folder__hyphen_free_dash__drive_path() {
+        let decoded = decode_claude_project_folder("C--dev-ledgerful").expect("dash");
+        assert_eq!(
+            normalize_for_location_compare(&decoded),
+            normalize_for_location_compare(r"C:\dev\ledgerful")
+        );
     }
 
     #[test]
