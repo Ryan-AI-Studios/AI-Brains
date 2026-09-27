@@ -2,13 +2,19 @@
 #![allow(clippy::disallowed_methods, non_snake_case)]
 
 use ai_brains_adapters::{
-    CLAUDE_UNBOUND_ALIAS, ClaudeImportOptions, filter_claude_jsonl_lines, import_claude_sessions,
-    normalize_claude_project_hash, percent_encode_path_component,
+    CLAUDE_UNBOUND_ALIAS, ClaudeBindKind, ClaudeImportOptions, filter_claude_jsonl_lines,
+    import_claude_sessions, normalize_claude_project_hash, percent_encode_path_component,
+    resolve_claude_project,
 };
 use ai_brains_capture::{CaptureService, CaptureSink};
 use ai_brains_core::ids::ProjectId;
+use ai_brains_core::privacy::Privacy;
 use ai_brains_crypto::{DataKey, SqlCipherKey};
-use ai_brains_events::Envelope;
+use ai_brains_events::constructors::EventBuilder;
+use ai_brains_events::{
+    Actor, AggregateType, Envelope, Payload, ProjectRegisteredPayload,
+    RepositoryPathAliasAddedPayload,
+};
 use ai_brains_store::{EventStore, QueryStore, SqliteEventStore, VaultConnection};
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -223,6 +229,140 @@ fn import_claude__unbound_folder__claude_unbound_alias() {
     conn.resolve_project_id_from_alias(CLAUDE_UNBOUND_ALIAS)
         .expect("resolve")
         .expect("unbound alias");
+}
+
+fn register_path_alias(store: &SqliteEventStore, project_id: ProjectId, normalized_path: &str) {
+    let actor = Actor::System;
+    let reg = EventBuilder::new(
+        AggregateType::Project,
+        project_id.as_uuid(),
+        actor.clone(),
+        Privacy::LocalOnly,
+    )
+    .build(Payload::ProjectRegistered(ProjectRegisteredPayload {
+        project_id,
+        name: "t367".to_string(),
+        tx_id: None,
+    }))
+    .expect("ProjectRegistered");
+    store.append_event(&reg).expect("append register");
+    let alias = EventBuilder::new(
+        AggregateType::Project,
+        project_id.as_uuid(),
+        actor,
+        Privacy::LocalOnly,
+    )
+    .build(Payload::RepositoryPathAliasAdded(
+        RepositoryPathAliasAddedPayload {
+            project_id,
+            normalized_path: normalized_path.to_string(),
+        },
+    ))
+    .expect("alias");
+    store.append_event(&alias).expect("append alias");
+}
+
+#[test]
+fn import_claude__hyphen_dash_folder__binds_registered_project() {
+    let root = tempdir().unwrap();
+    let home = root.path().join("home");
+    let vault_dir = root.path().join("vault");
+    fs::create_dir_all(&home).unwrap();
+    fs::create_dir_all(&vault_dir).unwrap();
+
+    let sid = "dddddddd-dddd-dddd-dddd-dddddddddddd";
+    write_claude_session(&home, "C--dev-AI-Brains", sid, CLAUDE_JSONL);
+
+    let (conn, store) = open_vault(&vault_dir);
+    let project_id = ProjectId::new();
+    register_path_alias(&store, project_id, r"C:\dev\ai-brains");
+    let mut sink = TestSink {
+        store,
+        last_error: None,
+    };
+    let service = CaptureService::new();
+    let stats = import_claude_sessions(
+        &conn,
+        &service,
+        &mut sink,
+        ClaudeImportOptions {
+            days: 30,
+            default_project_id: ProjectId::new(),
+            allow_default_project: false,
+            force: true,
+            home_override: Some(home),
+            dry_run: false,
+        },
+    )
+    .expect("import");
+    assert!(sink.last_error.is_none(), "{:?}", sink.last_error);
+    assert!(stats.bound_via_path >= 1, "stats={stats:?}");
+    assert_eq!(stats.sessions, 1);
+    let turns = conn.get_session_turns(sid).expect("turns");
+    assert!(
+        turns.iter().any(|(_, c)| c.contains("hello-claude")),
+        "user text kept: {turns:?}"
+    );
+    assert!(
+        conn.resolve_project_id_from_alias(r"C:\dev\AI\Brains")
+            .expect("resolve phantom")
+            .is_none(),
+        "must not mint C:\\dev\\AI\\Brains"
+    );
+    let paths = conn.list_path_aliases().expect("path aliases");
+    assert!(
+        paths
+            .iter()
+            .any(|(pid, p)| { *pid == project_id && p.eq_ignore_ascii_case(r"C:\dev\ai-brains") }),
+        "paths={paths:?}"
+    );
+    assert!(
+        !paths
+            .iter()
+            .any(|(_, p)| p.to_ascii_lowercase().contains("ai\\brains")
+                || p.to_ascii_lowercase().contains("ai/brains")),
+        "must not mint AI\\Brains path alias: {paths:?}"
+    );
+}
+
+#[test]
+fn resolve_claude_project__unmatched_dash__unbound_no_mint() {
+    let root = tempdir().unwrap();
+    let vault_dir = root.path().join("vault");
+    fs::create_dir_all(&vault_dir).unwrap();
+    let (conn, store) = open_vault(&vault_dir);
+    let (pid, alias, kind, needs_create) =
+        resolve_claude_project(Some("C--dev-foo-bar"), &conn, false, ProjectId::new())
+            .expect("resolve");
+    assert_eq!(kind, ClaudeBindKind::Unbound);
+    assert_eq!(alias, CLAUDE_UNBOUND_ALIAS);
+    assert!(needs_create);
+    let _ = pid;
+    let _ = store;
+    assert!(
+        conn.resolve_project_id_from_alias(r"C:\dev\foo\bar")
+            .expect("phantom")
+            .is_none()
+    );
+}
+
+#[test]
+fn resolve_claude_project__encode_collision__unbound() {
+    let root = tempdir().unwrap();
+    let vault_dir = root.path().join("vault");
+    fs::create_dir_all(&vault_dir).unwrap();
+    let (conn, store) = open_vault(&vault_dir);
+    let a = ProjectId::new();
+    let b = ProjectId::new();
+    register_path_alias(&store, a, r"C:\dev\ai-brains");
+    register_path_alias(&store, b, r"C:\dev\AI\Brains");
+    let (pid, alias, kind, _needs_create) =
+        resolve_claude_project(Some("C--dev-AI-Brains"), &conn, false, ProjectId::new())
+            .expect("resolve");
+    assert_eq!(kind, ClaudeBindKind::Unbound);
+    assert_eq!(alias, CLAUDE_UNBOUND_ALIAS);
+    assert_ne!(pid, a);
+    assert_ne!(pid, b);
 }
 
 #[test]

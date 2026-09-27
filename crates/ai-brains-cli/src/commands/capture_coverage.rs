@@ -11,8 +11,8 @@ use crate::commands::multi_import::{
 use crate::context::AppContext;
 use ai_brains_adapters::{
     CLAUDE_HARNESS_UUID, CODEX_HARNESS_UUID, CURSOR_HARNESS_UUID, GROK_HARNESS_UUID,
-    OPENCODE_HARNESS_UUID, cursor_project_slug, cursor_project_slug_candidates,
-    decode_claude_project_folder, discover_cursor_sessions, discover_sessions_from_home,
+    OPENCODE_HARNESS_UUID, claude_project_folder_matches_path, cursor_project_slug,
+    cursor_project_slug_candidates, discover_cursor_sessions, discover_sessions_from_home,
     is_claude_sidechain_path, is_cursor_sidechain_path, is_subagent_session,
     load_grok_session_summary, percent_encode_path_component, resolve_claude_home,
     resolve_codex_home, resolve_cursor_home, resolve_grok_home,
@@ -402,14 +402,9 @@ fn grok_first_level_matches(folder: &str, paths: &[String]) -> bool {
 }
 
 fn claude_folder_matches(folder: &str, paths: &[String]) -> bool {
-    paths.iter().any(|p| {
-        if percent_encode_path_component(p).eq_ignore_ascii_case(folder) {
-            return true;
-        }
-        decode_claude_project_folder(folder).is_some_and(|decoded| {
-            normalize_for_location_compare(&decoded) == normalize_for_location_compare(p)
-        })
-    })
+    paths
+        .iter()
+        .any(|p| claude_project_folder_matches_path(folder, p))
 }
 
 fn classify_project_unscoped_disk(
@@ -1228,6 +1223,66 @@ mod tests {
         );
         assert_eq!(grok.status, "ok");
         assert!(grok.next_step.is_empty(), "next_step={}", grok.next_step);
+    }
+
+    #[test]
+    fn capture_coverage__claude_hyphen_dash_folder__this_project_disk() {
+        let home = tempfile::tempdir().expect("home");
+        let (_vdir, store) = open_store();
+        let project_id = ProjectId::new();
+        register_project(&store, project_id);
+        add_path_alias(&store, project_id, r"C:\dev\ai-brains");
+        write_file(
+            &home
+                .path()
+                .join(".claude")
+                .join("projects")
+                .join("C--dev-AI-Brains")
+                .join("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa.jsonl"),
+            "{}\n",
+        );
+
+        let report = build_report(
+            store.connection(),
+            &coverage_opts(home.path(), project_id, 30),
+        )
+        .expect("report");
+        let claude = source(&report, "claude");
+        assert_eq!(claude.disk_eligible, Some(1), "claude={claude:?}");
+        assert_eq!(claude.status, "deficit");
+        assert!(
+            claude.next_step.contains("claude-import"),
+            "next_step={}",
+            claude.next_step
+        );
+    }
+
+    #[test]
+    fn capture_coverage__claude_garbage_jsonl_body__classifies_by_dash_folder() {
+        let home = tempfile::tempdir().expect("home");
+        let (_vdir, store) = open_store();
+        let project_id = ProjectId::new();
+        register_project(&store, project_id);
+        add_path_alias(&store, project_id, r"C:\dev\ai-brains");
+        let jsonl = home
+            .path()
+            .join(".claude")
+            .join("projects")
+            .join("C--dev-AI-Brains")
+            .join("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb.jsonl");
+        if let Some(parent) = jsonl.parent() {
+            fs::create_dir_all(parent).expect("mkdir");
+        }
+        fs::write(&jsonl, [0u8, 0xff, 0xfe, b'n', b'o', b't']).expect("garbage jsonl");
+
+        let report = build_report(
+            store.connection(),
+            &coverage_opts(home.path(), project_id, 30),
+        )
+        .expect("report");
+        let claude = source(&report, "claude");
+        assert!(claude.disk_eligible.unwrap_or(0) >= 1, "claude={claude:?}");
+        assert_ne!(claude.status, "never_exercised");
     }
 
     #[test]

@@ -17,6 +17,8 @@ Version banners in documentation are maintained manually from the workspace `Car
 
 ### Changed
 
+- **T367 Claude hyphenated dash-folder SoT:** this-project `capture coverage` and `claude-import` bind Claude `projects/C--dev-AI-Brains` by encoding the path alias (`C:\dev\ai-brains`), not by lossy dash-decode (`C:\dev\AI\Brains`). Unique encode match binds; collision or unmatched dash folder is unbound (no phantom path). JSONL turn bodies stay closed.
+
 - **T366 Grok coverage subagent SoT:** `capture coverage` Grok `disk_eligible` uses the same sibling `summary.json` `agent_name` helper as `grok-import` (path `subagent-`/`worktrees` still skip). JSONL turn bodies stay closed. All-sidechain rows stay `expected_skip`. Remaining `eligible > vault` stays `unverifiable_subagent` + `--dry-run`.
 
 - **T365 Leftover session-card next:** Project-scoped `--summary` leftover (shell `PROJECT_ID` ≠ cwd `.env`) outranks empty-decision T315 and pinned-0 coverage: `next: ai-brains context --show`. Unowned `context` and grants bootstrap still win. `--global` does not take leftover next.
