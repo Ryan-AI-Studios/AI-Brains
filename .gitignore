@@ -47,3 +47,7 @@ apps/desktop/src-tauri/gen/
 # cargo-cyclonedx crate-local BOMs (scripts clean these; ignore if left behind)
 *.cdx.json
 
+# Coordinator run state (machine-local, absolute paths)
+.coordinator/
+AI-review.md
+status.md
