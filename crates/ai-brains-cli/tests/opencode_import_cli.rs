@@ -74,7 +74,7 @@ fn now_ms() -> u128 {
         .as_millis()
 }
 
-fn write_stub(dir: &Path, dir_a: &str, dir_b: &str) -> (PathBuf, PathBuf) {
+fn write_stub(dir: &Path, dir_a: &str, dir_b: &str) -> (PathBuf, PathBuf, PathBuf) {
     fs::create_dir_all(dir).expect("stub dir");
     let list_path = dir.join("list.json");
     let argv_path = dir.join("argv.log");
@@ -88,30 +88,28 @@ fn write_stub(dir: &Path, dir_a: &str, dir_b: &str) -> (PathBuf, PathBuf) {
     #[cfg(windows)]
     let stub = {
         let stub = dir.join("opencode.cmd");
-        let script = format!(
-            "@echo off\r\n>>\"{argv}\" echo %*\r\nif /I \"%1\"==\"export\" exit /b 1\r\ntype \"{list}\"\r\n",
-            argv = argv_path.display(),
-            list = list_path.display(),
-        );
-        fs::write(&stub, script).expect("stub");
+        fs::write(
+            &stub,
+            "@echo off\r\n>>\"%OPENCODE_STUB_ARGV%\" echo %*\r\nif /I \"%1\"==\"export\" exit /b 1\r\ntype \"%OPENCODE_STUB_LIST%\"\r\n",
+        )
+        .expect("stub");
         stub
     };
     #[cfg(not(windows))]
     let stub = {
         let stub = dir.join("opencode");
-        let script = format!(
-            "#!/bin/sh\nprintf '%s\\n' \"$*\" >> \"{argv}\"\nif [ \"$1\" = export ]; then exit 1; fi\ncat \"{list}\"\n",
-            argv = argv_path.display(),
-            list = list_path.display(),
-        );
-        fs::write(&stub, script).expect("stub");
+        fs::write(
+            &stub,
+            "#!/bin/sh\necho \"$@\" >> \"$OPENCODE_STUB_ARGV\"\n[ \"$1\" = export ] && exit 1\ncat \"$OPENCODE_STUB_LIST\"\n",
+        )
+        .expect("stub");
         use std::os::unix::fs::PermissionsExt;
         let mut perms = fs::metadata(&stub).expect("meta").permissions();
         perms.set_mode(0o755);
         fs::set_permissions(&stub, perms).expect("chmod");
         stub
     };
-    (stub, argv_path)
+    (stub, argv_path, list_path)
 }
 
 fn found_from_stderr(stderr: &str) -> Option<usize> {
@@ -124,9 +122,17 @@ fn found_from_stderr(stderr: &str) -> Option<usize> {
     None
 }
 
-fn apply_stub_env(cmd: &mut assert_cmd::Command, stub: &Path, isolated_home: &Path) {
+fn apply_stub_env(
+    cmd: &mut assert_cmd::Command,
+    stub: &Path,
+    isolated_home: &Path,
+    argv_path: &Path,
+    list_path: &Path,
+) {
     strip_harness_homes(cmd);
     cmd.env("AI_BRAINS_OPENCODE_BIN", stub);
+    cmd.env("OPENCODE_STUB_ARGV", argv_path);
+    cmd.env("OPENCODE_STUB_LIST", list_path);
     cmd.env("APPDATA", isolated_home);
     cmd.env("PATH", isolated_home);
 }
@@ -141,10 +147,10 @@ fn opencode_import__this_project_directory__found_one_global_two() {
     register_path(&vault, &pid, r"C:\dev\ai-brains");
 
     let isolated = root.path().join("isolated");
-    let (stub, argv_path) = write_stub(&isolated, r"C:\dev\AI-Brains", r"C:\dev\other");
+    let (stub, argv_path, list_path) = write_stub(&isolated, r"C:\dev\AI-Brains", r"C:\dev\other");
 
     let mut cmd = common::hermetic_bin();
-    apply_stub_env(&mut cmd, &stub, &isolated);
+    apply_stub_env(&mut cmd, &stub, &isolated, &argv_path, &list_path);
     let out = cmd
         .current_dir(&work)
         .arg("--no-project-context")
@@ -168,7 +174,7 @@ fn opencode_import__this_project_directory__found_one_global_two() {
     assert!(!argv.to_ascii_lowercase().contains("export"), "argv={argv}");
 
     let mut cov = common::hermetic_bin();
-    apply_stub_env(&mut cov, &stub, &isolated);
+    apply_stub_env(&mut cov, &stub, &isolated, &argv_path, &list_path);
     let cov_out = cov
         .current_dir(&work)
         .arg("--no-project-context")
@@ -196,7 +202,7 @@ fn opencode_import__this_project_directory__found_one_global_two() {
 
     fs::write(&argv_path, "").expect("reset argv");
     let mut cmd_g = common::hermetic_bin();
-    apply_stub_env(&mut cmd_g, &stub, &isolated);
+    apply_stub_env(&mut cmd_g, &stub, &isolated, &argv_path, &list_path);
     let out_g = cmd_g
         .current_dir(&work)
         .arg("--no-project-context")
@@ -247,10 +253,10 @@ fn opencode_import__pid_without_aliases__scopes_cwd_not_global() {
     let pid = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaa71";
     let ws = work.to_string_lossy();
     let isolated = root.path().join("isolated");
-    let (stub, _argv) = write_stub(&isolated, &ws, r"C:\dev\other");
+    let (stub, argv_path, list_path) = write_stub(&isolated, &ws, r"C:\dev\other");
 
     let mut cmd = common::hermetic_bin();
-    apply_stub_env(&mut cmd, &stub, &isolated);
+    apply_stub_env(&mut cmd, &stub, &isolated, &argv_path, &list_path);
     let out = cmd
         .current_dir(&work)
         .arg("--no-project-context")
@@ -268,7 +274,7 @@ fn opencode_import__pid_without_aliases__scopes_cwd_not_global() {
     assert_eq!(found_from_stderr(&stderr), Some(1), "stderr={stderr}");
 
     let mut cmd_g = common::hermetic_bin();
-    apply_stub_env(&mut cmd_g, &stub, &isolated);
+    apply_stub_env(&mut cmd_g, &stub, &isolated, &argv_path, &list_path);
     let out_g = cmd_g
         .current_dir(&work)
         .arg("--no-project-context")
