@@ -61,6 +61,17 @@ pub fn normalize_for_location_compare(input: &str) -> String {
         input.to_string()
     };
 
+    // Unix Path treats only `/` as a separator. A Windows-separator copy of a
+    // real Unix path (`\var\folders\...`) would otherwise skip canonicalize, so
+    // macOS `/var` → `/private/var` (and `/tmp` → `/private/tmp`) would miss.
+    // Drive and UNC strings are not Unix filesystem paths and stay unchanged.
+    #[cfg(not(windows))]
+    let pre = if has_drive_prefix(&pre) || is_unc_path(&pre) {
+        pre
+    } else {
+        pre.replace('\\', "/")
+    };
+
     let resolved = resolve_best_effort(&pre);
     let mut stripped = strip_extended_length_prefix(&resolved).replace('/', "\\");
 
@@ -229,6 +240,21 @@ mod tests {
         let a = PathBuf::from(r"C:\Dev\X");
         let b = PathBuf::from(r"c:\dev\x");
         assert!(paths_refer_to_same_location(&a, &b));
+    }
+
+    /// Windows-separator copy of an existing temp path must still location-equal
+    /// the native form (macOS `/var` vs `/private/var` after canonicalize).
+    #[test]
+    fn paths_refer_to_same_location__backslash_copy_of_existing_tempdir__equal() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let native = dir.path().to_string_lossy().into_owned();
+        let win_seps = native.replace('/', "\\");
+        assert!(
+            paths_refer_to_same_location(&native, &win_seps),
+            "native={native} win_seps={win_seps} norm_native={} norm_win={}",
+            normalize_for_location_compare(&native),
+            normalize_for_location_compare(&win_seps)
+        );
     }
 
     /// Soft-resolve: not-yet-created child under an existing temp parent still
