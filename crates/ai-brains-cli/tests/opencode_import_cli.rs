@@ -1,5 +1,5 @@
 //! T371 AC3/AC9 — hermetic `opencode-import` this-project vs `--global`.
-#![allow(clippy::disallowed_methods, non_snake_case)]
+#![allow(clippy::disallowed_methods, dead_code, non_snake_case)]
 
 mod common;
 
