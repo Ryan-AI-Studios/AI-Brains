@@ -42,7 +42,8 @@ pub use claude::{
     generate_claude_turn_id, import_claude_sessions, is_claude_sidechain_path,
     map_claude_hook_payload, normalize_claude_project_hash, parse_claude_hook_payload_strict,
     parse_claude_jsonl_file, parse_claude_stop_payload, print_claude_import_stats,
-    resolve_claude_home, resolve_claude_project, session_id_from_claude,
+    resolve_claude_home, resolve_claude_import_scope_paths, resolve_claude_project,
+    session_id_from_claude,
 };
 pub use codex::{
     CODEX_HARNESS_UUID, CODEX_UNBOUND_ALIAS, CODEX_UNBOUND_DISPLAY_NAME, CodexBindKind,

@@ -188,9 +188,11 @@ ai-brains harness install --harness claude --yes
 ai-brains claude-hook --payload '{"sessionId":"...","projectHash":"C:\\dev\\AI-Brains","event":"Stop","lastAssistantMessage":"Done."}'
 ai-brains claude-hook --schema
 ai-brains claude-import --days 30
+ai-brains claude-import --days 30 --dry-run
+ai-brains claude-import --days 30 --global --dry-run
 ai-brains claude-import --days 30 --force --dry-run
 ```
-`--schema` is vault-path-free. Mid-payload garbage (invalid JSON) exits **1** with JSON. Unrecognized / Grok-shaped stdin exits **0** (no ingest; stderr once). Empty/whitespace prompt or last message skips that role (exit 0). Bind: `cwd` → `ai_brains_path::normalize_project_path` → path alias; `AI_BRAINS_PROJECT_ID` only when unbound. Unbound alias `claude-unbound`. Batch walks `~/.claude/projects/<encoded-cwd>/*.jsonl` (skip `subagents/` / `isSidechain=true`). `--force` skips 300s quiescence. Not in nightly.
+`--schema` is vault-path-free. Mid-payload garbage (invalid JSON) exits **1** with JSON. Unrecognized / Grok-shaped stdin exits **0** (no ingest; stderr once). Empty/whitespace prompt or last message skips that role (exit 0). Bind: `cwd` → `ai_brains_path::normalize_project_path` → path alias; `AI_BRAINS_PROJECT_ID` only when unbound. Unbound alias `claude-unbound`. Batch walks `~/.claude/projects/<encoded-cwd>/*.jsonl` (skip `subagents/` / `isSidechain=true`). With a parsed project id, `claude-import` keeps folders that encode-compare to that project's path aliases (or git toplevel/cwd when aliases are empty). `--global` walks every folder. `--force` skips 300s quiescence. Nightly multi-import stays machine-wide.
 
 ### `codex` Hook + import
 Real-time capture from Codex UserPromptSubmit / Stop (T253). Feature key is **`hooks`** (not `codex_hooks`). Live fire requires operator **`/hooks` trust** of `ai-brains-capture` — `wiring=ok` is files only.

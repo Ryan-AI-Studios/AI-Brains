@@ -219,7 +219,7 @@ pub fn build_report(
         opts.days,
     );
     let opencode = classify_opencode(opencode_vault, opencode_missing);
-    let claude = classify_source(
+    let mut claude = classify_source(
         "claude",
         "hook+import",
         Some(claude_disk.eligible),
@@ -229,6 +229,9 @@ pub fn build_report(
         false,
         "claude-import",
     );
+    if opts.global && !claude.next_step.is_empty() && claude.next_step.contains("claude-import") {
+        claude.next_step = clip_next_step(format!("{} --global", claude.next_step));
+    }
     let codex = if opts.global {
         classify_source(
             "codex",
@@ -1252,6 +1255,80 @@ mod tests {
         assert_eq!(claude.status, "deficit");
         assert!(
             claude.next_step.contains("claude-import"),
+            "next_step={}",
+            claude.next_step
+        );
+        assert!(
+            !claude.next_step.contains("--global"),
+            "next_step={}",
+            claude.next_step
+        );
+    }
+
+    #[test]
+    fn capture_coverage__claude_deficit_next__this_project_omits_global_flag() {
+        let home = tempfile::tempdir().expect("home");
+        let (_vdir, store) = open_store();
+        let project_id = ProjectId::new();
+        register_project(&store, project_id);
+        add_path_alias(&store, project_id, r"C:\dev\ai-brains");
+        write_file(
+            &home
+                .path()
+                .join(".claude")
+                .join("projects")
+                .join("C--dev-AI-Brains")
+                .join("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaa03.jsonl"),
+            "{}\n",
+        );
+        let report = build_report(
+            store.connection(),
+            &coverage_opts(home.path(), project_id, 30),
+        )
+        .expect("report");
+        let claude = source(&report, "claude");
+        assert!(
+            claude.next_step.contains("claude-import"),
+            "next_step={}",
+            claude.next_step
+        );
+        assert!(
+            !claude.next_step.contains("--global"),
+            "next_step={}",
+            claude.next_step
+        );
+    }
+
+    #[test]
+    fn capture_coverage__claude_deficit_next__global_appends_global_flag() {
+        let home = tempfile::tempdir().expect("home");
+        let (_vdir, store) = open_store();
+        let project_id = ProjectId::new();
+        register_project(&store, project_id);
+        add_path_alias(&store, project_id, r"C:\dev\ai-brains");
+        write_file(
+            &home
+                .path()
+                .join(".claude")
+                .join("projects")
+                .join("C--dev-AI-Brains")
+                .join("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaa04.jsonl"),
+            "{}\n",
+        );
+        let report = build_report(
+            store.connection(),
+            &coverage_opts_global(home.path(), project_id, 30),
+        )
+        .expect("report");
+        let claude = source(&report, "claude");
+        assert_eq!(claude.status, "deficit");
+        assert!(
+            claude.next_step.contains("claude-import"),
+            "next_step={}",
+            claude.next_step
+        );
+        assert!(
+            claude.next_step.contains("--global"),
             "next_step={}",
             claude.next_step
         );

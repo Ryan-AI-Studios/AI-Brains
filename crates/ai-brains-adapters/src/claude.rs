@@ -94,6 +94,10 @@ pub struct ClaudeImportOptions {
     pub force: bool,
     pub home_override: Option<PathBuf>,
     pub dry_run: bool,
+    /// `None` = every `projects/<folder>` (nightly / `--global` / no project id).
+    /// `Some` = keep jsonl whose `projects/` root folder matches any path via
+    /// [`claude_project_folder_matches_path`].
+    pub scope_paths: Option<Vec<String>>,
 }
 
 impl ClaudeImportOptions {
@@ -105,8 +109,38 @@ impl ClaudeImportOptions {
             force: false,
             home_override: None,
             dry_run: false,
+            scope_paths: None,
         }
     }
+}
+
+/// This-project import paths: aliases for `project_id`, else `fallback_path`
+/// (git toplevel / cwd). `None` project id → unscoped (`None`).
+pub fn resolve_claude_import_scope_paths(
+    aliases: &[(ProjectId, String)],
+    project_id: Option<ProjectId>,
+    fallback_path: Option<&str>,
+) -> Option<Vec<String>> {
+    let pid = project_id?;
+    let mut mine: Vec<String> = aliases
+        .iter()
+        .filter(|(id, _)| *id == pid)
+        .map(|(_, p)| p.clone())
+        .collect();
+    if mine.is_empty()
+        && let Some(fb) = fallback_path.map(str::trim).filter(|s| !s.is_empty())
+    {
+        mine.push(fb.to_string());
+    }
+    if mine.is_empty() { None } else { Some(mine) }
+}
+
+/// First path component under `projects/` (coverage `at_projects_root` operand).
+fn claude_projects_root_folder(jsonl: &Path, projects_root: &Path) -> Option<String> {
+    let rel = jsonl.strip_prefix(projects_root).ok()?;
+    rel.components()
+        .next()
+        .and_then(|c| c.as_os_str().to_str().map(str::to_string))
 }
 
 /// Import counters printed as human stderr.
@@ -771,7 +805,17 @@ pub fn import_claude_sessions<S: CaptureSink>(
         None => return Ok(stats),
     };
 
-    let all_sources = discover_claude_sessions(&claude_home)?;
+    let projects_root = claude_home.join("projects");
+    let mut all_sources = discover_claude_sessions(&claude_home)?;
+    if let Some(paths) = options.scope_paths.as_deref() {
+        all_sources.retain(|src| {
+            claude_projects_root_folder(&src.path, &projects_root).is_some_and(|folder| {
+                paths
+                    .iter()
+                    .any(|p| claude_project_folder_matches_path(&folder, p))
+            })
+        });
+    }
     if all_sources.is_empty() {
         return Ok(stats);
     }
@@ -796,6 +840,13 @@ pub fn import_claude_sessions<S: CaptureSink>(
     stats.found = recent.len();
     if stats.found == 0 {
         return Ok(stats);
+    }
+    match options.scope_paths.as_ref() {
+        Some(paths) => eprintln!(
+            "[Claude] scope=this-project ({} path(s)); use --global for machine-wide",
+            paths.len()
+        ),
+        None => eprintln!("[Claude] scope=machine-wide"),
     }
     eprintln!(
         "[Claude] Found {} sessions modified in the last {} days. Scanning for new turns...",
@@ -1268,5 +1319,31 @@ mod tests {
         let stats = ClaudeImportStats::default();
         assert_eq!(stats.skipped_query, 0);
         assert_eq!(stats.skipped_unchanged, 0);
+    }
+
+    #[test]
+    fn resolve_claude_import_scope_paths__pid_without_aliases__fallback_cwd() {
+        let pid = ProjectId::new();
+        let other = ProjectId::new();
+        let aliases = vec![(other, r"C:\dev\other".to_string())];
+        let scoped =
+            resolve_claude_import_scope_paths(&aliases, Some(pid), Some(r"C:\dev\ai-brains"))
+                .expect("fallback");
+        assert_eq!(scoped, vec![r"C:\dev\ai-brains".to_string()]);
+    }
+
+    #[test]
+    fn resolve_claude_import_scope_paths__no_pid__none() {
+        let aliases = vec![(ProjectId::new(), r"C:\dev\ai-brains".to_string())];
+        assert!(resolve_claude_import_scope_paths(&aliases, None, Some(r"C:\dev\x")).is_none());
+    }
+
+    #[test]
+    fn resolve_claude_import_scope_paths__pid_with_alias__uses_alias() {
+        let pid = ProjectId::new();
+        let aliases = vec![(pid, r"C:\dev\ai-brains".to_string())];
+        let scoped = resolve_claude_import_scope_paths(&aliases, Some(pid), Some(r"C:\dev\cwd"))
+            .expect("alias");
+        assert_eq!(scoped, vec![r"C:\dev\ai-brains".to_string()]);
     }
 }
