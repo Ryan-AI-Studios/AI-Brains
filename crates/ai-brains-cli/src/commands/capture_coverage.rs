@@ -263,7 +263,7 @@ pub fn build_report(
     if opts.global && !codex.next_step.is_empty() && codex.next_step.contains("codex-import") {
         codex.next_step = clip_next_step(format!("{} --global", codex.next_step));
     }
-    let cursor = classify_source(
+    let mut cursor = classify_source(
         "cursor",
         "import_only",
         Some(cursor_disk.eligible),
@@ -273,6 +273,9 @@ pub fn build_report(
         false,
         "cursor-import",
     );
+    if opts.global && !cursor.next_step.is_empty() && cursor.next_step.contains("cursor-import") {
+        cursor.next_step = clip_next_step(format!("{} --global", cursor.next_step));
+    }
 
     if grok.status == "unverifiable_subagent" && grok.vault_sessions == 0 {
         warnings.push("grok_batch_empty_all_subagent".to_string());
@@ -2285,6 +2288,63 @@ mod tests {
             source(&global, "cursor").disk_eligible,
             Some(2),
             "AC2 global"
+        );
+    }
+
+    #[test]
+    fn capture_coverage__cursor_deficit_next__this_project_omits_global_flag() {
+        let home = tempfile::tempdir().expect("home");
+        let (_vdir, store) = open_store();
+        let project_id = ProjectId::new();
+        register_project(&store, project_id);
+        add_path_alias(&store, project_id, r"C:\dev\x");
+        write_file(&cursor_parent_jsonl(home.path(), "c-dev-x"), "{}\n");
+        write_file(&cursor_parent_jsonl(home.path(), "c-dev-other"), "{}\n");
+        let report = build_report(
+            store.connection(),
+            &coverage_opts(home.path(), project_id, 30),
+        )
+        .expect("report");
+        let cursor = source(&report, "cursor");
+        assert_eq!(cursor.disk_eligible, Some(1));
+        assert!(
+            cursor.next_step.contains("cursor-import"),
+            "next_step={}",
+            cursor.next_step
+        );
+        assert!(
+            !cursor.next_step.contains("--global"),
+            "next_step={}",
+            cursor.next_step
+        );
+    }
+
+    #[test]
+    fn capture_coverage__cursor_deficit_next__global_appends_global_flag() {
+        let home = tempfile::tempdir().expect("home");
+        let (_vdir, store) = open_store();
+        let project_id = ProjectId::new();
+        register_project(&store, project_id);
+        add_path_alias(&store, project_id, r"C:\dev\x");
+        write_file(&cursor_parent_jsonl(home.path(), "c-dev-x"), "{}\n");
+        write_file(&cursor_parent_jsonl(home.path(), "c-dev-other"), "{}\n");
+        let report = build_report(
+            store.connection(),
+            &coverage_opts_global(home.path(), project_id, 30),
+        )
+        .expect("report");
+        let cursor = source(&report, "cursor");
+        assert_eq!(cursor.status, "deficit");
+        assert_eq!(cursor.disk_eligible, Some(2));
+        assert!(
+            cursor.next_step.contains("cursor-import"),
+            "next_step={}",
+            cursor.next_step
+        );
+        assert!(
+            cursor.next_step.contains("--global"),
+            "next_step={}",
+            cursor.next_step
         );
     }
 

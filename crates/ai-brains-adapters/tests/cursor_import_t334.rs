@@ -2,7 +2,8 @@
 #![allow(clippy::disallowed_methods, non_snake_case)]
 
 use ai_brains_adapters::{
-    CURSOR_UNBOUND_ALIAS, CursorImportOptions, discover_cursor_sessions, filter_cursor_jsonl_lines,
+    CURSOR_HARNESS_UUID, CURSOR_UNBOUND_ALIAS, CursorImportOptions, CursorSessionSource,
+    cursor_source_matches_scope, discover_cursor_sessions, filter_cursor_jsonl_lines,
     import_cursor_sessions, is_cursor_sidechain_path,
 };
 use ai_brains_capture::{CaptureService, CaptureSink};
@@ -74,6 +75,37 @@ fn write_cursor_session(user_home: &Path, folder: &str, session_id: &str, body: 
     let past = SystemTime::now() - Duration::from_secs(600);
     let _ = filetime_set_mtime(&path, past);
     path
+}
+
+fn write_cursor_sidechain(user_home: &Path, folder: &str, session_id: &str, body: &str) -> PathBuf {
+    let dir = user_home
+        .join(".cursor")
+        .join("projects")
+        .join(folder)
+        .join("agent-transcripts")
+        .join("subagents")
+        .join(session_id);
+    fs::create_dir_all(&dir).expect("mkdir cursor sidechain");
+    let path = dir.join(format!("{session_id}.jsonl"));
+    fs::write(&path, body).expect("write sidechain jsonl");
+    let past = SystemTime::now() - Duration::from_secs(600);
+    let _ = filetime_set_mtime(&path, past);
+    path
+}
+
+fn scoped_two_folder_fixture(home: &Path) -> (String, String, String) {
+    let sid_a = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaa01";
+    let sid_b = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbb02";
+    let sid_sc = "cccccccc-cccc-cccc-cccc-cccccccccc03";
+    write_cursor_session(home, "c-dev-AI-Brains", sid_a, CURSOR_JSONL);
+    write_cursor_session(home, "c-dev-other", sid_b, CURSOR_JSONL);
+    let sc = write_cursor_sidechain(home, "c-dev-other", sid_sc, CURSOR_JSONL);
+    assert!(
+        is_cursor_sidechain_path(&sc),
+        "sidechain path must contain subagents: {}",
+        sc.display()
+    );
+    (sid_a.to_string(), sid_b.to_string(), sid_sc.to_string())
 }
 
 /// Insert a Unix alias as stored (`canonical.rs` keeps `/…` as-is). Do **not**
@@ -253,6 +285,7 @@ fn import_cursor__hermetic_path_alias_slug__bound_turns() {
             force: true,
             home_override: Some(home),
             dry_run: false,
+            scope_paths: None,
         },
     )
     .expect("import");
@@ -317,6 +350,7 @@ fn import_cursor__hermetic_unix_path_alias_slug__bound_turns() {
             force: true,
             home_override: Some(home),
             dry_run: false,
+            scope_paths: None,
         },
     )
     .expect("import");
@@ -377,6 +411,7 @@ fn import_cursor__hermetic_wsl_folder_windows_alias__bound_turns() {
             force: true,
             home_override: Some(home),
             dry_run: false,
+            scope_paths: None,
         },
     )
     .expect("import");
@@ -438,6 +473,7 @@ fn import_cursor__hermetic_windows_folder_wsl_alias__bound_turns() {
             force: true,
             home_override: Some(home),
             dry_run: false,
+            scope_paths: None,
         },
     )
     .expect("import");
@@ -493,6 +529,7 @@ fn import_cursor__subagents_dir__skipped_sidechain() {
             force: true,
             home_override: Some(home),
             dry_run: false,
+            scope_paths: None,
         },
     )
     .expect("import");
@@ -532,6 +569,7 @@ fn import_cursor__dry_run__zero_writes() {
             force: true,
             home_override: Some(home),
             dry_run: true,
+            scope_paths: None,
         },
     )
     .expect("dry-run");
@@ -569,6 +607,7 @@ fn import_cursor__unbound_folder__cursor_unbound_alias() {
             force: true,
             home_override: Some(home),
             dry_run: false,
+            scope_paths: None,
         },
     )
     .expect("import");
@@ -633,6 +672,7 @@ fn import_cursor__parent_folder_unique_child_in_turns__binds_child_not_unbound()
             force: true,
             home_override: Some(home),
             dry_run: false,
+            scope_paths: None,
         },
     )
     .expect("import");
@@ -685,6 +725,7 @@ fn import_cursor__two_prefix_children_unique_text__binds_named() {
             force: true,
             home_override: Some(home),
             dry_run: false,
+            scope_paths: None,
         },
     )
     .expect("import");
@@ -730,6 +771,7 @@ fn import_cursor__two_children_named_in_text__unbound() {
             force: true,
             home_override: Some(home),
             dry_run: false,
+            scope_paths: None,
         },
     )
     .expect("import");
@@ -739,4 +781,142 @@ fn import_cursor__two_children_named_in_text__unbound() {
         .expect("resolve")
         .expect("cursor-unbound");
     assert_eq!(session_project_id(&conn, sid), unbound.to_string());
+}
+
+#[test]
+fn import_cursor__scope_paths_slug__found_only_matching() {
+    let root = tempdir().unwrap();
+    let home = root.path().join("home");
+    let vault_dir = root.path().join("vault");
+    fs::create_dir_all(&home).unwrap();
+    fs::create_dir_all(&vault_dir).unwrap();
+    let (sid_a, _sid_b, _sid_sc) = scoped_two_folder_fixture(&home);
+
+    let (conn, store) = open_vault(&vault_dir);
+    let mut sink = TestSink {
+        store,
+        last_error: None,
+    };
+    let service = CaptureService::new();
+    let stats = import_cursor_sessions(
+        &conn,
+        &service,
+        &mut sink,
+        CursorImportOptions {
+            days: 30,
+            default_project_id: ProjectId::new(),
+            allow_default_project: false,
+            force: true,
+            home_override: Some(home),
+            dry_run: true,
+            scope_paths: Some(vec![r"C:\dev\ai-brains".into()]),
+        },
+    )
+    .expect("import");
+    assert_eq!(stats.found, 1, "found: {stats:?}");
+    assert_eq!(stats.skipped_sidechain, 0, "sidechain: {stats:?}");
+    assert_eq!(stats.imported_turns, 0, "turns: {stats:?}");
+    let started = conn
+        .count_sessions_started_by_harness(&[CURSOR_HARNESS_UUID], None)
+        .expect("count");
+    assert_eq!(started, 0, "vault SessionStarted");
+    let _ = sid_a;
+}
+
+#[test]
+fn import_cursor__scope_paths_none__found_both_parents() {
+    let root = tempdir().unwrap();
+    let home = root.path().join("home");
+    let vault_dir = root.path().join("vault");
+    fs::create_dir_all(&home).unwrap();
+    fs::create_dir_all(&vault_dir).unwrap();
+    let _ = scoped_two_folder_fixture(&home);
+
+    let (conn, store) = open_vault(&vault_dir);
+    let mut sink = TestSink {
+        store,
+        last_error: None,
+    };
+    let service = CaptureService::new();
+    let stats = import_cursor_sessions(
+        &conn,
+        &service,
+        &mut sink,
+        CursorImportOptions {
+            days: 30,
+            default_project_id: ProjectId::new(),
+            allow_default_project: false,
+            force: true,
+            home_override: Some(home),
+            dry_run: true,
+            scope_paths: None,
+        },
+    )
+    .expect("import");
+    assert_eq!(stats.found, 2, "found: {stats:?}");
+}
+
+#[test]
+fn cursor_source_matches_scope__uses_project_folder_not_jsonl_body() {
+    let src_a = CursorSessionSource {
+        path: PathBuf::from(r"C:\unused\c-dev-AI-Brains\agent-transcripts\a\a.jsonl"),
+        session_id: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaa01".into(),
+        project_folder: "c-dev-AI-Brains".into(),
+    };
+    let src_b = CursorSessionSource {
+        path: PathBuf::from(r"C:\unused\c-dev-other\agent-transcripts\b\b.jsonl"),
+        session_id: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbb02".into(),
+        project_folder: "c-dev-other".into(),
+    };
+    let paths = [r"C:\dev\ai-brains".to_string()];
+    assert!(cursor_source_matches_scope(&src_a, &paths));
+    assert!(!cursor_source_matches_scope(&src_b, &paths));
+    let sibling_in_unused_text = "c-dev-other appears only in JSONL body text";
+    let _ = sibling_in_unused_text;
+    assert!(
+        cursor_source_matches_scope(&src_a, &paths),
+        "matcher does not read JSONL / message text"
+    );
+}
+
+#[test]
+fn import_cursor__scope_paths_slug__dry_run_false__imports_only_matching() {
+    let root = tempdir().unwrap();
+    let home = root.path().join("home");
+    let vault_dir = root.path().join("vault");
+    fs::create_dir_all(&home).unwrap();
+    fs::create_dir_all(&vault_dir).unwrap();
+    let (sid_a, sid_b, _sid_sc) = scoped_two_folder_fixture(&home);
+
+    let (conn, store) = open_vault(&vault_dir);
+    let project_id = ProjectId::new();
+    register_path_alias(&store, project_id, r"C:\dev\AI-Brains");
+    let mut sink = TestSink {
+        store,
+        last_error: None,
+    };
+    let service = CaptureService::new();
+    let stats = import_cursor_sessions(
+        &conn,
+        &service,
+        &mut sink,
+        CursorImportOptions {
+            days: 30,
+            default_project_id: ProjectId::new(),
+            allow_default_project: false,
+            force: true,
+            home_override: Some(home),
+            dry_run: false,
+            scope_paths: Some(vec![r"C:\dev\ai-brains".into()]),
+        },
+    )
+    .expect("import");
+    assert_eq!(stats.found, 1, "found: {stats:?}");
+    assert_eq!(stats.skipped_sidechain, 0, "sidechain: {stats:?}");
+    assert!(stats.imported_turns > 0, "turns: {stats:?}");
+    assert_eq!(stats.bound_via_path, 1, "bound: {stats:?}");
+    let turns_a = conn.get_session_turns(&sid_a).expect("turns a");
+    assert!(!turns_a.is_empty(), "cid-A turns: {turns_a:?}");
+    let turns_b = conn.get_session_turns(&sid_b).expect("turns b");
+    assert!(turns_b.is_empty(), "cid-B must stay empty: {turns_b:?}");
 }

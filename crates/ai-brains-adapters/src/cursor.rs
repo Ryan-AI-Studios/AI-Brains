@@ -57,6 +57,9 @@ pub struct CursorImportOptions {
     pub force: bool,
     pub home_override: Option<PathBuf>,
     pub dry_run: bool,
+    /// `None` = T334 full walk (nightly / `--global` / missing project id).
+    /// `Some` = keep folders that match `cursor_project_slug_candidates`.
+    pub scope_paths: Option<Vec<String>>,
 }
 
 impl CursorImportOptions {
@@ -68,6 +71,7 @@ impl CursorImportOptions {
             force: false,
             home_override: None,
             dry_run: false,
+            scope_paths: None,
         }
     }
 }
@@ -150,6 +154,31 @@ pub fn cursor_project_slug_candidates(normalized_path: &str) -> Vec<String> {
         set.insert(cursor_project_slug(&mnt));
     }
     set.into_iter().collect()
+}
+
+/// Keep a discovered session when its `project_folder` matches any alias slug.
+///
+/// Empty folder → false (do not fail-open). Does not read JSONL / turn text.
+pub fn cursor_source_matches_scope(source: &CursorSessionSource, paths: &[String]) -> bool {
+    let folder = source.project_folder.trim();
+    if folder.is_empty() {
+        return false;
+    }
+    paths.iter().any(|p| {
+        cursor_project_slug_candidates(p)
+            .iter()
+            .any(|s| s.eq_ignore_ascii_case(folder))
+    })
+}
+
+fn eprint_cursor_scope(options: &CursorImportOptions) {
+    match options.scope_paths.as_ref() {
+        Some(paths) => eprintln!(
+            "[Cursor] scope=this-project ({} path(s)); use --global for machine-wide",
+            paths.len()
+        ),
+        None => eprintln!("[Cursor] scope=machine-wide"),
+    }
 }
 
 /// Filter one Cursor JSONL record (`role` + `message.content[]`; drop `turn_ended`).
@@ -650,12 +679,16 @@ pub fn import_cursor_sessions<S: CaptureSink>(
     options: CursorImportOptions,
 ) -> Result<CursorImportStats> {
     let mut stats = CursorImportStats::default();
+    eprint_cursor_scope(&options);
     let cursor_home = match resolve_cursor_home(options.home_override.as_deref()) {
         Some(h) => h,
         None => return Ok(stats),
     };
 
-    let all_sources = discover_cursor_sessions(&cursor_home)?;
+    let mut all_sources = discover_cursor_sessions(&cursor_home)?;
+    if let Some(paths) = options.scope_paths.as_deref() {
+        all_sources.retain(|s| cursor_source_matches_scope(s, paths));
+    }
     if all_sources.is_empty() {
         return Ok(stats);
     }

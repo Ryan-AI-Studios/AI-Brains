@@ -146,10 +146,12 @@ mod tests {
                 dry_run,
                 days,
                 force,
+                global,
             } => {
                 assert!(dry_run);
                 assert_eq!(days, 30);
                 assert!(!force);
+                assert!(!global);
             }
             _ => panic!("expected Commands::CursorImport"),
         }
@@ -2732,6 +2734,9 @@ enum Commands {
         /// Discover and report what would be imported without writing to the vault
         #[arg(long, default_value_t = false)]
         dry_run: bool,
+        /// Restore the T334 machine-wide walk (every in-window Cursor folder).
+        #[arg(long, default_value_t = false)]
+        global: bool,
     },
     /// Detect and install harness capture hooks (user-global, message-only)
     #[command(
@@ -6352,7 +6357,8 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
             days,
             force,
             dry_run,
-        } => commands::cursor_import::run(&ctx, *days, *force, *dry_run),
+            global,
+        } => commands::cursor_import::run(&ctx, *days, *force, *dry_run, *global),
         Commands::ClaudeHook { payload, schema } => {
             if *schema {
                 print_schema(SCHEMA_CLAUDE_HOOK, "AI-Brains claude-hook payload")
