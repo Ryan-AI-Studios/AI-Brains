@@ -2,6 +2,418 @@
 
 Tracks deferred from T142. Append-only; strike through when promoted to a real track.
 
+### T372 advance (2026-09-27) — no Ready successor
+
+HEAD `e0b0790` T372 `#305`. This-project importer `found` equals coverage Disk for all six sources (claude **16**, codex **29**, agy **3**, opencode **28**, grok **0** / `expected_skip`, cursor **2**). No T368-class hole left. **No T373 minted.** `next_track: null` is not backlog-clear.
+
+| Item | Disposition |
+|------|-------------|
+| This-project Disk vs importer found | **Closed T368–T372** |
+| Operator claude/opencode/codex deficit | **Decline** — import action; dry-run already matches disk |
+| T372-R1 PATH 0.1.5 lag | **Residual** |
+| T372-R2 coverage `--global` OpenCode null | **Residual** — vendor list still no `--global`; `--global` import `found=28` |
+| T372-R3 Grok Stop firing | **Residual** |
+| T372-R4 leftover chrome | **Residual** T365 stay-green |
+| T372-R5 global Claude watermark | **Residual** — live 306/311 `ok` |
+| T372-R6 T315 query_miss | **Residual** — this-project Index has 0 `DECISION:` pins |
+| T372-R7 / R9 unique-child | **Residual** |
+| T372-R8 unbound Cursor `--global` | **Residual** T356 |
+| Dependabot `#289`/`#288`/… | **Decline** |
+| last-PR `#305` Bugbot | **N/A** usage-limit |
+
+### T372 implement (2026-09-27) — Cursor import this-project slug scope
+
+FEATURE TX `a8908010-32c0-43cd-a493-3ed0c069c7ca`. Landed F1–F8 / AC1–AC12. Live this-project dry-run `found=2` matches Disk 2. `--global` dry-run `found=152` matches coverage `--global` Disk 152.
+
+| Item | Disposition |
+|------|-------------|
+| F1 slug retain before sidechain | **Done** |
+| AC3 CLI this-project vs `--global` | **Done** |
+| Live importer found=152 vs disk 2 | **Absorbed T372** |
+| T372-R1 PATH 0.1.5 lag | **Residual** |
+| T372-R2 coverage `--global` OpenCode null | **Residual** |
+| T372-R3 Grok Stop firing | **Residual** |
+| T372-R4 leftover chrome | **Residual** |
+| T372-R5 global Claude watermark | **Residual** |
+| T372-R6 T315 query_miss | **Residual** |
+| T372-R7 T356 unique-child on discover | **Residual** F1 folder-only |
+| T372-R8 unbound Cursor folders `--global` | **Residual** |
+| T372-R9 unique-child unreachable for parent folders | **Residual** |
+
+### T372 fold-in (2026-09-27) — agy + opencode
+
+Fold-in of `agy-review.md` + `opencode-review.md`. Spec **Planned** / registry **Pending**. F0 until go. No DOCS TX.
+
+| Item | Disposition |
+|------|-------------|
+| Agy M1 retain before sidechain | **Absorb** F1 / AC1 / AC11 `skipped_sidechain==0` |
+| Agy M2 unset `AI_BRAINS_PROJECT_ID` | **Absorb** AC12 |
+| OpenCode M1 T341-R2/R3 + T356-R1–R7 | **Absorb** spec §9 Decline / Not stolen |
+| Agy m1 OpenCode env strip | **Absorb** AC3 / AC9 |
+| Agy m2 T371-R6–R8 in §9 | **Absorb** spec §9 |
+| Agy m3 / OpenCode m3 OPERATIONS Cursor section | **Absorb** F6 / AC6 |
+| OpenCode m1 `main.rs:136–156` clap match | **Absorb** F2 / touch map |
+| OpenCode m2 AC11 `bound_via_path` | **Absorb** AC11 |
+| OpenCode m4 AC10 body-does-not-influence | **Absorb** AC10 |
+| OpenCode m5 CAPABILITIES `:184` | **Absorb** F6 / AC6 |
+| OpenCode O1 unique-child unreachable | **Absorb** T372-R9 |
+| OpenCode O2 `list_path_aliases()?` abort | **Absorb** F2 |
+| OpenCode O3 T342 `.`→`-` | **Absorb** spec §2.3 |
+| Agy O1 / O2 / OpenCode O4 | **Already covered** F1/F3/F8 |
+
+### T372 plan (2026-09-27) — Cursor import this-project slug scope
+
+Coordinator advance after T371. Spec **Planned** / registry **Pending**. F0 until go. No DOCS TX. last-PR `#304` Cursor usage-limit.
+
+| Item | Disposition |
+|------|-------------|
+| This-project Cursor disk 2 vs importer found=152 | **Absorb** T372 F1–F4 |
+| T334 always-global CLI | **Absorb** F2 `--global` |
+| Coverage `--global` Cursor next missing `--global` | **Absorb** F3 |
+| T371-R1 PATH 0.1.5 lag | **Decline** — no `cargo install` |
+| T371-R2 coverage `--global` OpenCode null | **Not stolen** |
+| T371-R3 Grok Stop firing | **Not stolen** |
+| T371-R4 leftover chrome | **Not stolen** |
+| Remaining global Claude watermark | **Decline this track** — live 305/311 `ok` |
+| T365 leftover next / T315 `query_miss` | **Decline** — leftover_outranks_coverage frozen |
+| Dependabot `#289`/`#288`/… | **Decline** |
+
+### T371 implement (2026-09-27) — OpenCode import this-project directory scope
+
+FEATURE TX `9eb0b490-60b8-48ba-b1ce-27160963fc7c`. Landed F1–F8 / AC1–AC11. Live this-project dry-run `found=27` matches Disk 27. Coverage `--global` OpenCode still `—`.
+
+| Item | Disposition |
+|------|-------------|
+| F1 directory retain | **Done** |
+| AC3 CLI this-project vs `--global` | **Done** |
+| Live disk — vs list 26/27 | **Absorbed T371** |
+| T371-R1 PATH 0.1.5 lag | **Residual** |
+| T371-R2 coverage `--global` OpenCode null | **Residual** |
+| T371-R3 Grok Stop firing | **Residual** |
+| T371-R4 leftover chrome | **Residual** |
+| T371-R5 global Claude watermark | **Residual** |
+| T371-R6 list cap 100 | **Residual** |
+| T371-R7 vendor JSON no worktree/parentID | **Residual** |
+| T371-R8 missing alias path | **Residual** |
+
+### T371 fold-in (2026-09-27) — agy + opencode
+
+Fold-in of `agy-review.md` + `opencode-review.md`. Spec **Planned** / registry **Pending**. F0 until go. No DOCS TX.
+
+| Item | Disposition |
+|------|-------------|
+| Agy M1 / OpenCode B1 ambient host bin | **Absorb** F3 / F7 spawn gate |
+| Agy M2 / OpenCode M1 `found` after watermark | **Absorb** F2 found-before-watermark |
+| Agy M3 no live scoped ingest test | **Absorb** AC11 |
+| OpenCode M2 list plumbing not exported | **Absorb** F3 `pub use` parse + list helper |
+| OpenCode M3 AC2 stay-green mislabel | **Absorb** AC2 `exported==0` red |
+| Agy m1 `main.rs:6104` | **Absorb** F7 / touch map |
+| Agy m2 / m3 / m4 | **Absorb** public list helper; trim worktree; F8 banners |
+| OpenCode m1–m4 | **Absorb** stub env strip; cap 100; missing `updated`; DoD CI gate |
+| OpenCode O1 missing alias path | **Absorb** T371-R8 |
+| OpenCode O2 matcher signature | **Absorb** F3 |
+| Agy O1 capture independence | **Already covered** |
+| 27 vs 26 in-window | **Decline as SoT** — recapture on go |
+
+### T371 plan (2026-09-27) — OpenCode import this-project directory scope
+
+Coordinator advance after T370. Spec **Planned** / registry **Pending**. F0 until go. No DOCS TX. last-PR `#303` Cursor usage-limit.
+
+| Item | Disposition |
+|------|-------------|
+| This-project OpenCode disk null vs list 26 / vault 13 | **Absorb** T371 F1–F4 |
+| T348-R2 / T360-R3 / T368-R3 / T369-R3 / T370-R2 OpenCode this-project disk | **Absorb** OpenCode slice |
+| T238 dry-run still exports | **Absorb** F2 before export |
+| T370-R1 PATH 0.1.5 lag | **Decline** — no `cargo install` |
+| T370-R3 Grok Stop firing | **Not stolen** |
+| T370-R4 leftover chrome | **Not stolen** |
+| Remaining global Claude watermark | **Decline this track** — T370-R5 |
+| Coverage `--global` OpenCode numbering / `opencode.db` | **Decline** — T238 AC14 |
+| Dependabot `#289`/`#288`/… | **Decline** |
+
+### T370 implement (2026-09-27) — AGY import this-project history workspace scope
+
+FEATURE TX `86f2e796-3d03-4565-b89a-82a0d4b12f90`. Landed F1–F8 / AC1–AC10. Live this-project dry-run `found=3` matches Disk 3.
+
+| Item | Disposition |
+|------|-------------|
+| F1 history retain | **Done** |
+| AC3 CLI this-project vs `--global` | **Done** |
+| Live disk — vs importer global | **Absorbed T370** |
+| T370-R1 PATH 0.1.5 lag | **Residual** |
+| T370-R2 OpenCode disk null | **Residual** T360-R3 |
+| T370-R3 Grok Stop firing | **Residual** T360-R4 |
+| T370-R4 leftover chrome | **Residual** T365-R5 |
+| T370-R5 global Claude watermark | **Residual** T360 F1 |
+| T370-R6 WSL `include_wsl` on CLI | **Residual** T236 |
+| T370-R7 nested workspace | **Residual** F1 exact location |
+
+### T370 fold-in (2026-09-27) — agy + opencode
+
+Fold-in of `agy-review.md` + `opencode-review.md`. Spec **Planned** / registry **Pending**. F0 until go. No DOCS TX.
+
+| Item | Disposition |
+|------|-------------|
+| Agy M1 / OpenCode B1 USERPROFILE ignored | **Absorb** F2 USERPROFILE/HOME-first |
+| Agy M2 / OpenCode m2 dead unscoped helper | **Absorb** F3 / AC5 delete |
+| Agy M3 / OpenCode m1 Codex `disk_note` | **Absorb** AC5 |
+| Agy M4 AC1 dry_run cid | **Absorb** AC1 live temp vault |
+| OpenCode M1 dry-run registration | **Absorb** F2 / AC3 |
+| OpenCode M2 F8 empty discover | **Absorb** F8 function top |
+| Agy m1–m2 dry-run guards | **Absorb** F2 |
+| Agy m3 / OpenCode `:76` | **Absorb** F6 |
+| OpenCode m3 antigravity-rule / WORKFLOWS | **Absorb** F6 / AC6 |
+| OpenCode O1 no contracts | **Absorb** AC6 |
+| OpenCode O2 AC9 CLI | **Absorb** AC9 |
+| Agy O1 retain pattern | **Already covered** |
+| `AGY_HOME` / `GEMINI_HOME` / hidden `--home` | **Decline** — USERPROFILE-first |
+
+### T370 plan (2026-09-27) — AGY import this-project history workspace scope
+
+Coordinator advance after T369. Spec **Planned** / registry **Pending**. F0 until go. No DOCS TX. last-PR `#302` Cursor usage-limit.
+
+| Item | Disposition |
+|------|-------------|
+| This-project AGY disk null vs global disk 353 | **Absorb** T370 F1–F4 |
+| T348-R2 / T360-R2 / T368-R2 / T369-R2 AGY this-project disk | **Absorb** AGY slice |
+| T369-R7 AGY `--dry-run` missing | **Absorb** F2 |
+| T369-R1 PATH 0.1.5 lag | **Decline** — no `cargo install` |
+| T369-R3 OpenCode disk null | **Not stolen** |
+| T369-R4 Grok Stop firing | **Not stolen** |
+| T369-R5 leftover chrome | **Not stolen** |
+| Remaining global Claude 303/291 | **Decline this track** — T369-R6 |
+| Dependabot `#289`/`#288`/… | **Decline** |
+
+### T369 implement (2026-09-27) — Codex import this-project cwd scope
+
+FEATURE TX `9906743a-bcf4-4183-8032-4649f6517c81`. Landed F1–F8 / AC1–AC10. Live this-project dry-run `found=23` matches Disk 23.
+
+| Item | Disposition |
+|------|-------------|
+| F1 cwd retain | **Done** |
+| AC3 CLI this-project vs `--global` | **Done** |
+| Live found=411 vs disk — | **Absorbed T369** |
+| T369-R1 PATH 0.1.5 lag | **Residual** |
+| T369-R2 AGY/Codex wait AGY disk null | **Residual** T360-R2 |
+| T369-R3 OpenCode disk null | **Residual** T360-R3 |
+| T369-R4 Grok Stop firing | **Residual** T360-R4 |
+| T369-R5 leftover chrome | **Residual** T365-R5 |
+| T369-R6 global Claude watermark | **Residual** T360 F1 |
+| T369-R7 AGY `--dry-run` missing | **Residual** |
+
+### T369 fold-in (2026-09-27) — agy + opencode
+
+Fold-in of `agy-review.md` + `opencode-review.md`. Spec **Planned** / registry **Pending**. F0 until go. No DOCS TX.
+
+| Item | Disposition |
+|------|-------------|
+| Agy M1 AC10 cross-crate | **Absorb** peek in adapters; coverage is AC4 |
+| Agy M2 / OpenCode m1 peek `pub` | **Absorb** F3 + `lib.rs` |
+| OpenCode M1 OPERATIONS `:72`/`:76` | **Absorb** F6 / AC6 |
+| OpenCode M2 `json__six_sources_sorted` | **Absorb** AC5 |
+| Agy m1 rename `agy_codex_disk_null` | **Absorb** F7 / AC5 |
+| Agy m2 scope before `found==0` | **Absorb** F8 |
+| Agy m3 AC2 stay-green | **Absorb** §7 |
+| OpenCode m2 nextest `peek_codex` | **Absorb** plan |
+| OpenCode m3 session_meta honesty | **Absorb** F6 |
+| Agy O1 `paths_refer_to_same_location` | **Absorb** F1 |
+| OpenCode O1 `path_is_same_or_inside` | **Decline** |
+| OpenCode O2 `strip_harness_homes` lift | **Decline** |
+
+### T369 plan (2026-09-27) — Codex import this-project cwd scope
+
+Coordinator advance after T368. Spec **Planned** / registry **Pending**. F0 until go. No DOCS TX. last-PR `#301` Cursor usage-limit.
+
+| Item | Disposition |
+|------|-------------|
+| This-project Codex disk null vs importer `found=414` | **Absorb** T369 F1–F4 |
+| T348-R2 Codex this-project disk | **Absorb** Codex slice |
+| T337-R1 filename vs peek | **Partial** — this-project cwd SoT |
+| T368-R1 PATH 0.1.5 lag | **Decline** — no `cargo install` |
+| T368-R2 AGY disk null | **Not stolen** |
+| T368-R3 OpenCode disk null | **Not stolen** |
+| T368-R4 Grok Stop firing | **Not stolen** |
+| T368-R5 leftover chrome | **Not stolen** |
+| Remaining global Claude 302/291 | **Decline this track** — T368-R6 |
+| AGY `--dry-run` missing | **Not stolen** |
+| Dependabot `#289`/`#288`/… | **Decline** |
+
+### T368 implement (2026-09-27) — Claude import this-project folder scope
+
+FEATURE TX `6ef1357c-8d89-4f6f-943b-93ecbb701d44`. Landed F1–F8 / AC1–AC9. Live this-project dry-run `found=11` matches Disk 11.
+
+| Item | Disposition |
+|------|-------------|
+| F1 projects-root filter | **Done** |
+| AC3 CLI this-project vs `--global` | **Done** |
+| Live found=301 vs disk 11 | **Absorbed T368** |
+| T368-R1 PATH 0.1.5 lag | **Residual** |
+| T368-R2 AGY/Codex disk null | **Residual** T360-R2 |
+| T368-R3 OpenCode disk null | **Residual** T360-R3 |
+| T368-R4 Grok Stop firing | **Residual** T360-R4 |
+| T368-R5 leftover chrome | **Residual** T365-R5 |
+| T368-R6 global Claude watermark | **Residual** T360 F1 |
+
+### T368 fold-in (2026-09-27) — agy + opencode
+
+Fold-in of `agy-review.md` + `opencode-review.md`. Spec **Planned** / registry **Pending**. F0 until go. No DOCS TX.
+
+| Item | Disposition |
+|------|-------------|
+| Agy M1 hermetic CLI | **Absorb** AC3 required |
+| OpenCode M1 / Agy m2 zero-alias vs coverage cwd | **Absorb** F2 / AC9 |
+| Agy m1 / OpenCode m4 env pid | **Absorb** F2 |
+| OpenCode m2 `projects/` root folder | **Absorb** F1 |
+| OpenCode m3 stderr + `--help` | **Absorb** F8 / AC3 |
+| Agy m3 CAPABILITIES `:180` | **Absorb** F6 / AC6 |
+| OpenCode m5 assertion red | **Absorb** AC1 |
+| OpenCode m6 DoD FEATURE TX | **Absorb** plan DoD |
+| OpenCode O1 shared helper | **Absorb** F2 prefer |
+| OpenCode O2 identity_warn `--global` | **Absorb** F2 note |
+| OpenCode O3 `--project-id` clap | **Decline** |
+
+### T368 plan (2026-09-27) — Claude import this-project folder scope
+
+Coordinator advance after T367. Spec **Planned** / registry **Pending**. F0 until go. No DOCS TX. last-PR `#300` Cursor usage-limit.
+
+| Item | Disposition |
+|------|-------------|
+| This-project coverage next vs importer `found=301` | **Absorb** T368 F1–F3 |
+| T367-R6 this-project slice | **Partial** — scoped `found` matches disk |
+| T367-R1 PATH 0.1.5 lag | **Decline** — no `cargo install` |
+| T367-R2 AGY/Codex disk null | **Not stolen** |
+| T367-R3 OpenCode disk null | **Not stolen** |
+| T367-R4 Grok Stop firing | **Not stolen** |
+| T367-R5 leftover chrome | **Not stolen** |
+| Remaining global 301/291 watermark | **Decline this track** — T367-R6 |
+| Dependabot `#289`/`#288`/… | **Decline** |
+
+### T367 implement (2026-09-27) — Claude hyphenated dash-folder SoT
+
+FEATURE TX `1e838692-e948-4116-9e79-7b187d73c851`. Landed F1–F7 / AC1–AC11. Live this-project claude Disk 10 / Vault 0 `deficit`. Squash `#300` `90caf31`.
+
+| Item | Disposition |
+|------|-------------|
+| F1 encode-compare | **Done** |
+| AC8 bind + AC10 unbound + AC11 collision | **Done** |
+| Live Claude 0/0 vs 10 jsonl | **Absorbed T367** |
+| T367-R1 PATH 0.1.5 lag | **Residual** |
+| T367-R2 AGY/Codex disk null | **Residual** T360-R2 |
+| T367-R3 OpenCode disk null | **Residual** T360-R3 |
+| T367-R4 Grok Stop firing | **Residual** T360-R4 |
+| T367-R5 leftover chrome | **Residual** T365-R5 |
+| T367-R6 global Claude watermark | **Residual** T360 F1 |
+
+### T367 fold-in (2026-09-27) — agy + opencode
+
+Fold-in of `agy-review.md` + `opencode-review.md`. Spec **Planned** / registry **Pending**. F0 until go. No DOCS TX.
+
+| Item | Disposition |
+|------|-------------|
+| Agy M1 / OpenCode M1 AC8 `claude_import_t253` e2e | **Absorb** AC8 |
+| Agy M2 / OpenCode M1 F3 Option A | **Absorb** F3 encode(raw) |
+| Agy M3 unmatched dash mint | **Absorb** F7 / AC10 |
+| OpenCode M2 encode collision | **Absorb** unique encode / AC11 |
+| Agy m1 trailing slash | **Absorb** F1 |
+| Agy m2 / OpenCode m2 AC4 `deficit` fixture | **Absorb** AC4 in-crate |
+| Agy m3 POSIX | **Absorb** AC1 |
+| OpenCode m1 AC9 garbage JSONL | **Absorb** AC9 |
+| OpenCode m3 OPERATIONS `:76` | **Absorb** F6 / AC6 |
+| OpenCode O1 shared matcher | **Absorb** F2 |
+
+### T367 plan (2026-09-27) — Claude hyphenated dash-folder SoT
+
+Coordinator advance after T366. Spec **Planned** / registry **Pending**. F0 until go. No DOCS TX. last-PR `#299` Cursor usage-limit.
+
+| Item | Disposition |
+|------|-------------|
+| Live Claude 0/0 vs `C--dev-AI-Brains` 10 jsonl | **Absorb** T367 F1–F3 |
+| T366-R1 PATH 0.1.5 lag | **Decline** — no `cargo install` |
+| T366-R2 AGY/Codex disk null | **Not stolen** |
+| T366-R3 OpenCode disk null | **Not stolen** |
+| T366-R4 Grok Stop firing | **Not stolen** |
+| T366-R5 leftover chrome | **Not stolen** |
+| Global Claude 297/291 deficit | **Decline this track** — watermark |
+| Dependabot `#289`/`#288`/… | **Decline** |
+
+### T366 implement (2026-09-26) — Grok coverage importer subagent SoT
+
+FEATURE TX `af154dfc-d6ab-4b2c-b536-6eb05bb77bf9`. Landed F1–F7 / AC1–AC10. Live grok Disk 0 / Sidechain 48 / Vault 2 `expected_skip`. Squash `#299` `9926518`.
+
+| Item | Disposition |
+|------|-------------|
+| F1 shared `load_grok_session_summary` | **Done** |
+| AC4 vault=1 `ok` / AC7 live `expected_skip` | **Done** |
+| T360-R1 coverage vs importer skip | **Absorbed T366** |
+| T366-R1 PATH 0.1.5 lag | **Residual** |
+| T366-R2 AGY/Codex disk null | **Residual** T360-R2 |
+| T366-R3 OpenCode disk null | **Residual** T360-R3 |
+| T366-R4 Grok Stop firing | **Residual** T360-R4 |
+| T366-R5 leftover chrome | **Residual** T365-R5 |
+
+### T366 fold-in (2026-09-26) — agy + opencode
+
+Fold-in of `agy-review.md` + `opencode-review.md`. Spec **Planned** / registry **Pending** at fold time. F0 until go. No DOCS TX.
+
+| Item | Disposition |
+|------|-------------|
+| Agy M1 / OpenCode M2 `expected_skip` | **Absorb** §1.2 / F2 / AC7 / AC10 |
+| Agy M2 AC4 vault=1 `ok` | **Absorb** AC4 |
+| OpenCode M1 AC7 source binary | **Absorb** AC7 / Phase 0 |
+| Agy m1 / OpenCode O1 `source_from_history_path` | **Absorb** F1 |
+| AC1 one name | **Absorb** |
+| Agy m3 nextest `-E test(capture_coverage)` | **Absorb** |
+| OpenCode m2 importer `agent_name` fixture | **Absorb** AC3 |
+| OpenCode m3 garbage JSONL | **Absorb** AC8 |
+| OpenCode m4 project-scope | **Absorb** AC9 |
+| OpenCode m5–m6 OPERATIONS | **Absorb** F6 / AC6 |
+| Agy O1 path short-circuit | **Absorb** F1 |
+| Agy O2 in-crate unit | **Absorb** AC10 |
+| OpenCode O2 Phase 0 stop | **Absorb** `disk_eligible <= vault_sessions` |
+
+### T365 implement (2026-09-26) — leftover outranks T315 next
+
+FEATURE TX `f4aa3b3d-e1da-439b-8783-a7a5219c7377`. Landed F1–F7 / AC1–AC9. Squash `#298` `6f9d8e0`.
+
+| Item | Disposition |
+|------|-------------|
+| F1 leftover rung after grants | **Done** |
+| F2 `leftover_human.is_some()` | **Done** |
+| AC4 bound leftover `--show` | **Done** |
+| T365-R1 PATH 0.1.5 lag | **Residual** |
+| T365-R2 T360-R1 | **Absorbed T366** |
+| T365-R3 Porter | **Residual** T346-R1 |
+| T365-R4 leftover memory reclassify | **Residual** T259 |
+| T365-R5 parent Grok env unset | **Residual** |
+
+### T365 fold-in (2026-09-26) — agy + opencode
+
+Fold-in of `agy-review.md` + `opencode-review.md`. Spec **Planned** / registry **Pending** at fold time. F0 until go. No DOCS TX.
+
+| Item | Disposition |
+|------|-------------|
+| M1 11 test call sites | **Absorb** |
+| M2 AC4 grants fail-open | **Absorb** `register_path` + `bootstrap_discovery` |
+| M3 leftover=`true` rungs 1–2 | **Absorb** |
+| m1 AC5 identifier | **Absorb** |
+| m2 5-rung docs + PROTOCOL-COMPAT `:90` | **Absorb** |
+| O1 leftover vs nonempty decisions | **Absorb** AC9 |
+| O2 dual `project_scoped` | **Absorb** F2 |
+
+### T364 implement (2026-09-26) — Index-shaped FTS authority-only
+
+FEATURE TX `5a1dc5e5-782e-4b0a-b520-2bb04d9a8384`. Landed F1–F7 / AC1–AC11 + AC4b. Squash `#297` `00ef891`.
+
+| Item | Disposition |
+|------|-------------|
+| F1 skip pass-2 when eligible + `exclude_symbol_stubs` | **Done** |
+| F2 skip LIKE when Index-shaped | **Done** |
+| CLI dump+authority fill inherit | **Done** AC4/AC4b/AC8/AC9 |
+| T364-R1 leftover `7d97a456` | **Absorbed T365** |
+| T364-R2 PATH 0.1.5 lag | **Residual** |
+| T364-R3 T360-R1 | **Absorbed T366** |
+| T364-R4 Porter | **Residual** T346-R1 |
+
 ### T357 plan (2026-09-24) — dual-harness Claude hook spawn
 
 DOCS TX `4834f513-378b-4338-b2a7-2fc62b228508`. Spec **Planned** / registry **Pending**. F0 until go. last-PR `#285` Cursor usage-limit.
