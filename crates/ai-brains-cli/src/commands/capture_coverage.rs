@@ -2,7 +2,8 @@
 //!
 //! Inventory + event-log query only. Never opens JSONL turn bodies. Grok sibling
 //! `summary.json` is opened fail-open for `agent_name` classification only (T366;
-//! same SoT as `grok-import`). Never imports. Never adds a doctor check.
+//! same SoT as `grok-import`). This-project Codex streams `type=session_meta` for
+//! `cwd` only (T369). Never imports. Never adds a doctor check.
 
 use crate::commands::governed_common::fail_usage;
 use crate::commands::multi_import::{
@@ -14,11 +15,11 @@ use ai_brains_adapters::{
     OPENCODE_HARNESS_UUID, claude_project_folder_matches_path, cursor_project_slug,
     cursor_project_slug_candidates, discover_cursor_sessions, discover_sessions_from_home,
     is_claude_sidechain_path, is_cursor_sidechain_path, is_subagent_session,
-    load_grok_session_summary, percent_encode_path_component, resolve_claude_home,
-    resolve_codex_home, resolve_cursor_home, resolve_grok_home,
+    load_grok_session_summary, peek_codex_session_meta, percent_encode_path_component,
+    resolve_claude_home, resolve_codex_home, resolve_cursor_home, resolve_grok_home,
 };
 use ai_brains_core::ids::ProjectId;
-use ai_brains_path::normalize_for_location_compare;
+use ai_brains_path::{normalize_for_location_compare, paths_refer_to_same_location};
 use ai_brains_store::QueryStore;
 use serde::Serialize;
 use std::path::{Path, PathBuf};
@@ -168,11 +169,15 @@ pub fn build_report(
     };
     let grok_disk = count_grok_disk(harness_override, cutoff, disk_scope.paths.as_deref());
     let claude_disk = count_claude_disk(harness_override, cutoff, disk_scope.paths.as_deref());
-    let codex_disk = if opts.global {
-        count_codex_disk(harness_override, cutoff)
-    } else {
-        DiskCounts::default()
-    };
+    let codex_disk = count_codex_disk(
+        harness_override,
+        cutoff,
+        if opts.global {
+            None
+        } else {
+            disk_scope.paths.as_deref()
+        },
+    );
     let cursor_disk = count_cursor_disk(
         harness_override,
         cutoff,
@@ -232,26 +237,19 @@ pub fn build_report(
     if opts.global && !claude.next_step.is_empty() && claude.next_step.contains("claude-import") {
         claude.next_step = clip_next_step(format!("{} --global", claude.next_step));
     }
-    let codex = if opts.global {
-        classify_source(
-            "codex",
-            "hook+import",
-            Some(codex_disk.eligible),
-            codex_disk.sidechain,
-            codex_vault,
-            opts.days,
-            false,
-            "codex-import",
-        )
-    } else {
-        classify_project_unscoped_disk(
-            "codex",
-            "hook+import",
-            codex_vault,
-            opts.days,
-            "codex-import",
-        )
-    };
+    let mut codex = classify_source(
+        "codex",
+        "hook+import",
+        Some(codex_disk.eligible),
+        codex_disk.sidechain,
+        codex_vault,
+        opts.days,
+        false,
+        "codex-import",
+    );
+    if opts.global && !codex.next_step.is_empty() && codex.next_step.contains("codex-import") {
+        codex.next_step = clip_next_step(format!("{} --global", codex.next_step));
+    }
     let cursor = classify_source(
         "cursor",
         "import_only",
@@ -747,19 +745,29 @@ fn walk_claude_jsonl(
     }
 }
 
-fn count_codex_disk(home: Option<&Path>, cutoff: SystemTime) -> DiskCounts {
+fn count_codex_disk(
+    home: Option<&Path>,
+    cutoff: SystemTime,
+    project_paths: Option<&[String]>,
+) -> DiskCounts {
     let Some(codex_home) = resolve_codex_home(home) else {
         return DiskCounts::default();
     };
     let sessions = codex_home.join("sessions");
     let mut counts = DiskCounts::default();
-    walk_codex_rollouts(&sessions, cutoff, &mut counts);
+    walk_codex_rollouts(&sessions, cutoff, &mut counts, project_paths);
     counts
 }
 
-/// Filename filter matching `discover_codex_sessions` (`rollout-*.jsonl`) without
-/// opening JSONL bodies (F6 / F12).
-fn walk_codex_rollouts(dir: &Path, cutoff: SystemTime, counts: &mut DiskCounts) {
+/// Filename filter matching `discover_codex_sessions` (`rollout-*.jsonl`).
+/// This-project walks stream `session_meta` cwd only (T369); global stays
+/// filename + mtime (no peek).
+fn walk_codex_rollouts(
+    dir: &Path,
+    cutoff: SystemTime,
+    counts: &mut DiskCounts,
+    project_paths: Option<&[String]>,
+) {
     let Some(rd) = read_existing_dir(dir, counts) else {
         return;
     };
@@ -775,16 +783,29 @@ fn walk_codex_rollouts(dir: &Path, cutoff: SystemTime, counts: &mut DiskCounts) 
         let path = entry.path();
         let name = entry.file_name().to_string_lossy().to_string();
         if dirent_is_dir(&entry, counts) {
-            walk_codex_rollouts(&path, cutoff, counts);
+            walk_codex_rollouts(&path, cutoff, counts, project_paths);
             continue;
         }
         let lower = name.to_ascii_lowercase();
         if !(lower.starts_with("rollout-") && lower.ends_with(".jsonl")) {
             continue;
         }
-        if mtime_in_window(&path, cutoff, counts) {
-            counts.eligible += 1;
+        if !mtime_in_window(&path, cutoff, counts) {
+            continue;
         }
+        if let Some(paths) = project_paths {
+            let (_sid, cwd) = peek_codex_session_meta(&path);
+            let Some(cwd) = cwd.filter(|s| !s.is_empty()) else {
+                continue;
+            };
+            if !paths
+                .iter()
+                .any(|p| paths_refer_to_same_location(&cwd, p.as_str()))
+            {
+                continue;
+            }
+        }
+        counts.eligible += 1;
     }
 }
 
@@ -1334,6 +1355,99 @@ mod tests {
         );
     }
 
+    fn write_codex_rollout_fixture(home: &Path, sid: &str, cwd: &str) {
+        let cwd_json = cwd.replace('\\', r"\\");
+        write_file(
+            &home
+                .join(".codex")
+                .join("sessions")
+                .join("2026")
+                .join("09")
+                .join("01")
+                .join(format!("rollout-2026-09-01T12-00-00-{sid}.jsonl")),
+            &format!(
+                "{{\"type\":\"session_meta\",\"payload\":{{\"id\":\"{sid}\",\"cwd\":\"{cwd_json}\"}}}}\n"
+            ),
+        );
+    }
+
+    #[test]
+    fn capture_coverage__codex_this_project_disk__counts_cwd_match() {
+        let home = tempfile::tempdir().expect("home");
+        let (_vdir, store) = open_store();
+        let project_id = ProjectId::new();
+        register_project(&store, project_id);
+        add_path_alias(&store, project_id, r"C:\dev\ai-brains");
+        write_codex_rollout_fixture(
+            home.path(),
+            "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaa21",
+            r"C:\dev\AI-Brains",
+        );
+        write_codex_rollout_fixture(
+            home.path(),
+            "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaa22",
+            r"C:\dev\other",
+        );
+        let report = build_report(
+            store.connection(),
+            &coverage_opts(home.path(), project_id, 30),
+        )
+        .expect("report");
+        let codex = source(&report, "codex");
+        assert_eq!(codex.disk_eligible, Some(1), "codex={codex:?}");
+        assert_eq!(source(&report, "agy").disk_eligible, None);
+        assert_eq!(
+            source(&report, "agy").disk_note.as_deref(),
+            Some("project_disk_unscoped")
+        );
+        assert_eq!(codex.status, "deficit");
+        assert!(
+            codex.next_step.contains("codex-import"),
+            "next_step={}",
+            codex.next_step
+        );
+        assert!(
+            !codex.next_step.contains("--global"),
+            "next_step={}",
+            codex.next_step
+        );
+    }
+
+    #[test]
+    fn capture_coverage__codex_deficit_next__global_appends_global_flag() {
+        let home = tempfile::tempdir().expect("home");
+        let (_vdir, store) = open_store();
+        let project_id = ProjectId::new();
+        register_project(&store, project_id);
+        write_codex_rollout_fixture(
+            home.path(),
+            "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaa23",
+            r"C:\dev\AI-Brains",
+        );
+        write_codex_rollout_fixture(
+            home.path(),
+            "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaa24",
+            r"C:\dev\other",
+        );
+        let report = build_report(
+            store.connection(),
+            &coverage_opts_global(home.path(), project_id, 30),
+        )
+        .expect("report");
+        let codex = source(&report, "codex");
+        assert_eq!(codex.status, "deficit");
+        assert!(
+            codex.next_step.contains("codex-import"),
+            "next_step={}",
+            codex.next_step
+        );
+        assert!(
+            codex.next_step.contains("--global"),
+            "next_step={}",
+            codex.next_step
+        );
+    }
+
     #[test]
     fn capture_coverage__claude_garbage_jsonl_body__classifies_by_dash_folder() {
         let home = tempfile::tempdir().expect("home");
@@ -1828,9 +1942,10 @@ mod tests {
             json["sources"][0]["disk_eligible"].is_null(),
             "AC7: agy null"
         );
-        assert!(
-            json["sources"][4]["disk_eligible"].is_null(),
-            "AC7: codex null"
+        assert_eq!(
+            json["sources"][4]["disk_eligible"].as_u64(),
+            Some(0),
+            "T369: this-project Codex is numbered (empty home → 0)"
         );
         assert!(
             json.get("disk_this").is_none() && json.get("disk_machine").is_none(),
@@ -2167,7 +2282,7 @@ mod tests {
     }
 
     #[test]
-    fn capture_coverage__project_scope__agy_codex_disk_null() {
+    fn capture_coverage__project_scope__agy_disk_null() {
         let home = tempfile::tempdir().expect("home");
         let (_vdir, store) = open_store();
         let project_id = ProjectId::new();
@@ -2178,7 +2293,7 @@ mod tests {
         )
         .expect("report");
         assert_eq!(source(&report, "agy").disk_eligible, None);
-        assert_eq!(source(&report, "codex").disk_eligible, None);
+        assert_eq!(source(&report, "codex").disk_eligible, Some(0));
         assert_eq!(
             source(&report, "agy").disk_note.as_deref(),
             Some("project_disk_unscoped")

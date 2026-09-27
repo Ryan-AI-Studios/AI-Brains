@@ -21,8 +21,10 @@ use ai_brains_events::constructors::EventBuilder;
 use ai_brains_events::{
     Actor, AggregateType, Payload, ProjectAliasAddedPayload, ProjectRegisteredPayload,
 };
+use ai_brains_path::paths_refer_to_same_location;
 use serde::Deserialize;
 use serde_json::Value;
+use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use std::time::{Duration, SystemTime};
@@ -93,6 +95,9 @@ pub struct CodexImportOptions {
     pub force: bool,
     pub home_override: Option<PathBuf>,
     pub dry_run: bool,
+    /// `None` = machine-wide discover. `Some` = keep rollouts whose session_meta
+    /// `cwd` location-compares to any listed path.
+    pub scope_paths: Option<Vec<String>>,
 }
 
 impl CodexImportOptions {
@@ -104,6 +109,7 @@ impl CodexImportOptions {
             force: false,
             home_override: None,
             dry_run: false,
+            scope_paths: None,
         }
     }
 }
@@ -420,13 +426,20 @@ fn session_id_from_rollout_name(path: &Path) -> String {
     stem.to_string()
 }
 
-fn peek_codex_session_meta(path: &Path) -> (Option<String>, Option<String>) {
-    let Ok(content) = std::fs::read_to_string(path) else {
-        return (None, None);
+/// Stream `type=session_meta` from a rollout until `id`/`cwd` are set, then stop.
+/// Does not read later `response_item` turn lines into memory as a whole-file buffer.
+pub fn peek_codex_session_meta(path: &Path) -> (Option<String>, Option<String>) {
+    let file = match std::fs::File::open(path) {
+        Ok(f) => f,
+        Err(_) => return (None, None),
     };
+    let reader = BufReader::new(file);
     let mut session_id = None;
     let mut cwd = None;
-    for line in content.lines() {
+    for line in reader.lines() {
+        let Ok(line) = line else {
+            continue;
+        };
         let line = line.trim();
         if line.is_empty() {
             continue;
@@ -455,11 +468,26 @@ fn peek_codex_session_meta(path: &Path) -> (Option<String>, Option<String>) {
                 .filter(|s| !s.is_empty())
                 .map(str::to_string);
         }
-        if session_id.is_some() && cwd.is_some() {
-            break;
-        }
+        break;
     }
     (session_id, cwd)
+}
+
+fn cwd_matches_scope(cwd: Option<&str>, paths: &[String]) -> bool {
+    let Some(cwd) = cwd.filter(|s| !s.is_empty()) else {
+        return false;
+    };
+    paths.iter().any(|p| paths_refer_to_same_location(cwd, p))
+}
+
+fn eprint_codex_scope(options: &CodexImportOptions) {
+    match options.scope_paths.as_ref() {
+        Some(paths) => eprintln!(
+            "[Codex] scope=this-project ({} path(s)); use --global for machine-wide",
+            paths.len()
+        ),
+        None => eprintln!("[Codex] scope=machine-wide"),
+    }
 }
 
 /// Resolve Codex project hash to a project id (shared hook + batch).
@@ -569,6 +597,7 @@ pub fn import_codex_sessions<S: CaptureSink>(
     options: CodexImportOptions,
 ) -> Result<CodexImportStats> {
     let mut stats = CodexImportStats::default();
+    eprint_codex_scope(&options);
     let codex_home = match resolve_codex_home(options.home_override.as_deref()) {
         Some(h) => h,
         None => return Ok(stats),
@@ -590,6 +619,10 @@ pub fn import_codex_sessions<S: CaptureSink>(
             }
             recent.push(source);
         }
+    }
+
+    if let Some(paths) = options.scope_paths.as_deref() {
+        recent.retain(|src| cwd_matches_scope(src.project_hash.as_deref(), paths));
     }
 
     stats.found = recent.len();
