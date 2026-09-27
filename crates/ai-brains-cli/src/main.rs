@@ -2152,6 +2152,14 @@ mod tests {
             vec!["ai-brains", "claude-hook", "--schema"],
             vec!["ai-brains", "codex-hook", "--schema"],
             vec!["ai-brains", "claude-import", "--days", "7", "--dry-run"],
+            vec![
+                "ai-brains",
+                "claude-import",
+                "--days",
+                "7",
+                "--dry-run",
+                "--global",
+            ],
             vec!["ai-brains", "codex-import", "--force"],
         ] {
             super::Cli::try_parse_from(&args)
@@ -2664,6 +2672,9 @@ enum Commands {
         /// Discover and report what would be imported without writing to the vault
         #[arg(long, default_value_t = false)]
         dry_run: bool,
+        /// Restore the T253 machine-wide walk (every `projects/<folder>`).
+        #[arg(long, default_value_t = false)]
+        global: bool,
     },
     /// Process a Codex CLI hook payload (UserPromptSubmit / Stop)
     #[command(display_order = 58)]
@@ -6304,7 +6315,8 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
             days,
             force,
             dry_run,
-        } => commands::claude_import::run(&ctx, *days, *force, *dry_run),
+            global,
+        } => commands::claude_import::run(&ctx, *days, *force, *dry_run, *global),
         Commands::CodexImport {
             days,
             force,

@@ -17,6 +17,8 @@ Version banners in documentation are maintained manually from the workspace `Car
 
 ### Changed
 
+- **T368 BREAKING (0.x) Claude import this-project folder scope:** `claude-import` with a parsed `AI_BRAINS_PROJECT_ID` discovers the same `projects/<folder>` set as this-project `capture coverage` (T367 encode-compare; empty aliases fall back to git toplevel/cwd). `--global` restores the T253 machine-wide walk. Nightly multi-import stays unscoped. Coverage `--global` next appends `--global`. JSONL turn bodies stay closed on the coverage path.
+
 - **T367 Claude hyphenated dash-folder SoT:** this-project `capture coverage` and `claude-import` bind Claude `projects/C--dev-AI-Brains` by encoding the path alias (`C:\dev\ai-brains`), not by lossy dash-decode (`C:\dev\AI\Brains`). Unique encode match binds; collision or unmatched dash folder is unbound (no phantom path). JSONL turn bodies stay closed.
 
 - **T366 Grok coverage subagent SoT:** `capture coverage` Grok `disk_eligible` uses the same sibling `summary.json` `agent_name` helper as `grok-import` (path `subagent-`/`worktrees` still skip). JSONL turn bodies stay closed. All-sidechain rows stay `expected_skip`. Remaining `eligible > vault` stays `unverifiable_subagent` + `--dry-run`.

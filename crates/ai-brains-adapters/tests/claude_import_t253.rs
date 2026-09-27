@@ -4,7 +4,7 @@
 use ai_brains_adapters::{
     CLAUDE_UNBOUND_ALIAS, ClaudeBindKind, ClaudeImportOptions, filter_claude_jsonl_lines,
     import_claude_sessions, normalize_claude_project_hash, percent_encode_path_component,
-    resolve_claude_project,
+    resolve_claude_import_scope_paths, resolve_claude_project,
 };
 use ai_brains_capture::{CaptureService, CaptureSink};
 use ai_brains_core::ids::ProjectId;
@@ -121,6 +121,7 @@ fn import_claude__project_jsonl__user_assistant_only_sidechain_skipped() {
             force: true,
             home_override: Some(home),
             dry_run: false,
+            scope_paths: None,
         },
     )
     .expect("import");
@@ -183,6 +184,7 @@ fn import_claude__dry_run__finds_sessions_zero_vault_turns() {
             force: true,
             home_override: Some(home),
             dry_run: true,
+            scope_paths: None,
         },
     )
     .expect("dry-run");
@@ -220,6 +222,7 @@ fn import_claude__unbound_folder__claude_unbound_alias() {
             force: true,
             home_override: Some(home),
             dry_run: false,
+            scope_paths: None,
         },
     )
     .expect("import");
@@ -292,6 +295,7 @@ fn import_claude__hyphen_dash_folder__binds_registered_project() {
             force: true,
             home_override: Some(home),
             dry_run: false,
+            scope_paths: None,
         },
     )
     .expect("import");
@@ -370,4 +374,123 @@ fn filter_claude_jsonl_lines__thinking_none_on_kept() {
     let turns = filter_claude_jsonl_lines(CLAUDE_JSONL);
     assert_eq!(turns.len(), 2);
     assert!(turns.iter().all(|t| t.turn.source_ts.is_none()));
+}
+
+fn two_folder_home(root: &Path) -> PathBuf {
+    let home = root.join("home");
+    fs::create_dir_all(&home).unwrap();
+    write_claude_session(
+        &home,
+        "C--dev-AI-Brains",
+        "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaa01",
+        CLAUDE_JSONL,
+    );
+    write_claude_session(
+        &home,
+        "C--dev-other",
+        "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaa02",
+        CLAUDE_JSONL,
+    );
+    home
+}
+
+#[test]
+fn import_claude__scope_paths_hyphen_folder__found_only_matching() {
+    let root = tempdir().unwrap();
+    let home = two_folder_home(root.path());
+    let vault_dir = root.path().join("vault");
+    fs::create_dir_all(&vault_dir).unwrap();
+    let (conn, store) = open_vault(&vault_dir);
+    let project_id = ProjectId::new();
+    register_path_alias(&store, project_id, r"C:\dev\ai-brains");
+    let mut sink = TestSink {
+        store,
+        last_error: None,
+    };
+    let service = CaptureService::new();
+    let stats = import_claude_sessions(
+        &conn,
+        &service,
+        &mut sink,
+        ClaudeImportOptions {
+            days: 30,
+            default_project_id: ProjectId::new(),
+            allow_default_project: false,
+            force: true,
+            home_override: Some(home),
+            dry_run: true,
+            scope_paths: Some(vec![r"C:\dev\ai-brains".to_string()]),
+        },
+    )
+    .expect("import");
+    assert_eq!(stats.found, 1, "stats={stats:?}");
+    assert_eq!(stats.sessions, 0);
+}
+
+#[test]
+fn import_claude__scope_paths_none__finds_sibling_folders() {
+    let root = tempdir().unwrap();
+    let home = two_folder_home(root.path());
+    let vault_dir = root.path().join("vault");
+    fs::create_dir_all(&vault_dir).unwrap();
+    let (conn, store) = open_vault(&vault_dir);
+    let mut sink = TestSink {
+        store,
+        last_error: None,
+    };
+    let service = CaptureService::new();
+    let stats = import_claude_sessions(
+        &conn,
+        &service,
+        &mut sink,
+        ClaudeImportOptions {
+            days: 30,
+            default_project_id: ProjectId::new(),
+            allow_default_project: false,
+            force: true,
+            home_override: Some(home),
+            dry_run: true,
+            scope_paths: None,
+        },
+    )
+    .expect("import");
+    assert_eq!(stats.found, 2, "stats={stats:?}");
+}
+
+#[test]
+fn import_claude__pid_without_aliases__scopes_cwd_not_global() {
+    let root = tempdir().unwrap();
+    let home = two_folder_home(root.path());
+    let vault_dir = root.path().join("vault");
+    fs::create_dir_all(&vault_dir).unwrap();
+    let (conn, store) = open_vault(&vault_dir);
+    let pid = ProjectId::new();
+    let aliases = conn.list_path_aliases().expect("aliases");
+    assert!(
+        !aliases.iter().any(|(id, _)| *id == pid),
+        "pid must have no aliases"
+    );
+    let scope = resolve_claude_import_scope_paths(&aliases, Some(pid), Some(r"C:\dev\ai-brains"))
+        .expect("cwd fallback");
+    let mut sink = TestSink {
+        store,
+        last_error: None,
+    };
+    let service = CaptureService::new();
+    let stats = import_claude_sessions(
+        &conn,
+        &service,
+        &mut sink,
+        ClaudeImportOptions {
+            days: 30,
+            default_project_id: pid,
+            allow_default_project: false,
+            force: true,
+            home_override: Some(home),
+            dry_run: true,
+            scope_paths: Some(scope),
+        },
+    )
+    .expect("import");
+    assert_eq!(stats.found, 1, "stats={stats:?}");
 }
