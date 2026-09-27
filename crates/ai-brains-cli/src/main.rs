@@ -2699,6 +2699,9 @@ enum Commands {
         /// Discover and report what would be imported without writing to the vault
         #[arg(long, default_value_t = false)]
         dry_run: bool,
+        /// Restore the T253 machine-wide walk (every in-window rollout).
+        #[arg(long, default_value_t = false)]
+        global: bool,
     },
     /// Import Cursor IDE agent-transcripts JSONL sessions into the vault
     #[command(display_order = 59)]
@@ -6321,7 +6324,8 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
             days,
             force,
             dry_run,
-        } => commands::codex_import::run(&ctx, *days, *force, *dry_run),
+            global,
+        } => commands::codex_import::run(&ctx, *days, *force, *dry_run, *global),
         Commands::CursorImport {
             days,
             force,

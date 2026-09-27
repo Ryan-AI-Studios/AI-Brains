@@ -53,7 +53,8 @@ pub use codex::{
     filter_codex_rollout_lines, filter_codex_rollout_record, generate_codex_live_turn_id,
     generate_codex_turn_id, import_codex_sessions, map_codex_hook_payload,
     normalize_codex_project_hash, parse_codex_hook_payload_strict, parse_codex_rollout_file,
-    print_codex_import_stats, resolve_codex_home, resolve_codex_project, session_id_from_codex,
+    peek_codex_session_meta, print_codex_import_stats, resolve_codex_home, resolve_codex_project,
+    session_id_from_codex,
 };
 pub use config_patch::apply_idempotent_patch;
 pub use cursor::{

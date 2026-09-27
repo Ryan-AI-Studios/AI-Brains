@@ -3,7 +3,7 @@
 
 use ai_brains_adapters::{
     CodexImportOptions, filter_codex_rollout_lines, import_codex_sessions,
-    normalize_codex_project_hash,
+    normalize_codex_project_hash, peek_codex_session_meta,
 };
 use ai_brains_capture::{CaptureService, CaptureSink};
 use ai_brains_core::ids::ProjectId;
@@ -107,6 +107,7 @@ fn import_codex__rollout__only_response_item_message_roles() {
             force: true,
             home_override: Some(home),
             dry_run: false,
+            scope_paths: None,
         },
     )
     .expect("import");
@@ -164,6 +165,7 @@ fn import_codex__dry_run__finds_sessions_zero_vault_turns() {
             force: true,
             home_override: Some(home),
             dry_run: true,
+            scope_paths: None,
         },
     )
     .expect("dry-run");
@@ -179,4 +181,110 @@ fn filter_codex_rollout_lines__keep_user_assistant_only() {
     assert_eq!(turns.len(), 2);
     assert_eq!(turns[0].turn.content, "hello-codex");
     assert_eq!(turns[1].turn.content, "ok-codex");
+}
+
+const SID_B: &str = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb";
+
+fn rollout_meta(sid: &str, cwd: &str) -> String {
+    let cwd_json = cwd.replace('\\', r"\\");
+    format!(
+        r#"{{"timestamp":"2026-08-15T00:00:00Z","type":"session_meta","payload":{{"id":"{sid}","cwd":"{cwd_json}"}}}}
+{{"timestamp":"2026-08-15T00:00:02Z","type":"response_item","payload":{{"type":"message","role":"user","content":[{{"type":"input_text","text":"hello-codex"}}]}}}}
+{{"timestamp":"2026-08-15T00:00:03Z","type":"response_item","payload":{{"type":"message","role":"assistant","content":[{{"type":"output_text","text":"C:\\dev\\other"}}]}}}}
+"#
+    )
+}
+
+fn write_named_rollout(user_home: &Path, sid: &str, cwd: &str) -> PathBuf {
+    let dir = user_home
+        .join(".codex")
+        .join("sessions")
+        .join("2026")
+        .join("08")
+        .join("15");
+    fs::create_dir_all(&dir).expect("mkdir named");
+    let path = dir.join(format!("rollout-2026-08-15T12-00-00-{sid}.jsonl"));
+    fs::write(&path, rollout_meta(sid, cwd)).expect("write named");
+    let past = SystemTime::now() - Duration::from_secs(600);
+    let _ = filetime_set_mtime(&path, past);
+    path
+}
+
+fn dry_run_import(home: PathBuf, scope_paths: Option<Vec<String>>) -> usize {
+    let vault_dir = home.parent().expect("parent").join("vault-scope");
+    let _ = fs::create_dir_all(&vault_dir);
+    let (conn, store) = open_vault(&vault_dir);
+    let mut sink = TestSink {
+        store,
+        last_error: None,
+    };
+    let service = CaptureService::new();
+    let stats = import_codex_sessions(
+        &conn,
+        &service,
+        &mut sink,
+        CodexImportOptions {
+            days: 30,
+            default_project_id: ProjectId::new(),
+            allow_default_project: false,
+            force: true,
+            home_override: Some(home),
+            dry_run: true,
+            scope_paths,
+        },
+    )
+    .expect("dry-run scoped");
+    stats.found
+}
+
+#[test]
+fn import_codex__scope_paths_cwd__found_only_matching() {
+    let root = tempdir().unwrap();
+    let home = root.path().join("home");
+    fs::create_dir_all(&home).unwrap();
+    write_named_rollout(&home, SID, r"C:\dev\AI-Brains");
+    write_named_rollout(&home, SID_B, r"C:\dev\other");
+    let found = dry_run_import(home, Some(vec![r"C:\dev\ai-brains".to_string()]));
+    assert_eq!(found, 1);
+}
+
+#[test]
+fn import_codex__scope_paths_none__finds_sibling_rollouts() {
+    let root = tempdir().unwrap();
+    let home = root.path().join("home");
+    fs::create_dir_all(&home).unwrap();
+    write_named_rollout(&home, SID, r"C:\dev\AI-Brains");
+    write_named_rollout(&home, SID_B, r"C:\dev\other");
+    let found = dry_run_import(home, None);
+    assert_eq!(found, 2);
+}
+
+#[test]
+fn import_codex__pid_without_aliases__scopes_cwd_not_global() {
+    let root = tempdir().unwrap();
+    let home = root.path().join("home");
+    fs::create_dir_all(&home).unwrap();
+    write_named_rollout(&home, SID, r"C:\dev\ai-brains");
+    write_named_rollout(&home, SID_B, r"C:\dev\other");
+    let found = dry_run_import(home, Some(vec![r"C:\dev\ai-brains".to_string()]));
+    assert_eq!(found, 1);
+}
+
+#[test]
+fn peek_codex_session_meta__stops_before_turn_lines() {
+    let dir = tempdir().unwrap();
+    let path = dir.path().join("rollout.jsonl");
+    fs::write(
+        &path,
+        concat!(
+            r#"{"type":"session_meta","payload":{"id":"s1","cwd":"C:\\dev\\AI-Brains"}}"#,
+            "\n",
+            r#"{"type":"response_item","payload":{"type":"message","role":"assistant","content":[{"type":"output_text","text":"C:\\dev\\other"}]}}"#,
+            "\n",
+        ),
+    )
+    .expect("write peek fixture");
+    let (sid, cwd) = peek_codex_session_meta(&path);
+    assert_eq!(sid.as_deref(), Some("s1"));
+    assert_eq!(cwd.as_deref(), Some(r"C:\dev\AI-Brains"));
 }

@@ -57,7 +57,7 @@ Harness importers and hooks must keep **only** user prompts and final assistant 
 
 ### Capture coverage (T337 / T348)
 
-Read-only inventory of on-disk session *files* vs vault `SessionStarted` counts. Does **not** import, open JSONL turn bodies, or add a doctor check.
+Read-only inventory of on-disk session *files* vs vault `SessionStarted` counts. Does **not** import, open JSONL turn bodies, or add a doctor check. This-project Codex coverage streams only `type=session_meta` for `cwd` (T369); turn lines stay closed.
 
 ```powershell
 ai-brains capture coverage
@@ -69,11 +69,11 @@ ai-brains capture coverage --global
 - `--global`: today’s **machine** table (all disk walks, all unbound folders, vault across projects). First line stays `Capture coverage (last N days)` with no this-project suffix.
 - `--days <N>`: file mtime window (default **30**).
 - `--format human|json`: default **human**; pipes stay human unless `--format json`.
-- JSON additive: `scope` is `"project"` or `"global"`. Project `slug` is always present (`string` or `null`). `--global` **omits** `slug`. `disk_eligible` is never omitted: OpenCode is `null`; project-scope agy/codex are `null` (`disk_note=project_disk_unscoped`); cursor/grok/claude are numbers including `0`. There is no `disk_this` / `disk_machine`. `null` ≠ `0` ≠ omit.
+- JSON additive: `scope` is `"project"` or `"global"`. Project `slug` is always present (`string` or `null`). `--global` **omits** `slug`. `disk_eligible` is never omitted: OpenCode is `null`; project-scope **agy** is `null` (`disk_note=project_disk_unscoped`); cursor/grok/claude/**codex** are numbers including `0`. There is no `disk_this` / `disk_machine`. `null` ≠ `0` ≠ omit.
 - `--global`: vault counts across all projects; otherwise `AI_BRAINS_PROJECT_ID` (exit 2 if missing).
 - Status `deficit` means numbered `disk_eligible` is greater than vault `SessionStarted` for that source (including partial capture, not only vault 0). Next step is a copy-paste importer (`cursor-import`, `claude-import`, `codex-import`, `antigravity-import`). Exit **0** (honesty, not a fail).
 - Grok coverage uses the same subagent SoT as `grok-import` (path `subagent-`/`worktrees` **or** sibling `summary.json` `agent_name` ≠ empty/`main`; JSONL turn bodies stay closed). Remaining `eligible > vault` is `unverifiable_subagent`, not `deficit`. Next step is `grok-import --days N --dry-run` (**never** `--force`). All remaining disk as summary/path sidechain (`eligible == 0`, sidechain > 0) is `expected_skip` with empty next. The Sidechain column includes summary-declared subagents, not only path `subagent-`/`worktrees`. `grok_batch_empty_all_subagent` warns only when vault is 0. Live Grok hook JSON is writer evidence, not capture-firing proof.
-- Status `never_exercised` means this-scope disk and vault are both empty (numbered `Some(0)` / 0 / 0, or unscoped/OpenCode `disk_eligible=null` with vault 0). Next step names `capture coverage` (project unscoped names `--global`). Install presence stays `harness status`. A project run can be `never_exercised` while `--global` shows sessions. This-project Claude dash folders with hyphenated components (`C--dev-AI-Brains` for `C:\dev\ai-brains`) match by encoding the alias (`:` and `\`/`/` become `-`; interior hyphens stay) — they are not a `never_exercised` empty disk.
+- Status `never_exercised` means this-scope disk and vault are both empty (numbered `Some(0)` / 0 / 0, or AGY/OpenCode `disk_eligible=null` with vault 0). Next step names `capture coverage` (project unscoped names `--global`). Install presence stays `harness status`. A project run can be `never_exercised` while `--global` shows sessions. This-project Claude dash folders with hyphenated components (`C--dev-AI-Brains` for `C:\dev\ai-brains`) match by encoding the alias (`:` and `\`/`/` become `-`; interior hyphens stay) — they are not a `never_exercised` empty disk.
 - OpenCode disk cell is `—` / JSON `null` (`requires_opencode_bin`). Missing binary in `last_multi_import` → `expected_skip` with next step `set AI_BRAINS_OPENCODE_BIN`. Binary present and vault 0 → `never_exercised`.
 - Pre-T334 three-source `last_multi_import` blobs warn `stale_multi_import` (`skip_reason=absent_pre_t334`). PATH may still lack `cursor-import` until the owner installs the T334 binary.
 - `preflight --summary` `capture: this-project vault sessions=0` with `Pinned memories: N>0` means this project has imported (or otherwise pinned) memories and no this-project `SessionStarted` capture — it is **not** an empty project. Empty recall names the pin census; a project-scoped empty vault's next step is `ai-brains capture coverage`.
@@ -203,9 +203,11 @@ ai-brains harness install --harness codex --yes
 ai-brains codex-hook --payload '{"sessionId":"...","projectHash":"C:\\dev\\AI-Brains","event":"Stop","lastAssistantMessage":"Looks good.","turnId":"turn_1"}'
 ai-brains codex-hook --schema
 ai-brains codex-import --days 30
+ai-brains codex-import --days 30 --dry-run
+ai-brains codex-import --days 30 --global --dry-run
 ai-brains codex-import --days 30 --force --dry-run
 ```
-`--schema` is vault-path-free. Mid-payload garbage exits **1** with JSON. Missing fields exit **0**. Empty/whitespace prompt or last message skips that role. Bind same as Claude; unbound `codex-unbound`. Batch walks `~/.codex/sessions/**/rollout-*.jsonl` (or `CODEX_HOME`); keep only `response_item` + `payload.type=message` + user/assistant; drop `event_msg` / `session_meta` / unknown; malformed line skipped. Format is **not vendor-stable** — soft-skip rather than fake complete. Never edit `config.toml`. Not in nightly.
+`--schema` is vault-path-free. Mid-payload garbage exits **1** with JSON. Missing fields exit **0**. Empty/whitespace prompt or last message skips that role. Bind same as Claude; unbound `codex-unbound`. Batch walks `~/.codex/sessions/**/rollout-*.jsonl` (or `CODEX_HOME`); keep only `response_item` + `payload.type=message` + user/assistant; drop `event_msg` / `session_meta` / unknown; malformed line skipped. Format is **not vendor-stable** — soft-skip rather than fake complete. With a parsed project id, `codex-import` keeps rollouts whose session_meta `cwd` location-compares to that project's path aliases (or git toplevel/cwd when aliases are empty). `--global` walks every in-window rollout. `--force` skips 300s quiescence. Nightly fifth source stays machine-wide. Never edit `config.toml`.
 
 ## 3. Retrieving Memories
 

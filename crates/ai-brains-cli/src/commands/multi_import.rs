@@ -551,6 +551,7 @@ fn run_codex_source(
         force: opts.force,
         home_override: opts.codex_home_override.clone(),
         dry_run: false,
+        scope_paths: None,
     };
 
     match import_codex_sessions(query_store.as_ref(), service, &mut sink, options) {
