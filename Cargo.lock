@@ -162,6 +162,7 @@ dependencies = [
  "ai-brains-crypto",
  "ai-brains-daemon-api",
  "ai-brains-events",
+ "ai-brains-git",
  "ai-brains-graph",
  "ai-brains-models",
  "ai-brains-path",

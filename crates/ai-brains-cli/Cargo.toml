@@ -31,6 +31,7 @@ ai-brains-scheduler = { path = "../ai-brains-scheduler" }
 ai-brains-events = { path = "../ai-brains-events" }
 ai-brains-daemon-api = { path = "../ai-brains-daemon-api" }
 ai-brains-core = { path = "../ai-brains-core" }
+ai-brains-git = { path = "../ai-brains-git" }
 ai-brains-path = { path = "../ai-brains-path" }
 tokio = { workspace = true }
 rusqlite = { workspace = true }
