@@ -658,7 +658,7 @@ The nightly job does:
 Nightly **Phase 1** (summarize / embed / synthesize) runs once against the vault. **Phase 2** walks every row in `repository_path_alias_projection` (sorted by normalized path ASC) and, for each existing disk root, runs Ledgerful with **explicit `current_dir(root)`**:
 
 1. `ledgerful bridge export --ledger` → MADR decisions (empty record `project_id` → **alias owner**)
-2. `ledgerful symbols --pub --json --limit N --auto-index` → symbol memories (`source_tag=ledgerful:symbol`)
+2. `ledgerful symbols --pub --json --limit N --auto-index` → symbol memories (`source_tag=ledgerful:symbol`). Child `--path` passes omit `--auto-index`.
 
 This is independent of Task Scheduler **System32** cwd: roots come from vault path aliases, not from where `schtasks` started the process.
 
@@ -688,7 +688,8 @@ ai-brains project register-path <id-or-alias> C:\dev\ledgerful
 - **Discover roots:** `project scan-roots C:\dev` or `project scan-roots --root C:\dev` lists immediate children (plus the scan root) that contain `.ledgerful`. `--root` XOR positional (both set → exit **2**). Default is cwd — not the parent. Dry-run — never registers, never writes `.env`. `.changeguard` leftover dirs are **not** hits. Already-registered rows list the owner and leave `suggested` empty (human `—`). From inside a git worktree, implicit-cwd human output with no unregistered hits may print `next: ai-brains project scan-roots --root <parent-of-toplevel>` so sibling roots under that parent can be scanned.
 - **Zero aliases:** Phase 2 is a no-op + stderr hint to run `register-path` (Phase 1 still runs). `project list-paths` prints the empty next-step.
 - **Missing root / Ledgerful failure:** per-root warn + continue (non-fatal). Nightly logs `bridge_roots_failed` on symbol ingest error so totals add up.
-- **Env caps:** `AI_BRAINS_NIGHTLY_MAX_ROOTS` (optional list truncate); `AI_BRAINS_NIGHTLY_MAX_SYMBOLS` (default **5000**, per-root ingest cap).
+- **Env caps:** `AI_BRAINS_NIGHTLY_MAX_ROOTS` (optional list truncate); `AI_BRAINS_NIGHTLY_MAX_SYMBOLS` (default **5000**, still clamped to 5000). That number is a **budget of new pins** per root per night (T373), applied after ids already pinned as `ledgerful:symbol` or `changeguard:symbol` are dropped. It is not a fixed prefix of the Ledgerful list.
+- **Symbol walk skip (T373):** the symbol catalog is skipped only when the root's bookmark says caught up and clean, and a live git probe is clean at the same HEAD. An unchanged repo that still has unpinned symbols still walks. MADR export still runs for every root. A failed root `ledgerful symbols` (spawn, non-zero, unusable index, or bad JSON) leaves that bookmark unchanged. Truncated prefixes descend into child directories and files to depth 8. Logs say `symbol coverage incomplete` or `symbol backlog remains` when the night did not finish the inventory.
 
 #### `ledgerful init` once per root
 
