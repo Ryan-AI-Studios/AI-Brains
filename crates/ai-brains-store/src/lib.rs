@@ -13,6 +13,7 @@ pub mod replay;
 pub mod replication_engine;
 pub mod rotate;
 pub mod sqlcipher_log_policy;
+pub mod symbol_pins;
 pub mod transaction;
 
 pub use connection::{ALLOW_ZERO_KEY_ENV, VaultConnection};
@@ -31,6 +32,7 @@ pub use rotate::{
     RotateDataKeyOptions, RotateDataKeyResult, RotateDryRunPlan, RotateMethod, atomic_replace_file,
     plan_rotate_datakey, rotate_datakey,
 };
+pub use symbol_pins::{SYMBOL_PIN_CHUNK, chunk_symbol_pin_ids, symbol_pin_ids_present};
 pub use transaction::Transaction;
 
 use ai_brains_core::ids::{MemoryId, SessionId};
