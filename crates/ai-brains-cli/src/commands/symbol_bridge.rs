@@ -148,13 +148,27 @@ where
     let already_pinned = ai_brains_store::symbol_pin_ids_present(conn, &candidate_ids)?;
     let (selected, unpinned_before) =
         select_unpinned(outcome.symbols, &already_pinned, project_id, max_n);
-    let remaining_unpinned = unpinned_before.saturating_sub(selected.len());
     let capped = unpinned_before > max_n;
+    let selected_len = selected.len();
+    let ingested = if selected.is_empty() {
+        0
+    } else {
+        ingest_symbol_records(
+            event_store,
+            project_id,
+            Some(root),
+            selected,
+            &already_pinned,
+        )?
+    };
+    // A budget slice that still leaves ids out is not caught up. A final slice
+    // that all append is: those ids are pinned when the bookmark is written.
+    let remaining_unpinned = unpinned_before.saturating_sub(ingested.min(selected_len));
     let caught_up = coverage_caught_up(
         outcome.symbols_returned,
         outcome.total_matching,
         outcome.walk_incomplete,
-        unpinned_before > 0,
+        remaining_unpinned > 0,
     );
 
     tracing::info!(
@@ -181,23 +195,7 @@ where
         );
     }
 
-    let ingested = if selected.is_empty() {
-        0
-    } else {
-        ingest_symbol_records(
-            event_store,
-            project_id,
-            Some(root),
-            selected,
-            &already_pinned,
-        )?
-    };
-
-    let saved = SymbolBacklogBookmark {
-        git_head: probe.head.clone(),
-        clean: probe.ok && probe.clean,
-        caught_up,
-    };
+    let saved = bookmark_from_probe(&probe, caught_up);
     persist_backlog_bookmark(event_store, &bookmark_key, true, &saved)?;
 
     tracing::info!(
@@ -292,6 +290,14 @@ fn probe_git_root(root: &Path) -> GitProbe {
             head,
             clean: false,
         },
+    }
+}
+
+fn bookmark_from_probe(probe: &GitProbe, caught_up: bool) -> SymbolBacklogBookmark {
+    SymbolBacklogBookmark {
+        git_head: if probe.ok { probe.head.clone() } else { None },
+        clean: probe.ok && probe.clean,
+        caught_up,
     }
 }
 
@@ -1498,19 +1504,33 @@ mod tests {
     }
 
     #[test]
-    fn select_unpinned__known_prefix__ingests_later_ids() {
+    fn select_unpinned__known_prefix__ingests_later_ids() -> Result<(), Box<dyn std::error::Error>>
+    {
+        let store = setup_store()?;
         let project_id = ProjectId::new();
-        let early = record("a.rs", "crate::early", 1, "Function");
-        let mid = record("m.rs", "crate::mid", 1, "Function");
-        let late = record("z.rs", "crate::late", 1, "Function");
-        let pinned = HashSet::from([
-            symbol_memory_uuid(project_id, "crate::early"),
-            symbol_memory_uuid(project_id, "crate::mid"),
-        ]);
-        let (selected, before) = select_unpinned(vec![early, mid, late], &pinned, project_id, 5000);
+        let mut symbols = Vec::with_capacity(5001);
+        let mut pinned = HashSet::with_capacity(5000);
+        for index in 0..5000 {
+            let qualified = format!("crate::pinned_{index}");
+            pinned.insert(symbol_memory_uuid(project_id, &qualified));
+            symbols.push(SymbolRecord {
+                file_path: "a.rs".to_string(),
+                qualified_name: qualified.clone(),
+                symbol_name: qualified,
+                symbol_kind: "Function".to_string(),
+                line_start: index as i64,
+            });
+        }
+        symbols.push(record("z.rs", "crate::later", 1, "Function"));
+        let (selected, before) = select_unpinned(symbols, &pinned, project_id, 5000);
         assert_eq!(before, 1);
         assert_eq!(selected.len(), 1);
-        assert_eq!(selected[0].qualified_name, "crate::late");
+        assert_eq!(selected[0].qualified_name, "crate::later");
+        assert_eq!(
+            ingest_symbol_records(&store, project_id, None, selected, &pinned)?,
+            1
+        );
+        Ok(())
     }
 
     #[test]
@@ -1795,6 +1815,102 @@ mod tests {
             .expect("empty success writes the bookmark");
         let saved: SymbolBacklogBookmark = serde_json::from_str(&raw)?;
         assert!(saved.caught_up);
+        Ok(())
+    }
+
+    #[test]
+    fn ingest_symbols__final_batch_fits__bookmark_caught_up()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let store = setup_store()?;
+        let project_id = ProjectId::new();
+        let root = tempfile::tempdir()?;
+        let ingested = ingest_symbols_with_fetch(
+            &store,
+            store.connection(),
+            project_id,
+            root.path(),
+            5000,
+            &mut |_root, prefix, _limit| {
+                assert!(prefix.is_none());
+                Ok(PassFetch {
+                    symbols: vec![sample_symbol()],
+                    truncated: false,
+                    total_matching: Some(1),
+                })
+            },
+        )?;
+        assert_eq!(ingested, 1);
+        let raw = store
+            .get_sync_state(&backlog_state_key(project_id, root.path()))?
+            .expect("final batch writes the bookmark");
+        let saved: SymbolBacklogBookmark = serde_json::from_str(&raw)?;
+        assert!(saved.caught_up);
+        Ok(())
+    }
+
+    #[test]
+    fn bookmark_from_probe__git_failure_keeps_head_null() {
+        let saved = bookmark_from_probe(
+            &GitProbe {
+                ok: false,
+                head: Some("abc".to_string()),
+                clean: false,
+            },
+            true,
+        );
+        assert_eq!(saved.git_head, None);
+        assert!(!saved.clean);
+        assert!(saved.caught_up);
+    }
+
+    fn git_in(root: &Path, args: &[&str]) -> Result<(), Box<dyn std::error::Error>> {
+        let output = Command::new("git").args(args).current_dir(root).output()?;
+        if output.status.success() {
+            Ok(())
+        } else {
+            Err(format!(
+                "git {args:?} failed: {}",
+                String::from_utf8_lossy(&output.stderr)
+            )
+            .into())
+        }
+    }
+
+    #[test]
+    fn probe_git_root__clean_commit__ok_none_is_clean() -> Result<(), Box<dyn std::error::Error>> {
+        let root = tempfile::tempdir()?;
+        git_in(root.path(), &["init"])?;
+        std::fs::write(root.path().join("f.txt"), b"a")?;
+        git_in(root.path(), &["add", "f.txt"])?;
+        git_in(
+            root.path(),
+            &[
+                "-c",
+                "user.email=t373@example.com",
+                "-c",
+                "user.name=T373",
+                "-c",
+                "commit.gpgsign=false",
+                "commit",
+                "-m",
+                "init",
+            ],
+        )?;
+        let clean = probe_git_root(root.path());
+        assert!(clean.ok, "clean probe should succeed");
+        assert!(clean.clean, "empty porcelain is clean");
+        let head = clean.head.clone().expect("rev-parse returns a sha");
+        let saved = SymbolBacklogBookmark {
+            git_head: Some(head),
+            clean: true,
+            caught_up: true,
+        };
+        assert!(should_skip_symbol_walk(Some(&saved), &clean));
+        std::fs::write(root.path().join("dirty.txt"), b"b")?;
+        let dirty = probe_git_root(root.path());
+        assert!(dirty.ok);
+        assert!(!dirty.clean);
+        assert!(!should_skip_symbol_walk(Some(&saved), &dirty));
         Ok(())
     }
 }
