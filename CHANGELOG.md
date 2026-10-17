@@ -51,6 +51,7 @@ Version banners in documentation are maintained manually from the workspace `Car
 
 ### Fixed
 
+- **T374 AGY Stop hook `-File` quoting:** the AGY hook `command` now carries an unquoted wrapper path in both the IDE `config/hooks.json` and the CLI plugin bundle, fixing `Illegal characters in path` on Stop. `harness install --harness agy` and `preflight --install-hooks` refuse (exit 1, nothing written) when the wrapper path or `SystemRoot` contains whitespace or `"`. Grok and Codex keep the T358 quoted helper.
 - **T358 Shell-form absolute Windows PowerShell:** Grok, AGY, and Codex hook `command` strings start with `%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe` (quoted only if `SystemRoot` has whitespace). Claude exec-form `command`+`args` is unchanged.
 - **T357 Dual-harness Claude hook spawn:** Claude exec-form `command` is `%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe`. `harness install --harness grok` / `all-ready` merges `compat.claude.hooks = false` into `~/.grok/config.toml` (fallible; skip still `Installed`). Unnamed Claude handlers whose `args` contain `claude-capture.ps1` are adopted in place.
 

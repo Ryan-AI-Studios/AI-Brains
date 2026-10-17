@@ -1616,6 +1616,32 @@ mod tests {
     use std::str::FromStr;
 
     #[test]
+    fn report_preflight_install__agy_whitespace_profile__hard_fails_soft_passes() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let _sr = ai_brains_core::temp_env::TempEnv::set("SystemRoot", r"Z:\Win Dir");
+        let hard = report_preflight_install(
+            install_agy(dir.path(), false),
+            "AGY",
+            "agy",
+            "ok",
+            true,
+            true,
+        );
+        let err = hard.expect_err("--install-hooks must fail").to_string();
+        assert!(err.contains("contains whitespace or quote"), "{err}");
+        let soft = report_preflight_install(
+            install_agy(dir.path(), false),
+            "AGY",
+            "agy",
+            "ok",
+            false,
+            true,
+        );
+        assert!(soft.is_ok(), "auto/ask-once report softly");
+        assert!(!dir.path().join(".gemini").exists(), "zero writes");
+    }
+
+    #[test]
     fn format_harness_summary_lines__all_absent__empty() {
         let statuses = vec![HarnessStatus {
             id: "grok".into(),

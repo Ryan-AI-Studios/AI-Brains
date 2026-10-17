@@ -14,7 +14,7 @@ ai-brains harness install --harness agy --yes
 
 | Location | Role |
 |----------|------|
-| `~/.gemini/config/hooks.json` | Official AGY hooks SOOT — managed key `ai-brains-capture` |
+| `~/.gemini/config/hooks.json` | Official AGY hooks SOOT — managed key `ai-brains-capture`. T374: the `-File` wrapper path is unquoted here and in the CLI plugin bundle `plugins/ai-brains-capture/hooks.json`; install refuses (zero writes) if the wrapper path or `SystemRoot` has whitespace or `"` |
 | `~/.ai-brains/hooks/agy-stop.ps1` | Wrapper: maps Stop → `agy-hook` payload; **stdout = only** `{"decision":"allow"}`; diagnostics on stderr |
 | Brain logs | `~/.gemini/antigravity-cli/brain/<id>/.system_generated/logs/transcript.jsonl` (+ optional `transcript_full.jsonl`, legacy `overview.txt`) |
 

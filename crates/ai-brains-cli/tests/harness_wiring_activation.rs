@@ -341,6 +341,24 @@ fn harness_wiring_activation__all_ready_yes__without_cli_dir__no_antigravity_cli
     );
 }
 
+/// T374 AC3c: a whitespace HOME is refused for AGY with `install failed:` and exit 1, zero writes.
+#[test]
+fn harness_wiring_activation__agy_yes__whitespace_home__refused_exit_1() {
+    let dir = tempdir().unwrap();
+    let home = dir.path().join("Jane Doe");
+    std::fs::create_dir_all(&home).unwrap();
+
+    let out = hermetic_harness_cmd(&home)
+        .args(["harness", "install", "--harness", "agy", "--yes"])
+        .output()
+        .expect("agy --yes");
+    let text = combined(&out);
+    assert_eq!(out.status.code(), Some(1), "{text}");
+    assert!(text.contains("install failed:"), "{text}");
+    assert!(text.contains("contains whitespace or quote"), "{text}");
+    assert!(!home.join(".gemini").exists(), "zero writes");
+}
+
 /// AC4 / AC18: uninstall removes IDE managed key + only our plugin bundle; sibling plugins stay.
 #[test]
 fn harness_wiring_activation__uninstall_agy__keeps_foreign_and_siblings() {
