@@ -278,27 +278,6 @@
 | T331 | `memory list` GLOB-empty recency | ✅ **Completed** | Grok | [T331](tracks/trackT331-memory-list-glob-empty/spec.md) | **Completed** 2026-08-30: empty-GLOB human fill + chrome row-skip + F4 honesty; JSON recency frozen. FEATURE TX `13ce6c3e`. nextest **3751** passed (2 skipped); clippy/fmt/deny/audit ok. Soft: PATH install. |
 | T332 | Detect env-fallback honesty | ✅ **Completed** | Grok | [T332](tracks/trackT332-detect-env-fallback-honesty/spec.md) | **Completed** 2026-08-30: whoami always-present `detect_source`; slug-miss remediations when F5 step 3 echoes env; `scope resolve` JSON `project_detect_env_fallback` (honors `--cwd`). T206 detect stay-green. Leftover `10d4bff5` ops-only. BUGFIX TX `052628a2`. `dev-check` nextest **3762** passed (1 skipped). Codex CX2 **PASS WITH DEFERRED P3**. |
 | T333 | Detect JSON `source` + 0.1.5 | ✅ **Completed** | Grok | [T333](tracks/trackT333-detect-json-source/spec.md) | **Completed** 2026-08-30: `project detect --format json` always-present `source`; omitted `--format` stays human even piped; `--export` XOR `--format`. Workspace **0.1.5**. T206 human/export frozen. FEATURE TX `60eba317`. `dev-check` nextest **3775** passed (1 skipped). last-PR `#261` Cursor N/A empty. |
-
-
----
-
-## Track Status Legend
-- **Pending** — Requirements written, no implementation started
-- **In Progress** — Active development
-- **Complete** — All success criteria met, verified in production
-- **Blocked** — External dependency preventing progress
-- **Abandoned** — No longer relevant, archived for reference
-
-## Adding a New Track
-1. Create `tracks/trackTNN-<name>/spec.md` with problem statement, design, and verification
-2. Add entry to table above with **Pending** status
-3. Update to **In Progress** when implementation starts
-4. Update to **Complete** when all success criteria are met
-
-
-
-
-
 | T334 | Claude/Codex/Cursor six-source nightly | **Completed** | Grok | [T334](tracks/trackT334-codex-claude-nightly-import/spec.md) | **Completed 2026-08-31:** Cursor JSONL adapter + `cursor-import` + six-source nightly. FEATURE TX `0dae05dd-6462-4d8d-9e56-8cd162add401`. |
 | T335 | Orphan pin session-link repair | **Completed** | Grok | [T335](tracks/trackT335-orphan-pin-session-link/spec.md) | **Completed 2026-08-31:** session-less `MemoryPinned` + `project_id` emits `PINNED_IN_PROJECT`; migration **0029** CHECK; historical repair = `graph rebuild`. FEATURE TX `b4fc0d23-8db6-430d-806e-e3142170f75f`. `dev-check` nextest **3801** passed (1 skipped). T341 remains Pending. |
 | T336 | Governed provenance bootstrap | **Completed** | Grok | [T336](tracks/trackT336-governed-provenance-bootstrap/spec.md) | **Completed 2026-08-31:** propose-only pin graduation + `ReviewItemOpened`; cap 10; SYSTEM `--skip-graduation`; briefing next-step names `review list`. FEATURE TX `0703b9dc-964c-4416-bccb-5b88d61d9b1e`. `dev-check` nextest **3818** passed (1 skipped). |
@@ -340,3 +319,24 @@
 | T372 | Cursor import this-project slug scope | **Completed** | Grok | [T372](tracks/trackT372-cursor-import-this-project-scope/spec.md) | **Completed** 2026-09-27: this-project `cursor-import` and coverage disk share `projects/<slug>` vs path aliases. Live dry-run `found=2` matches Disk 2; `--global` `found=152`. FEATURE TX `a8908010`. Residuals T372-R1–R9. Squash `#305` `e0b0790`. |
 | T373 | Nightly symbol backlog drain | **Completed** | Grok | [T373](tracks/trackT373-nightly-symbol-backlog/spec.md) | **Completed** 2026-10-05: nightly symbol budget is new pins after the pin filter; skip only a caught-up clean same HEAD; root fetch failure leaves the bookmark. FEATURE TX `af451a6b`. Residuals T373-R1–R6. Squash `#309` `b690c81`. Local `dev-check.ps1` stayed red on pre-existing `test_cross_repo_e2e_integration_with_ledgerful` (ledgerful 0.2.15 writes `latest-scan.json`); GHA `CI` run `37308369703` green. |
 | T374 | AGY stop-hook capture quoting | **Ready** | Grok | [T374](tracks/trackT374-agy-stop-hook-quoting/spec.md) | **Planned** 2026-10-16 fold-in. AGY Stop `-File` path is quoted, so every exit dies with `Illegal characters in path`. Fix is `agy_command_line` in `install.rs` (unquoted `-File`, both hook files, refuse whitespace). Grok/Codex helper stays. F0 until implement. |
+
+
+---
+
+## Track Status Legend
+- **Pending** — Requirements written, no implementation started
+- **In Progress** — Active development
+- **Complete** — All success criteria met, verified in production
+- **Blocked** — External dependency preventing progress
+- **Abandoned** — No longer relevant, archived for reference
+
+## Adding a New Track
+1. Create `tracks/trackTNN-<name>/spec.md` with problem statement, design, and verification
+2. Add entry to table above with **Pending** status
+3. Update to **In Progress** when implementation starts
+4. Update to **Complete** when all success criteria are met
+
+
+
+
+
