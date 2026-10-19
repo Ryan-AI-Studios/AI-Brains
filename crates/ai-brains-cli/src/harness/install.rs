@@ -120,9 +120,35 @@ pub fn agy_wrapper_path(home: &Path) -> PathBuf {
     join_rel(home, ".ai-brains/hooks/agy-stop.ps1")
 }
 
-/// Build PowerShell -File command with absolute wrapper path (F15 quoting).
+/// Build the AGY PowerShell `-File` line (T374 F1). The wrapper path is **unquoted**: the AGY
+/// runner passes the quoted form through to `-File` verbatim ("Illegal characters in path").
+///
+/// Does not validate. A live command must come from [`install_agy`], which refuses paths
+/// containing whitespace or `"` (F4).
 pub fn agy_command_line(wrapper: &Path) -> String {
-    windows_powershell_shell_command(wrapper)
+    let exe = windows_powershell_exe();
+    format!(
+        "{exe} -NoProfile -ExecutionPolicy Bypass -File {}",
+        wrapper.display()
+    )
+}
+
+/// Refuse AGY hook paths that an unquoted `-File` line cannot carry (T374 F4).
+/// The wrapper is checked first, then the PowerShell exe.
+fn reject_unsafe_agy_paths(wrapper: &Path, exe: &str) -> Result<(), String> {
+    let unsafe_str = |s: &str| s.chars().any(|c| c.is_whitespace() || c == '"');
+    let w = wrapper.display().to_string();
+    if unsafe_str(&w) {
+        return Err(format!(
+            "agy hook path contains whitespace or quote: wrapper {w}"
+        ));
+    }
+    if unsafe_str(exe) {
+        return Err(format!(
+            "agy hook path contains whitespace or quote: powershell exe {exe}"
+        ));
+    }
+    Ok(())
 }
 
 pub fn plan_agy_install(home: &Path) -> InstallPlan {
@@ -328,6 +354,7 @@ pub fn f34_map_contract_summary() -> String {
 /// Install AGY wiring (or dry-run). Idempotent.
 pub fn install_agy(home: &Path, dry_run: bool) -> Result<InstallOutcome, String> {
     let plan = plan_agy_install(home);
+    reject_unsafe_agy_paths(&plan.wrapper_path, &windows_powershell_exe())?;
     if dry_run {
         return Ok(InstallOutcome::DryRun { plan });
     }
@@ -2703,7 +2730,11 @@ mod tests {
 
         let out = install_agy(home, false).expect("install");
         assert!(matches!(out, InstallOutcome::Installed { .. }));
-        let expected = windows_powershell_shell_command(&agy_wrapper_path(home));
+        let expected = agy_command_line(&agy_wrapper_path(home));
+        assert!(
+            !expected.contains('"'),
+            "agy line must have no quotes: {expected}"
+        );
 
         let ide: Value =
             serde_json::from_str(&std::fs::read_to_string(agy_ide_hooks_path(home)).expect("ide"))
@@ -2722,6 +2753,69 @@ mod tests {
             .as_str()
             .expect("bundle cmd");
         assert_eq!(bundle_cmd, expected);
+    }
+
+    #[test]
+    fn agy_command_line__plain_wrapper__file_argument_unquoted() {
+        let _sr = ai_brains_core::temp_env::TempEnv::set("SystemRoot", r"Z:\Win");
+        let line = agy_command_line(Path::new(r"C:\hooks\agy-stop.ps1"));
+        assert!(
+            line.starts_with(r"Z:\Win\System32\WindowsPowerShell\v1.0\powershell.exe "),
+            "{line}"
+        );
+        assert!(line.contains(r"-File C:\hooks\agy-stop.ps1"), "{line}");
+        assert!(!line.contains('"'), "{line}");
+    }
+
+    fn assert_agy_refused_zero_writes(home: &Path, needle: &str) {
+        for dry_run in [false, true] {
+            let err = match install_agy(home, dry_run) {
+                Err(e) => e,
+                Ok(_) => panic!("expected Err (dry_run={dry_run})"),
+            };
+            assert!(err.contains("contains whitespace or quote"), "{err}");
+            assert!(err.contains(needle), "{err}");
+        }
+        assert!(!agy_ide_hooks_path(home).exists());
+        assert!(!agy_wrapper_path(home).exists());
+    }
+
+    #[test]
+    fn install_agy__wrapper_path_whitespace__refuses_zero_writes() {
+        let dir = tempdir().expect("tempdir");
+        let home = dir.path().join("Jane Doe");
+        std::fs::create_dir_all(&home).expect("mkdir");
+        let _sr = ai_brains_core::temp_env::TempEnv::set("SystemRoot", r"Z:\Win");
+        assert_agy_refused_zero_writes(&home, "wrapper");
+    }
+
+    #[test]
+    fn install_agy__systemroot_whitespace__refuses_zero_writes() {
+        let dir = tempdir().expect("tempdir");
+        let _sr = ai_brains_core::temp_env::TempEnv::set("SystemRoot", r"Z:\Win Dir");
+        assert_agy_refused_zero_writes(dir.path(), "powershell exe");
+    }
+
+    #[test]
+    fn install_agy__quote_in_path__refuses_zero_writes() {
+        // SystemRoot with `"`: nothing quoted is ever created on disk.
+        let dir = tempdir().expect("tempdir");
+        let _sr = ai_brains_core::temp_env::TempEnv::set("SystemRoot", r#"Z:\Win"Dir"#);
+        assert_agy_refused_zero_writes(dir.path(), "powershell exe");
+        // Synthetic wrapper with `"` goes straight to the in-memory check.
+        let err = reject_unsafe_agy_paths(Path::new(r#"C:\Users\Jane"Doe\agy-stop.ps1"#), r"Z:\ok")
+            .expect_err("quote refused");
+        assert!(
+            err.contains("contains whitespace or quote") && err.contains("wrapper"),
+            "{err}"
+        );
+    }
+
+    #[test]
+    fn reject_unsafe_agy_paths__both_bad__names_wrapper_first() {
+        let err =
+            reject_unsafe_agy_paths(Path::new(r"C:\a b\w.ps1"), r"Z:\x y").expect_err("refused");
+        assert!(err.contains("wrapper"), "{err}");
     }
 
     #[test]

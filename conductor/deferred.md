@@ -2,6 +2,119 @@
 
 Tracks deferred from T142. Append-only; strike through when promoted to a real track.
 
+### T374 fold-in (2026-10-16) — agy + opencode
+
+Fold-in of `agy-review.md` + `opencode-review.md` (`AI-review.md` is the same pair). Spec **Planned**. Registry **Ready**. F0 until the implement phase. No DOCS TX. Injected `.agents/skills/foldin/SKILL.md` is missing; used `.agents/skills/fold-in/SKILL.md`. `active decision: none` authenticated no owner sentence.
+
+| Item | Disposition |
+|------|-------------|
+| Agy B1 / OpenCode M1 wrong crate | **Absorb** F1 — `install.rs` `agy_command_line` |
+| Agy M1 / OpenCode m1 both hook files | **Absorb** F3 / AC2 |
+| Agy M2 / OpenCode M4 shared helper | **Absorb** F1 decouple AGY; F2 leaves Grok/Codex |
+| OpenCode M3 mirror-grok is a no-op | **Absorb** F1 unquoted shell-form; no `args` |
+| Agy M3 PATH 0.1.5 | **Partial** F8 release exe. **T372-R1** stays |
+| Agy M4 / OpenCode M2 §9 + `#309` | **Absorb** spec §9. Bugbot usage-limit, 0 inline comments |
+| OpenCode M5 DoD + docs + T358 F3 | **Absorb** §7 / F7 / F10 |
+| Agy m1 / OpenCode B1 F0 | **Absorb** F0 |
+| Agy m2 / OpenCode m3 spaces | **Absorb** F4 refuse. **T374-R1** |
+| OpenCode m2 `--yes` | **Absorb** F8 |
+| OpenCode m4 cite T358 | **Absorb** F7 |
+| OpenCode m6 unit test ≠ live exit | **Absorb** AC5–AC6 |
+| OpenCode O1 parse JSON | **Absorb** AC2 |
+| Agy O1 wrapper innocent | **Already covered** F5 |
+| OpenCode O2 ProgramData dir | **Decline** — reopens T145. Re-trigger: owner reopens T145 |
+| OpenCode O3 command in `harness_hooks.json` | **Residual T374-R3** |
+| T360-R4 / T372-R3 Grok Stop firing | **Decline** — Grok keeps the quoted helper. Re-trigger: Grok log shows `Illegal characters in path` on `-File` |
+| T358-R2 quoted-exe OS spawn | **Decline** — AC5 is an unquoted AGY exit |
+| T373-R1–R6 | **Decline** — symbol backlog |
+| Dependabot open PRs | **Decline** |
+| New placeholder | **None.** |
+
+### T373 advance (2026-10-05) — no Ready successor
+
+HEAD `b690c81` T373 `#309`. No Pending or Ready row after T373. Claude dry-run `found=17` matches coverage Disk 17. OpenCode dry-run `found=24` matches Disk 24 (`list_capped=0`). **No T374 minted.** `next_track: null` is not backlog-clear.
+
+| Item | Disposition |
+|------|-------------|
+| This-project Disk vs importer found | **Closed** for claude and opencode this pass |
+| Operator claude/opencode vault deficit | **Decline** — import action; dry-run already matches disk |
+| T373-R1 leaf prefix > 5000 | **Residual** — `ledgerful 0.2.15` symbols help has no `--offset` |
+| T373-R2 MADR every root | **Residual** |
+| T373-R3 first-seen line / removed symbols | **Residual** |
+| T373-R4 depth 8 | **Residual** |
+| T373-R5 `recall --symbols` | **Residual** |
+| T373-R6 spawn per child | **Residual** — re-trigger not met |
+| Nightly OpenCode `list_capped=1` | **Residual** T371-R6 |
+| Local `test_cross_repo_e2e_integration_with_ledgerful` | **Residual** — asserts `latest-impact.json`; do not rename to `latest-scan.json` without a fresh `scan --impact` + `bridge import` reproduction |
+| T372-R1 PATH 0.1.5 | **Residual** |
+| Dependabot `#308` `#288` `#287` `#256`–`#251` | **Decline** |
+| last-PR `#309` Bugbot | **N/A** usage-limit |
+
+### T373 fold-in (2026-10-05) — agy + opencode
+
+Fold-in of `agy-review.md` + `opencode-review.md`. Spec **Planned**. Registry **Pending**. F0 until go. No DOCS TX. Injected `.agents/skills/foldin/SKILL.md` is missing; used `.agents/skills/fold-in/SKILL.md`.
+
+| Item | Disposition |
+|------|-------------|
+| Agy M1 / OpenCode M1 root failure bookmark | **Absorb** F6 / AC10 |
+| Agy M2 / OpenCode m1 pre-filter truncate | **Absorb** F1 |
+| OpenCode M2 `EventStore` seam | **Absorb** F3 `HashSet` argument |
+| Agy M3 / OpenCode m3 fetch seam | **Absorb** F4 `FnMut` |
+| OpenCode M3 spawn width | **Partial** — child passes omit `--auto-index`. 5s git timeout declined. Stable spawn cap declined. **T373-R6** |
+| Agy m1 `Ok(None)` clean tree | **Absorb** spec §5 |
+| Agy m2 mixed directory files | **Absorb** F4 / AC7 |
+| Agy m3 full workspace gate | **Absorb** spec §7 (implement closeout) |
+| OpenCode m2 statement count | **Absorb** AC6 chunk helper |
+| OpenCode m4 T233 depth 2 | **Absorb** §9 supersession |
+| OpenCode m5 `totalMatching` field | **Absorb** touch map |
+| OpenCode m6 Ledgerful tree | **Verified** at fold. Phase 0 still re-reads |
+| OpenCode O1 one git spawn | **Decline** |
+| Agy O1 / O2 | **Already covered** |
+| New placeholder | **None.** R6 stays on T373. |
+
+### T373 full plan (2026-10-05) — nightly symbol backlog drain
+
+Placeholder upgraded. Spec **Planned**. Registry **Pending**. F0 until go. No DOCS TX.
+
+| Item | Disposition |
+|------|-------------|
+| Same 1–5000 prefix | **Absorb** spec F1 / AC1 / AC2 |
+| Idle repo rewalked every night | **Absorb** F5 / AC3 |
+| Unchanged but symbols remain | **Absorb** F5 — `caught_up` false still walks |
+| Per-symbol `read_events` | **Absorb** F3 / AC6 |
+| Line refresh / symbol forget | **Decline** — spec §6 |
+| MADR every root every night | **Decline** — T373-R2 |
+| Leaf prefix > 5000 with no offset | **Residual** T373-R1 (not built yet) |
+| Descend depth 8 | **Residual** T373-R4 |
+| `#307` Bugbot | **N/A** usage-limit |
+
+### T373 closeout residuals (2026-10-05)
+
+Shipped on `track/T373-nightly-symbol-backlog` (`3bfc26e`, `af2e37a`, `955aa07`). These stay deferred. No new placeholder.
+
+| Id | Item |
+|----|------|
+| T373-R1 | Leaf prefix with `totalMatching` > 5000 and no child path. No Ledgerful offset. Root stays uncaught-up and walks every night. |
+| T373-R2 | MADR export still runs for every registered root every night. |
+| T373-R3 | Pinned symbols keep the first-seen line. Removed symbols stay pinned. |
+| T373-R4 | Descend stops at depth 8. |
+| T373-R5 | `recall --symbols` will see the larger pin set. Default recall stays on the T260 exclusion. |
+| T373-R6 | One `ledgerful symbols` spawn per immediate child file and directory of each truncated prefix, depth ≤ 8. No numeric spawn ceiling and no per-spawn timeout. Re-trigger: a hung symbols process blocks nightly, or Ledgerful gains offset or a single tree walk. |
+
+### T373 placeholder (2026-10-05) — nightly symbol backlog
+
+Operator nightly 2026-10-05. Ledgerful `symbols_returned=9978`, cap 5000, then `symbols_ingested=0` (~33 min of duplicate `read_events`). Snap-Fork `symbols_returned=37593`. Phase 2 has no git/mtime gate. Registry **Pending**. Spec is a placeholder, not a plan. The 2026-09-27 "No T373 minted" line below is that day's advance note.
+
+| Item | Disposition |
+|------|-------------|
+| Same 1–5000 prefix every night | **Absorb** T373 |
+| Idle repo rewalked every night | **Absorb** T373 — skip only when unchanged and no unpinned remainder |
+| Unchanged but symbols remain | **Absorb** T373 — keep draining; do not wait for a new commit |
+| Per-symbol `read_events` cost | **Absorb** T373 |
+| Line refresh / symbol forget | **Not in placeholder** |
+| MADR re-export every root every night | **Not this track** |
+| T372-R1–R9 | **Not stolen** |
+
 ### T372 advance (2026-09-27) — no Ready successor
 
 HEAD `e0b0790` T372 `#305`. This-project importer `found` equals coverage Disk for all six sources (claude **16**, codex **29**, agy **3**, opencode **28**, grok **0** / `expected_skip`, cursor **2**). No T368-class hole left. **No T373 minted.** `next_track: null` is not backlog-clear.
