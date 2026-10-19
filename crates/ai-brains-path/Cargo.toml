@@ -19,4 +19,4 @@ windows = { workspace = true }
 
 [dev-dependencies]
 tempfile = "3"
-rstest = "0.25"
+rstest = "0.26"
